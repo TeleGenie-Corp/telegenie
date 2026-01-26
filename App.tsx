@@ -17,28 +17,25 @@ import {
   AlertCircle,
   Target,
   Layout,
-  User as UserIcon,
-  LogOut,
   History,
-  Clock,
-  ArrowRight
+  Clock
 } from 'lucide-react';
-import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, User, UserProfile } from './types';
+import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, User, TelegramUser } from './types';
 import { GeminiService } from './services/geminiService';
 import { TelegramService } from './services/telegramService';
 import { StorageService } from './services/storageService';
+import { Auth } from './src/components/Auth';
+import { Dashboard } from './src/components/Dashboard';
 
 const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
 const CHANNEL_URL = import.meta.env.VITE_CHANNEL_URL || 'https://t.me/AiKanalishe';
+const BOT_NAME = import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AI_TG_copywraiterbot';
 
 const App: React.FC = () => {
   // --- AUTH STATE ---
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('telegenie_session');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [showLogin, setShowLogin] = useState(!user);
+  const [user, setUser] = useState<User | null>(null);
+  const [showLogin, setShowLogin] = useState(true);
 
   // --- APP STATE ---
   const [strategy, setStrategy] = useState<ChannelStrategy>(() => {
@@ -70,13 +67,38 @@ const App: React.FC = () => {
   const profileData = useMemo(() => user ? StorageService.getProfile(user.id) : null, [user, currentPost]);
 
   // --- EFFECTS ---
+  // --- EFFECTS ---
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('telegenie_session', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('telegenie_session');
-    }
-  }, [user]);
+    let unsubscribe: () => void;
+
+    const initAuth = async () => {
+      const { auth } = await import('./services/firebaseConfig');
+      const { onAuthStateChanged } = await import('firebase/auth');
+      
+      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        if (firebaseUser) {
+          const newUser: User = {
+            id: firebaseUser.uid,
+            first_name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'User',
+            email: firebaseUser.email || undefined,
+            username: firebaseUser.email?.split('@')[0],
+            avatar: firebaseUser.photoURL || undefined
+          };
+          setUser(newUser);
+          setShowLogin(false);
+        } else {
+          setUser(null);
+          setShowLogin(true);
+        }
+      });
+    };
+
+    initAuth();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     if (strategy.channelUrl.trim()) {
@@ -89,16 +111,9 @@ const App: React.FC = () => {
   }, [strategy.channelUrl]);
 
   // --- HANDLERS ---
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    const mockUser = { id: 'usr_123', email: 'creator@genie.ai', name: 'Elite Blogger' };
-    setUser(mockUser);
-    setShowLogin(false);
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    setShowLogin(true);
+  const handleLogout = async () => {
+    const { auth } = await import('./services/firebaseConfig');
+    await auth.signOut();
   };
 
   const handleAnalyzeChannel = async (url: string) => {
@@ -178,22 +193,23 @@ const App: React.FC = () => {
   // --- UI COMPONENTS ---
   if (showLogin) {
     return (
-      <div className="fixed inset-0 bg-white z-[100] flex items-center justify-center p-6">
-        <div className="max-w-md w-full space-y-12 text-center animate-in fade-in zoom-in duration-700">
+      <div className="fixed inset-0 bg-white z-[100] flex items-center justify-center p-6 bg-[url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop')] bg-cover bg-center">
+        <div className="absolute inset-0 bg-white/90 backdrop-blur-xl"></div>
+        <div className="max-w-md w-full space-y-12 text-center animate-in fade-in zoom-in duration-700 relative z-10">
           <div className="space-y-4">
-            <h1 className="font-display text-5xl font-black tracking-tighter text-slate-900 uppercase">TeleGenie</h1>
-            <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em]">Authorized Access Only</p>
+            <h1 className="font-display text-5xl font-black tracking-tighter text-slate-900 uppercase drop-shadow-sm">TeleGenie</h1>
+            <p className="text-slate-500 text-xs font-bold uppercase tracking-[0.3em]">AI Content Architect</p>
           </div>
-          <form onSubmit={handleLogin} className="space-y-8 bg-white border border-slate-100 p-10 rounded-[2.5rem] shadow-sm">
-            <div className="space-y-2 text-left">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Work Email</label>
-              <input type="email" required placeholder="name@company.com" className="w-full border-b-2 border-slate-100 py-3 outline-none focus:border-violet-600 transition-colors text-lg font-medium" />
+          
+          <div className="bg-white/50 border border-white/50 p-12 rounded-[3.5rem] shadow-2xl backdrop-blur-md">
+            <div className="space-y-8">
+              <Auth onLogin={() => {}} />
             </div>
-            <button type="submit" className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-violet-600 transition-all flex items-center justify-center gap-3">
-              Enter Studio <ArrowRight size={18} />
-            </button>
-          </form>
-          <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest px-10 leading-relaxed">By entering you agree to our silent terms and high-end privacy standards.</p>
+          </div>
+
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest px-10 leading-relaxed">
+            By entering you agree to our terms of service.<br/>Secure connection via Telegram.
+          </p>
         </div>
       </div>
     );
@@ -209,14 +225,11 @@ const App: React.FC = () => {
           <button onClick={() => setShowHistory(!showHistory)} className="p-3 text-slate-400 hover:text-violet-600 transition-colors">
             <History size={20} />
           </button>
-          <div className="h-10 w-10 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 overflow-hidden group relative cursor-pointer">
-            <UserIcon size={20} />
-            <button onClick={handleLogout} className="absolute inset-0 bg-violet-600 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <LogOut size={16} />
-            </button>
-          </div>
         </div>
       </nav>
+
+      {/* DASHBOARD */}
+      {user && <Dashboard user={user} onLogout={handleLogout} />}
 
       {/* HISTORY OVERLAY */}
       {showHistory && (
