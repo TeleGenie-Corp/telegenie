@@ -60,15 +60,28 @@ export class GeminiService {
 
   /**
    * Analyzes a channel's topic and tone.
+   * Checks Firestore cache first, performs AI analysis if needed.
    */
   static async analyzeChannel(url: string): Promise<ChannelInfo> {
+    // Import cache service dynamically to avoid circular deps
+    const { ChannelCacheService } = await import('./channelCacheService');
+    
+    // Check cache first
+    const cached = await ChannelCacheService.getCachedChannel(url);
+    if (cached) {
+      console.log('✓ Using cached channel analysis');
+      return cached;
+    }
+
+    console.log('× Cache miss, performing AI analysis...');
+    
     const usernameMatch = url.match(/t\.me\/(?:s\/)?([a-zA-Z0-9_]+)/);
     const username = usernameMatch ? usernameMatch[1] : url.replace(/[^a-zA-Z0-9_]/g, '');
 
     const rawData = await ChannelService.getChannelInfo(username);
     const ai = this.getAI();
 
-    return this.callWithFallback(async (model) => {
+    const result = await this.callWithFallback(async (model) => {
       let prompt: string;
       let config: any = {
         systemInstruction: SYSTEM_PROMPT_BASE,
@@ -111,17 +124,22 @@ export class GeminiService {
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
       const searchUrls = groundingChunks?.map((chunk: any) => chunk.web?.uri).filter(Boolean) || [];
 
-      const result = JSON.parse(response.text || "{}");
-      if (!result.name || result.name === username) {
+      const parsedResult = JSON.parse(response.text || "{}");
+      if (!parsedResult.name || parsedResult.name === username) {
          throw new Error("Канал недоступен для анализа.");
       }
 
       if (searchUrls.length > 0) {
-        result.description = (result.description || "") + "\n\nИсточники анализа: " + searchUrls.join(", ");
+        parsedResult.description = (parsedResult.description || "") + "\n\nИсточники анализа: " + searchUrls.join(", ");
       }
       
-      return result;
+      return parsedResult;
     });
+
+    // Cache the result
+    await ChannelCacheService.setCachedChannel(url, result);
+    
+    return result;
   }
 
   /**
