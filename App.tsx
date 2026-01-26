@@ -28,9 +28,9 @@ import { GeminiService } from './services/geminiService';
 import { TelegramService } from './services/telegramService';
 import { StorageService } from './services/storageService';
 
-const TELEGRAM_BOT_TOKEN = '7239435657:AAHi3BBSiOaWVf8eYdavHNORUA-eQ21jUvM';
-const TELEGRAM_CHAT_ID = '-1003357173429';
-const CHANNEL_URL = 'https://t.me/AiKanalishe';
+const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
+const TELEGRAM_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
+const CHANNEL_URL = import.meta.env.VITE_CHANNEL_URL || 'https://t.me/AiKanalishe';
 
 const App: React.FC = () => {
   // --- AUTH STATE ---

@@ -9,7 +9,7 @@ export class GeminiService {
    * Initializes the Google GenAI client using the API key from environment variables.
    */
   private static getAI() {
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   }
 
   /**
