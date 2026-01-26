@@ -1,0 +1,8 @@
+{
+  "name": "TeleGenie",
+  "description": "Премиальный ИИ-ассистент для Telegram-блогеров. Генерация контента, стратегий и медиафайлов с использованием передовых моделей Gemini и Veo.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
