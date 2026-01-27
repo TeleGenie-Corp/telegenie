@@ -38,6 +38,7 @@ export interface UserProfile {
   userId: string;
   savedStrategies: ChannelStrategy[];
   generationHistory: Post[];
+  balance: number; // In virtual USD
   createdAt: number;
 }
 
@@ -56,6 +57,7 @@ export interface ChannelStrategy {
   format: PostFormat;
   userComments: string;
   analyzedChannel?: ChannelInfo;
+  analysisUsage?: UsageMetadata;
 }
 
 export interface Idea {
@@ -63,6 +65,15 @@ export interface Idea {
   title: string;
   description: string;
   sources: string[];
+  usage?: UsageMetadata;
+}
+
+export interface UsageMetadata {
+  promptTokens: number;
+  candidatesTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  modelName: string;
 }
 
 export interface Post {
@@ -71,6 +82,11 @@ export interface Post {
   imageUrl?: string;
   generating: boolean;
   timestamp: number;
+  usage?: UsageMetadata;
+  imageUsage?: UsageMetadata;
+  analysisUsage?: UsageMetadata;
+  ideasUsage?: UsageMetadata;
+  publishedAt?: number;
 }
 
 export interface TelegramConfig {

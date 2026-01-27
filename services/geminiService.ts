@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { ChannelStrategy, Idea, PostGoal, PostFormat, ChannelInfo } from "../types";
+import { ChannelStrategy, Idea, PostGoal, PostFormat, ChannelInfo, UsageMetadata } from "../types";
 import { SYSTEM_PROMPT_BASE } from "../constants";
 import { ChannelService } from "./channelService";
 
@@ -9,7 +9,8 @@ export class GeminiService {
    * Initializes the Google GenAI client using the API key from environment variables.
    */
   private static getAI() {
-    return new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+    // @ts-ignore
+    return new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
   /**
@@ -31,7 +32,7 @@ export class GeminiService {
                             error?.message?.includes('429');
         
         if (isOverloaded) {
-          console.warn(`Модель ${modelName} перегружена или недоступна. Пробую следующую из списка...`);
+          console.warn(`Model ${modelName} overloaded or unavailable. Trying next...`);
           await new Promise(resolve => setTimeout(resolve, 500));
           continue; 
         }
@@ -62,15 +63,16 @@ export class GeminiService {
    * Analyzes a channel's topic and tone.
    * Checks Firestore cache first, performs AI analysis if needed.
    */
-  static async analyzeChannel(url: string): Promise<ChannelInfo> {
+  static async analyzeChannel(url: string): Promise<{ info: ChannelInfo, usage?: UsageMetadata }> {
     // Import cache service dynamically to avoid circular deps
     const { ChannelCacheService } = await import('./channelCacheService');
+    const { CostCalculator } = await import('./costCalculator');
     
     // Check cache first
     const cached = await ChannelCacheService.getCachedChannel(url);
     if (cached) {
       console.log('✓ Using cached channel analysis');
-      return cached;
+      return { info: cached };
     }
 
     console.log('× Cache miss, performing AI analysis...');
@@ -81,7 +83,7 @@ export class GeminiService {
     const rawData = await ChannelService.getChannelInfo(username);
     const ai = this.getAI();
 
-    const result = await this.callWithFallback(async (model) => {
+    const { result, usage } = await this.callWithFallback(async (model) => {
       let prompt: string;
       let config: any = {
         systemInstruction: SYSTEM_PROMPT_BASE,
@@ -133,21 +135,24 @@ export class GeminiService {
         parsedResult.description = (parsedResult.description || "") + "\n\nИсточники анализа: " + searchUrls.join(", ");
       }
       
-      return parsedResult;
+      const hasGrounding = searchUrls.length > 0;
+      const usageMetadata = CostCalculator.createUsageMetadata(response.usageMetadata, model, hasGrounding);
+      return { result: parsedResult, usage: usageMetadata };
     });
 
     // Cache the result
     await ChannelCacheService.setCachedChannel(url, result);
     
-    return result;
+    return { info: result, usage };
   }
 
   /**
    * Generates content ideas.
    */
-  static async generateIdeas(strategy: ChannelStrategy): Promise<Idea[]> {
+  static async generateIdeas(strategy: ChannelStrategy): Promise<{ ideas: Idea[], usage: UsageMetadata }> {
     const ai = this.getAI();
     const info = strategy.analyzedChannel;
+    const { CostCalculator } = await import('./costCalculator');
     
     return this.callWithFallback(async (model) => {
       const prompt = `Сгенерируй 5 идей для постов для канала «${info?.name}».
@@ -181,18 +186,23 @@ export class GeminiService {
 
       const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
       const searchUrls = groundingChunks?.map((chunk: any) => chunk.web?.uri).filter(Boolean) || [];
+      const hasGrounding = searchUrls.length > 0;
+      const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model, hasGrounding);
 
-      return JSON.parse(response.text || "[]").map((item: any, index: number) => ({
+      const ideas = JSON.parse(response.text || "[]").map((item: any, index: number) => ({
         ...item,
         sources: Array.from(new Set([...(item.sources || []), ...searchUrls])),
         id: `idea-${index}-${Date.now()}`
       }));
+
+      return { ideas, usage };
     });
   }
 
-  static async generatePostContent(idea: Idea, strategy: ChannelStrategy): Promise<string> {
+  static async generatePostContent(idea: Idea, strategy: ChannelStrategy): Promise<{ text: string, usage: UsageMetadata }> {
     const ai = this.getAI();
     const info = strategy.analyzedChannel;
+    const { CostCalculator } = await import('./costCalculator');
     
     return this.callWithFallback(async (model) => {
       const prompt = `НАПИШИ ПОСТ ДЛЯ КАНАЛА «${info?.name}» (Ниша: ${info?.topic}).
@@ -213,31 +223,47 @@ export class GeminiService {
         config: { systemInstruction: SYSTEM_PROMPT_BASE }
       });
 
-      return response.text || "";
+      const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);
+      return { text: response.text || "", usage };
     });
   }
 
   /**
    * Generates images using gemini-2.5-flash-image.
    */
-  static async generateImage(prompt: string): Promise<string> {
-    const ai = this.getAI();
-    const visualPrompt = `Professional content for Telegram. Concept: "${prompt}". Minimalist, clean, high-end.`;
-    
-    const response = await this.executeWithRetry<GenerateContentResponse>(() => 
-      ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
-        contents: { parts: [{ text: visualPrompt }] },
-        config: { 
-          imageConfig: { 
-            aspectRatio: "1:1"
-          } 
-        }
-      })
-    );
+  static async generateImage(prompt: string): Promise<{ imageUrl: string | null, usage: UsageMetadata | null }> {
+    try {
+      const ai = this.getAI();
+      const visualPrompt = `Professional content for Telegram. Concept: "${prompt}". Minimalist, clean, high-end.`;
+      const { CostCalculator } = await import('./costCalculator');
+      const model = 'gemini-2.5-flash-image';
+      
+      const response = await this.executeWithRetry<GenerateContentResponse>(() => 
+        ai.models.generateContent({
+          model,
+          contents: { parts: [{ text: visualPrompt }] },
+          config: { 
+            imageConfig: { 
+              aspectRatio: "1:1"
+            } 
+          }
+        })
+      );
 
-    const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
-    if (part?.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
-    throw new Error("Visual generation failed.");
+      const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+      const usage = CostCalculator.createImageUsageMetadata(model);
+      
+      if (part?.inlineData) {
+        return { imageUrl: `data:image/png;base64,${part.inlineData.data}`, usage };
+      }
+      
+      console.warn("No inline image data found in response.");
+      return { imageUrl: null, usage: null };
+
+    } catch (error) {
+      console.error("Image generation failed:", error);
+      // Return null so the post creation doesn't fail completely
+      return { imageUrl: null, usage: null };
+    }
   }
 }

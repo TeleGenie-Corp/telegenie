@@ -20,7 +20,7 @@ import {
   History,
   Clock
 } from 'lucide-react';
-import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, User, TelegramUser } from './types';
+import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, User, TelegramUser, UserProfile } from './types';
 import { GeminiService } from './services/geminiService';
 import { TelegramService } from './services/telegramService';
 import { StorageService } from './services/storageService';
@@ -35,6 +35,7 @@ const BOT_NAME = import.meta.env.VITE_TELEGRAM_BOT_NAME || 'AI_TG_copywraiterbot
 const App: React.FC = () => {
   // --- AUTH STATE ---
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [showLogin, setShowLogin] = useState(true);
 
   // --- APP STATE ---
@@ -64,7 +65,7 @@ const App: React.FC = () => {
   const roadmapRef = useRef<HTMLDivElement>(null);
   const builderRef = useRef<HTMLDivElement>(null);
 
-  const profileData = useMemo(() => user ? StorageService.getProfile(user.id) : null, [user, currentPost]);
+  const profileData = null; // Removed in favor of state
 
   // --- EFFECTS ---
   // --- EFFECTS ---
@@ -75,7 +76,7 @@ const App: React.FC = () => {
       const { auth } = await import('./services/firebaseConfig');
       const { onAuthStateChanged } = await import('firebase/auth');
       
-      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
           const newUser: User = {
             id: firebaseUser.uid,
@@ -86,8 +87,18 @@ const App: React.FC = () => {
           };
           setUser(newUser);
           setShowLogin(false);
+
+          // Sync profile and balance from Firestore
+          try {
+            const { UserService } = await import('./services/userService');
+            const userProfile = await UserService.syncProfile(firebaseUser.uid);
+            setProfile(userProfile);
+          } catch (e) {
+            console.error("Error syncing profile:", e);
+          }
         } else {
           setUser(null);
+          setProfile(null);
           setShowLogin(true);
         }
       });
@@ -121,8 +132,8 @@ const App: React.FC = () => {
     setAnalyzing(true);
     setError(null);
     try {
-      const info = await GeminiService.analyzeChannel(url);
-      setStrategy(prev => ({ ...prev, analyzedChannel: info }));
+      const { info, usage: analysisUsage } = await GeminiService.analyzeChannel(url);
+      setStrategy(prev => ({ ...prev, analyzedChannel: info, analysisUsage }));
       setLastAnalyzedUrl(url);
     } catch (e: any) {
       setError("Не удалось проанализировать канал. Попробуйте вручную.");
@@ -139,22 +150,34 @@ const App: React.FC = () => {
     try {
       let currentStrategy = strategy;
       if (!strategy.analyzedChannel || strategy.channelUrl !== lastAnalyzedUrl) {
-        const info = await GeminiService.analyzeChannel(strategy.channelUrl);
-        currentStrategy = { ...strategy, analyzedChannel: info };
+        const { info, usage: analysisUsage } = await GeminiService.analyzeChannel(strategy.channelUrl);
+        currentStrategy = { ...strategy, analyzedChannel: info, analysisUsage };
         setStrategy(currentStrategy);
         setLastAnalyzedUrl(strategy.channelUrl);
       }
-      const generatedIdeas = await GeminiService.generateIdeas(currentStrategy);
-      setIdeas(generatedIdeas);
+      const { ideas: generatedIdeas, usage: ideasUsage } = await GeminiService.generateIdeas(currentStrategy);
+      const ideasWithUsage = generatedIdeas.map(idea => ({ ...idea, usage: ideasUsage }));
+      setIdeas(ideasWithUsage);
       setTimeout(() => roadmapRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
-    } catch (error) {
-      setError("Ошибка генерации. Повторите попытку.");
+    } catch (e: any) {
+      if (e?.message?.includes('503') || e?.message?.includes('overloaded')) {
+        setError("Нейросеть перегружена. Пожалуйста, попробуйте еще раз через минуту.");
+      } else if (e?.message?.includes('Blocked') || e?.message?.includes('failed to fetch')) {
+        setError("Доступ заблокирован (возможно, AdBlock). Пожалуйста, отключите блокировщик рекламы.");
+      } else {
+        setError("Не удалось сгенерировать идеи. Попробуйте обновить страницу.");
+      }
     } finally {
       setLoadingIdeas(false);
     }
   };
 
   const handleSelectIdea = async (idea: Idea) => {
+    if (!profile || profile.balance <= 0) {
+      setError("Недостаточно кредитов. Пополните баланс.");
+      return;
+    }
+
     const genId = Math.random().toString(36).substring(7);
     activeGenIdRef.current = genId;
     setPublishSuccess(null);
@@ -164,25 +187,98 @@ const App: React.FC = () => {
     try {
       const contentPromise = GeminiService.generatePostContent(idea, strategy);
       const imagePromise = GeminiService.generateImage(idea.title);
-      const [content, imageUrl] = await Promise.all([contentPromise, imagePromise]);
+      const [contentRes, imageRes] = await Promise.all([contentPromise, imagePromise]);
       if (activeGenIdRef.current !== genId) return;
+
+      const totalCost = 
+        (strategy.analysisUsage?.estimatedCostUsd || 0) + 
+        (idea.usage?.estimatedCostUsd || 0) + 
+        (contentRes.usage?.estimatedCostUsd || 0) + 
+        (imageRes.usage?.estimatedCostUsd || 0);
+
+      // Upload image to Firebase Storage if it's base64
+      let finalImageUrl: string | undefined = imageRes.imageUrl || undefined;
+      if (user && finalImageUrl && finalImageUrl.startsWith('data:')) {
+        try {
+          const { ImageStorageService } = await import('./services/imageStorageService');
+          finalImageUrl = await ImageStorageService.uploadBase64Image(finalImageUrl, user.id, genId);
+        } catch (uploadError) {
+          console.error('Image upload failed, using base64 fallback:', uploadError);
+          // Keep base64 for display but don't persist to history
+        }
+      }
+
+      const rawPost: Post = { 
+        id: genId, 
+        text: contentRes.text, 
+        imageUrl: finalImageUrl, 
+        generating: false, 
+        timestamp: Date.now(),
+        usage: contentRes.usage || undefined,
+        imageUsage: imageRes.usage || undefined,
+        analysisUsage: strategy.analysisUsage || undefined,
+        ideasUsage: idea.usage || undefined
+      };
+
+      // Helper to replace undefined with null recursively
+      const deepSanitize = (obj: any): any => {
+        if (obj === undefined) return null;
+        if (obj === null || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(deepSanitize);
+        return Object.keys(obj).reduce((acc: any, key) => {
+          acc[key] = deepSanitize(obj[key]);
+          return acc;
+        }, {});
+      };
+
+      const newPost = deepSanitize(rawPost);
       
-      const newPost = { id: genId, text: content, imageUrl, generating: false, timestamp: Date.now() };
       setCurrentPost(newPost);
-      if (user) StorageService.addPostToHistory(user.id, newPost);
+      
+      // Persistence to Firestore (only if image was uploaded successfully)
+      if (user) {
+        const { UserService } = await import('./services/userService');
+        // Don't save to history if image is still base64 (too large for Firestore)
+        const postForHistory = newPost.imageUrl?.startsWith('data:') 
+          ? { ...newPost, imageUrl: null } // Save without image if upload failed
+          : newPost;
+        const updatedProfile = {
+          ...profile,
+          balance: profile.balance - totalCost,
+          generationHistory: [postForHistory, ...profile.generationHistory].slice(0, 50)
+        };
+        await UserService.updateProfile(updatedProfile);
+        setProfile(updatedProfile);
+      }
     } catch (error) {
+      console.error("Generation Error:", error);
       setError("Ошибка создания контента.");
       setCurrentPost(null);
     }
   };
 
-  const handlePublish = async (isPaid: boolean = false) => {
+  const handlePublish = async () => {
     if (!currentPost) return;
     setPublishing(true);
     try {
-      const result = await TelegramService.publish(currentPost.text, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, currentPost.imageUrl, isPaid);
-      if (result.success) setPublishSuccess({ url: result.messageId ? `${CHANNEL_URL}/${result.messageId}` : CHANNEL_URL });
-      else alert(result.message);
+      const result = await TelegramService.publish(currentPost.text, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, currentPost.imageUrl);
+      if (result.success) {
+        setPublishSuccess({ url: result.messageId ? `${CHANNEL_URL}/${result.messageId}` : CHANNEL_URL });
+        
+        // Update history to mark as published
+        if (profile) {
+          const { UserService } = await import('./services/userService');
+          const updatedHistory = profile.generationHistory.map(p => 
+            p.id === currentPost.id ? { ...p, publishedAt: Date.now() } : p
+          );
+          const updatedProfile = { ...profile, generationHistory: updatedHistory };
+          await UserService.updateProfile(updatedProfile);
+          setProfile(updatedProfile);
+          setCurrentPost({ ...currentPost, publishedAt: Date.now() });
+        }
+      } else {
+        alert(result.message);
+      }
     } catch (error: any) {
       alert(error.message);
     } finally {
@@ -229,23 +325,63 @@ const App: React.FC = () => {
       </nav>
 
       {/* DASHBOARD */}
-      {user && <Dashboard user={user} onLogout={handleLogout} />}
+      {user && <Dashboard user={user} profile={profile} onLogout={handleLogout} />}
 
       {/* HISTORY OVERLAY */}
       {showHistory && (
         <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-white border-l border-slate-100 z-50 shadow-2xl animate-in slide-in-from-right duration-500 flex flex-col">
-          <div className="p-8 border-b border-slate-100 flex justify-between items-center">
-            <h3 className="font-black uppercase tracking-widest text-sm text-slate-900">Archive</h3>
-            <button onClick={() => setShowHistory(false)} className="text-slate-400 hover:text-slate-900">×</button>
+          <div className="p-8 border-b border-slate-100 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-black uppercase tracking-widest text-sm text-slate-900">Archive</h3>
+              <button onClick={() => setShowHistory(false)} className="text-slate-400 hover:text-slate-900 text-2xl leading-none">×</button>
+            </div>
+            {profile && profile.generationHistory.length > 0 && (
+              <div className="bg-slate-50 p-4 rounded-2xl flex justify-between items-center">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Total Investment</span>
+                <span className="text-sm font-black text-violet-600">
+                  ${profile.generationHistory.reduce((acc, p) => 
+                    acc + 
+                    (p.usage?.estimatedCostUsd || 0) + 
+                    (p.imageUsage?.estimatedCostUsd || 0) + 
+                    (p.analysisUsage?.estimatedCostUsd || 0) + 
+                    (p.ideasUsage?.estimatedCostUsd || 0)
+                  , 0).toFixed(3)}
+                </span>
+              </div>
+            )}
           </div>
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {profileData?.generationHistory.length ? profileData.generationHistory.map(post => (
-              <div key={post.id} onClick={() => { setCurrentPost(post); setShowHistory(false); }} className="p-4 border border-slate-50 rounded-2xl hover:border-violet-100 transition-all cursor-pointer group">
-                <div className="flex items-center gap-3 mb-2">
-                  <Clock size={12} className="text-slate-300" />
-                  <span className="text-[10px] font-black text-slate-300 uppercase">{new Date(post.timestamp).toLocaleDateString()}</span>
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {profile?.generationHistory.length ? profile.generationHistory.map(post => (
+              <div key={post.id} onClick={() => { setCurrentPost(post); setShowHistory(false); }} className="p-4 border border-slate-50 rounded-2xl hover:border-violet-100 transition-all cursor-pointer group space-y-3">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Clock size={10} className="text-slate-300" />
+                    <span className="text-[9px] font-black text-slate-300 uppercase">{new Date(post.timestamp).toLocaleDateString()}</span>
+                  </div>
+                  {post.usage && (
+                    <span className="text-[9px] font-black text-violet-400 uppercase tracking-tighter">
+                      ${(
+                        (post.usage?.estimatedCostUsd || 0) + 
+                        (post.imageUsage?.estimatedCostUsd || 0) + 
+                        (post.analysisUsage?.estimatedCostUsd || 0) + 
+                        (post.ideasUsage?.estimatedCostUsd || 0)
+                      ).toFixed(4)}
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{post.text}</p>
+                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed font-medium">{post.text}</p>
+                <div className="flex items-center gap-2 pt-1">
+                  {post.publishedAt ? (
+                    <div className="flex items-center gap-1 text-[8px] font-black uppercase text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-md">
+                      <CheckCircle2 size={8} /> Published
+                    </div>
+                  ) : (
+                    <div className="text-[8px] font-black uppercase text-slate-300">Draft</div>
+                  )}
+                  <div className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity text-[8px] font-black uppercase text-violet-600 bg-violet-50 px-2 py-0.5 rounded-md">
+                    Apply to Studio
+                  </div>
+                </div>
               </div>
             )) : (
               <div className="text-center py-20 text-slate-300 text-[10px] font-black uppercase tracking-widest">No history yet</div>
@@ -295,6 +431,23 @@ const App: React.FC = () => {
               />
               {analyzing && <div className="flex items-center gap-2 text-[10px] font-black uppercase text-violet-500 animate-pulse bg-violet-50 px-4 rounded-2xl"><Loader2 className="animate-spin" size={14} /></div>}
             </div>
+
+            {strategy.analyzedChannel && !analyzing && (
+              <div className="bg-slate-50 border border-slate-100 p-6 rounded-2xl animate-in fade-in slide-in-from-top-2 duration-500">
+                <div className="flex items-center gap-4 mb-3">
+                  <div className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-violet-600">
+                    <Zap size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">{strategy.analyzedChannel.name}</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{strategy.analyzedChannel.topic}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 italic">
+                  "{strategy.analyzedChannel.description}"
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -378,6 +531,48 @@ const App: React.FC = () => {
                   </div>
                 )}
               </div>
+              
+              {currentPost.usage && !currentPost.generating && (
+                <div className="mt-8 space-y-6">
+                  <div className="flex flex-wrap gap-8 items-center px-10 py-8 bg-slate-900 rounded-[2.5rem] shadow-xl relative overflow-hidden group/cost">
+                    {/* Background Accent */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-violet-600/20 blur-3xl -mr-16 -mt-16 group-hover/cost:bg-violet-600/40 transition-all duration-700"></div>
+                    
+                    <div className="flex flex-col gap-1 relative z-10">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grand Investment</span>
+                      <span className="text-3xl font-black text-white tracking-tighter">
+                        ${(
+                          (currentPost.analysisUsage?.estimatedCostUsd || 0) + 
+                          (currentPost.ideasUsage?.estimatedCostUsd || 0) + 
+                          (currentPost.usage?.estimatedCostUsd || 0) + 
+                          (currentPost.imageUsage?.estimatedCostUsd || 0)
+                        ).toFixed(4)}
+                      </span>
+                    </div>
+
+                    <div className="h-10 w-px bg-slate-800 mx-2 hidden sm:block"></div>
+
+                    <div className="flex flex-wrap gap-6 relative z-10">
+                      {[
+                        { label: 'Architecture', val: currentPost.analysisUsage?.estimatedCostUsd },
+                        { label: 'Ideas', val: currentPost.ideasUsage?.estimatedCostUsd },
+                        { label: 'Content', val: currentPost.usage?.estimatedCostUsd },
+                        { label: 'Visuals', val: currentPost.imageUsage?.estimatedCostUsd }
+                      ].map(item => item.val !== undefined && (
+                        <div key={item.label} className="flex flex-col">
+                          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{item.label}</span>
+                          <span className="text-[11px] font-bold text-slate-300 tracking-tight">${item.val.toFixed(4)}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="ml-auto hidden xl:flex flex-col items-end opacity-40">
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Engine</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">{currentPost.usage.modelName}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="lg:col-span-5 space-y-8">
               <div className="aspect-square bg-slate-50 border border-slate-100 rounded-[2.5rem] overflow-hidden relative group/visual shadow-sm">
@@ -393,11 +588,8 @@ const App: React.FC = () => {
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
-                  <button onClick={() => handlePublish(false)} disabled={publishing || currentPost.generating} className="w-full bg-violet-600 text-white py-6 rounded-[1.5rem] font-black text-lg uppercase tracking-[0.2em] flex items-center justify-center gap-4 hover:bg-slate-900 transition-all shadow-lg">
+                  <button onClick={() => handlePublish()} disabled={publishing || currentPost.generating} className="w-full bg-violet-600 text-white py-6 rounded-[1.5rem] font-black text-lg uppercase tracking-[0.2em] flex items-center justify-center gap-4 hover:bg-slate-900 transition-all shadow-lg">
                     {publishing ? <Loader2 className="animate-spin" /> : <Send size={24} />} {publishing ? "Publishing..." : "Send to Channel"}
-                  </button>
-                  <button onClick={() => handlePublish(true)} disabled={publishing || currentPost.generating} className="w-full bg-amber-400 text-amber-950 py-6 rounded-[1.5rem] font-black text-lg uppercase tracking-[0.2em] flex items-center justify-center gap-4 hover:bg-amber-500 transition-all shadow-lg border-b-4 border-amber-600">
-                    <Star size={24} fill="currentColor" /> {publishing ? "Creating..." : "Premium (1 ★)"}
                   </button>
                 </div>
               )}

@@ -8,7 +8,7 @@ export class ChannelService {
   /**
    * URL развернутой в Google Cloud функции для чтения каналов.
    */
-  private static API_ENDPOINT = "https://channel-reader-837051086539.us-west1.run.app";
+  private static API_ENDPOINT = "https://us-central1-telegenie-studio.cloudfunctions.net/getChannelInfo";
 
   /**
    * Получает данные канала напрямую через Cloud Function.
