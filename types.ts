@@ -34,12 +34,23 @@ export interface User {
   isMock?: boolean;
 }
 
+export interface LinkedChannel {
+  chatId: string;       // Telegram chat_id (negative for channels)
+  username: string;     // @channel_username
+  title: string;        // Channel title
+  linkedAt: number;     // Timestamp when linked
+  verified: boolean;    // Bot has posting permissions
+  botToken?: string;    // Optional custom bot token
+}
+
 export interface UserProfile {
   userId: string;
   savedStrategies: ChannelStrategy[];
   generationHistory: Post[];
   balance: number; // In virtual USD
   createdAt: number;
+  telegram?: TelegramUser; // Linked Telegram account for channel integration
+  linkedChannel?: LinkedChannel; // Connected channel for publishing
 }
 
 export interface ChannelInfo {
@@ -56,6 +67,7 @@ export interface ChannelStrategy {
   goal: PostGoal;
   format: PostFormat;
   userComments: string;
+  withImage?: boolean; // Flag to enable/disable image generation
   analyzedChannel?: ChannelInfo;
   analysisUsage?: UsageMetadata;
 }
@@ -92,4 +104,59 @@ export interface Post {
 export interface TelegramConfig {
   botToken: string;
   chatId: string;
+}
+
+// === GENERATION PIPELINE ===
+
+export interface GenerationConfig {
+  withImage: boolean;
+  withAnalysis: boolean;
+  maxTextLength?: number;
+  imageStyle?: 'realistic' | 'illustration' | 'minimal';
+}
+
+export interface GenerationInput {
+  idea: Idea;
+  strategy: ChannelStrategy;
+  config: GenerationConfig;
+  userId: string;
+}
+
+export interface GenerationCosts {
+  analysis: number;
+  ideas: number;
+  content: number;
+  image: number;
+  total: number;
+}
+
+export interface GenerationTiming {
+  startedAt: number;
+  completedAt: number;
+  durationMs: number;
+}
+
+export interface GenerationResult {
+  success: boolean;
+  post?: Post;
+  costs: GenerationCosts;
+  errors: string[];
+  timing: GenerationTiming;
+}
+
+export type PipelineStage = 
+  | 'idle'
+  | 'validating'
+  | 'analyzing'
+  | 'generating_content'
+  | 'generating_image'
+  | 'uploading'
+  | 'completed'
+  | 'failed';
+
+export interface PipelineState {
+  stage: PipelineStage;
+  progress: number;  // 0-100
+  currentTask?: string;
+  error?: string;
 }
