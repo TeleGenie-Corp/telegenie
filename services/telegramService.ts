@@ -11,21 +11,54 @@ export class TelegramService {
     }
 
     const apiUrl = `https://api.telegram.org/bot${botToken}`;
-    const safeText = text.length > 1024 ? text.substring(0, 1021) + "..." : text;
+    
+    // Convert Web HTML (from TipTap) to Telegram HTML
+    const processedText = text
+      // Convert Spoilers (handle potential multi-line content)
+      .replace(/<span class="tg-spoiler">([\s\S]*?)<\/span>/gi, '<tg-spoiler>$1</tg-spoiler>')
+      
+      // IMPORTANT: Empty paragraph handler MUST run BEFORE generic <br> handler
+      // Otherwise <p><br></p> becomes <p>\n</p> and never matches this pattern
+      .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, '\n')  // Empty para -> single newline
+      
+      .replace(/<br\s*\/?>/gi, '\n') // <br> -> newline (now safe, empty paras already handled)
+      
+      .replace(/<\/p>/gi, '\n')      // </p> -> newline
+      .replace(/<p>/gi, '')          // <p> -> remove
+      .replace(/&nbsp;/g, ' ')       // &nbsp; -> space
+      .trim();
+
+    const safeText = processedText.length > 1024 ? processedText.substring(0, 1021) + "..." : processedText;
 
     try {
       let lastMessageId: number | undefined;
 
       if (mediaUrl) {
-        const isVideo = mediaUrl.startsWith('blob:') || mediaUrl.includes('.mp4');
         const formData = new FormData();
         formData.append('chat_id', chatId);
 
         const res = await fetch(mediaUrl);
         const mediaBlob = await res.blob();
 
+        // Detect media type from MIME or URL extension
+        const isVideo = mediaBlob.type.startsWith('video/') || 
+                        mediaUrl.match(/\.(mp4|mov|avi|webm)$/i);
+        const isImage = mediaBlob.type.startsWith('image/') || 
+                        mediaUrl.match(/\.(png|jpg|jpeg|gif|webp)$/i);
+
+        if (!isImage && !isVideo) {
+          throw new Error(`Unsupported media format: ${mediaBlob.type || 'unknown'}`);
+        }
+
         const method = isVideo ? 'sendVideo' : 'sendPhoto';
-        formData.append(isVideo ? 'video' : 'photo', mediaBlob, isVideo ? 'video.mp4' : 'photo.png');
+        const filename = isVideo ? 'media.mp4' : 'media.png';
+        
+        // Explicitly set MIME type to prevent Telegram misinterpretation
+        const typedBlob = new Blob([mediaBlob], { 
+          type: isVideo ? 'video/mp4' : 'image/png' 
+        });
+        
+        formData.append(isVideo ? 'video' : 'photo', typedBlob, filename);
         formData.append('caption', safeText);
         formData.append('parse_mode', 'HTML');
 
@@ -116,6 +149,34 @@ export class TelegramService {
     } catch (error: any) {
       console.error('Channel verification error:', error);
       return { success: false, error: error.message || 'Ошибка проверки канала' };
+    }
+  }
+
+  /**
+   * Delete a message from a chat
+   */
+  static async deleteMessage(
+    chatId: string,
+    messageId: number,
+    botToken: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const apiUrl = `https://api.telegram.org/bot${botToken}/deleteMessage`;
+    
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, message_id: messageId })
+      });
+      const result = await response.json();
+      
+      if (!result.ok) {
+         return { success: false, error: result.description };
+      }
+      return { success: true };
+    } catch (error: any) {
+      console.error('Delete message error:', error);
+      return { success: false, error: error.message };
     }
   }
 }

@@ -14,6 +14,8 @@ export enum PostFormat {
   OPINION = 'Личное мнение'
 }
 
+export type PostIntent = 'value' | 'engagement' | 'sales';
+
 export interface TelegramUser {
   id: number;
   first_name: string;
@@ -76,6 +78,7 @@ export interface Idea {
   id: string;
   title: string;
   description: string;
+  userBenefit?: string; // New: utility value for the reader
   sources: string[];
   usage?: UsageMetadata;
 }
@@ -91,14 +94,17 @@ export interface UsageMetadata {
 export interface Post {
   id: string;
   text: string;
+  rawText?: string; // Original unformatted text from AI
   imageUrl?: string;
   generating: boolean;
   timestamp: number;
   usage?: UsageMetadata;
+  polishingUsage?: UsageMetadata;
   imageUsage?: UsageMetadata;
   analysisUsage?: UsageMetadata;
   ideasUsage?: UsageMetadata;
   publishedAt?: number;
+  publishedMessageId?: number;
 }
 
 export interface TelegramConfig {
@@ -126,6 +132,7 @@ export interface GenerationCosts {
   analysis: number;
   ideas: number;
   content: number;
+  polishing: number;
   image: number;
   total: number;
 }
@@ -149,6 +156,7 @@ export type PipelineStage =
   | 'validating'
   | 'analyzing'
   | 'generating_content'
+  | 'polishing'
   | 'generating_image'
   | 'uploading'
   | 'completed'

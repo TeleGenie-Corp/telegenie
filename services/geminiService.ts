@@ -160,7 +160,13 @@ export class GeminiService {
       ФОРМАТ: ${strategy.format}
       ТЕМАТИЧЕСКИЙ ФОКУС: ${info?.topic}
       ПОЖЕЛАНИЯ АВТОРА: ${strategy.userComments || "Нет"}
-      Верни массив JSON с полями title, description, sources.`;
+
+      СТРОГИЙ ФИЛЬТР ПОЛЬЗЫ (Utility Principle):
+      1. Каждая идея должна решать КОНКРЕТНУЮ ПРОБЛЕМУ читателя.
+      2. ЗАПРЕЩЕНО: "Новости компании", "Наш успех", "Просто мысли".
+      3. РАЗРЕШЕНО: "Как сэкономить", "Пошаговый план", "Разбор ошибки", "Инсайт".
+      
+      Верни массив JSON с полями title, description, userBenefit, sources.`;
 
       const response = await ai.models.generateContent({
         model,
@@ -176,9 +182,10 @@ export class GeminiService {
               properties: {
                 title: { type: Type.STRING },
                 description: { type: Type.STRING },
+                userBenefit: { type: Type.STRING, description: "Какую конкретно боль читателя решает этот пост?" },
                 sources: { type: Type.ARRAY, items: { type: Type.STRING } }
               },
-              required: ["title", "description", "sources"]
+              required: ["title", "description", "userBenefit", "sources"]
             }
           }
         }

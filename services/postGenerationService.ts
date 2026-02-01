@@ -34,6 +34,7 @@ export class PostGenerationService {
       analysis: input.strategy.analysisUsage?.estimatedCostUsd || 0,
       ideas: input.idea.usage?.estimatedCostUsd || 0,
       content: 0,
+      polishing: 0,
       image: 0,
       total: 0
     };
@@ -60,6 +61,15 @@ export class PostGenerationService {
         errors.push('Не удалось сгенерировать текст');
         return this.fail(errors, costs, startedAt);
       }
+
+      // === POLISHING STAGE ===
+      emit('polishing', 35, 'Форматирование текста...');
+      const { TextPolishingService } = await import('./textPolishingService');
+      const polishedResult = await TextPolishingService.polishAndFormat(
+        contentResult.text,
+        input.strategy
+      );
+      costs.polishing = polishedResult.usage?.estimatedCostUsd || 0;
 
       // === GENERATE IMAGE (optional) ===
       let imageUrl: string | undefined;
@@ -96,17 +106,19 @@ export class PostGenerationService {
       
       const post: Post = {
         id: `post-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-        text: contentResult.text,
+        text: polishedResult.formattedText,
+        rawText: contentResult.text, // Keep original for editor reset
         imageUrl,
         generating: false,
         timestamp: Date.now(),
         usage: contentResult.usage,
+        polishingUsage: polishedResult.usage,
         imageUsage,
         analysisUsage: input.strategy.analysisUsage,
         ideasUsage: input.idea.usage
       };
 
-      costs.total = costs.analysis + costs.ideas + costs.content + costs.image;
+      costs.total = costs.analysis + costs.ideas + costs.content + costs.polishing + costs.image;
 
       return {
         success: true,
@@ -153,12 +165,14 @@ export class PostGenerationService {
   static estimateCost(input: GenerationInput): number {
     // Base estimates (conservative)
     const CONTENT_ESTIMATE = 0.002;  // ~2000 tokens at Flash pricing
+    const POLISHING_ESTIMATE = 0.001; // ~1000 tokens for formatting
     const IMAGE_ESTIMATE = 0.04;     // Image generation cost
 
     let total = 0;
     total += input.strategy.analysisUsage?.estimatedCostUsd || 0;
     total += input.idea.usage?.estimatedCostUsd || 0;
     total += CONTENT_ESTIMATE;
+    total += POLISHING_ESTIMATE;
     
     if (input.config.withImage) {
       total += IMAGE_ESTIMATE;

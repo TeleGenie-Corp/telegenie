@@ -22,7 +22,8 @@ import {
   MessageCircle,
   Upload,
   Trash2,
-  Check
+  Check,
+  HeartHandshake
 } from 'lucide-react';
 import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, User, TelegramUser, UserProfile, PipelineState, GenerationConfig, LinkedChannel } from './types';
 import { PostGenerationService } from './services/postGenerationService';
@@ -32,6 +33,7 @@ import { StorageService } from './services/storageService';
 import { Auth } from './src/components/Auth';
 import { Dashboard } from './src/components/Dashboard';
 import { TelegramSettings } from './src/components/TelegramSettings';
+import { TipTapEditor } from './src/components/TipTapEditor';
 
 const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
@@ -149,7 +151,7 @@ const App: React.FC = () => {
   const [loadingIdeas, setLoadingIdeas] = useState(false);
   const [currentPost, setCurrentPost] = useState<Post | null>(null);
   const [publishing, setPublishing] = useState(false);
-  const [publishSuccess, setPublishSuccess] = useState<{ url: string } | null>(null);
+  const [publishSuccess, setPublishSuccess] = useState<{ url: string; messageId?: number; chatId?: string } | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [pipelineState, setPipelineState] = useState<PipelineState>({ stage: 'idle', progress: 0 });
 
@@ -373,7 +375,11 @@ const App: React.FC = () => {
       const token = profile?.linkedChannel?.botToken || TELEGRAM_BOT_TOKEN;
       const result = await TelegramService.publish(currentPost.text, token, chatId, currentPost.imageUrl);
       if (result.success) {
-        setPublishSuccess({ url: result.messageId ? `${channelUrl}/${result.messageId}` : channelUrl });
+        setPublishSuccess({ 
+            url: result.messageId ? `${channelUrl}/${result.messageId}` : channelUrl,
+            messageId: result.messageId,
+            chatId: chatId
+        });
         
         // Update history to mark as published
         if (profile) {
@@ -384,7 +390,11 @@ const App: React.FC = () => {
           const updatedProfile = { ...profile, generationHistory: updatedHistory };
           await UserService.updateProfile(updatedProfile);
           setProfile(updatedProfile);
-          setCurrentPost({ ...currentPost, publishedAt: Date.now() });
+          setCurrentPost({ 
+              ...currentPost, 
+              publishedAt: Date.now(),
+              publishedMessageId: result.messageId 
+          });
         }
       } else {
         alert(result.message);
@@ -528,6 +538,7 @@ const App: React.FC = () => {
                   ${profile.generationHistory.reduce((acc, p) => 
                     acc + 
                     (p.usage?.estimatedCostUsd || 0) + 
+                    (p.polishingUsage?.estimatedCostUsd || 0) + 
                     (p.imageUsage?.estimatedCostUsd || 0) + 
                     (p.analysisUsage?.estimatedCostUsd || 0) + 
                     (p.ideasUsage?.estimatedCostUsd || 0)
@@ -548,6 +559,7 @@ const App: React.FC = () => {
                     <span className="text-[9px] font-black text-violet-400 uppercase tracking-tighter">
                       ${(
                         (post.usage?.estimatedCostUsd || 0) + 
+                        (post.polishingUsage?.estimatedCostUsd || 0) + 
                         (post.imageUsage?.estimatedCostUsd || 0) + 
                         (post.analysisUsage?.estimatedCostUsd || 0) + 
                         (post.ideasUsage?.estimatedCostUsd || 0)
@@ -732,6 +744,14 @@ const App: React.FC = () => {
             {ideas.map((idea) => (
               <div key={idea.id} onClick={() => handleSelectIdea(idea)} className={`group p-10 bg-white border rounded-[2.5rem] transition-all cursor-pointer relative overflow-hidden border-slate-100 hover:border-violet-200 shadow-sm`}>
                 <div className="absolute top-0 right-0 p-6 opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0"><ChevronRight size={32} className="text-violet-600" /></div>
+                
+                {idea.userBenefit && (
+                  <div className="mb-4 inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide">
+                    <HeartHandshake size={12} />
+                    <span>Польза: {idea.userBenefit}</span>
+                  </div>
+                )}
+
                 <h3 className="font-black text-2xl mb-4 pr-12 text-slate-900 group-hover:text-violet-600 transition-colors">{idea.title}</h3>
                 <p className="text-slate-400 text-sm mb-8 leading-relaxed line-clamp-3">{idea.description}</p>
                 <div className="flex flex-wrap gap-3">
@@ -795,9 +815,49 @@ const App: React.FC = () => {
                                   <div className="h-3 bg-slate-100 rounded w-2/5 animate-pulse"></div>
                                 </div>
                               ) : (
-                                <p className="text-[15px] text-slate-900 leading-[1.3] whitespace-pre-wrap font-sans">
-                                  {currentPost.text || 'Текст поста...'}
-                                </p>
+                                <div className="telegram-preview-container">
+                                  <style>{`
+                                    .telegram-preview-container code {
+                                      color: #7c3aed; /* Violet accent */
+                                      font-family: 'SF Mono', SFMono-Regular, ui-monospace, monospace;
+                                      background: transparent;
+                                    }
+                                    .telegram-preview-container blockquote {
+                                      border-left: 3px solid #7c3aed;
+                                      padding-left: 10px;
+                                      margin: 4px 0;
+                                      color: #475569;
+                                    }
+                                    .telegram-preview-container p {
+                                        margin: 0;
+                                        min-height: 1.5em; 
+                                    }
+                                    .telegram-preview-container p br {
+                                        display: block; /* Ensure BR takes up space */
+                                        content: " "; /* Force content for height */
+                                    }
+                                    .telegram-preview-container tg-spoiler {
+                                      filter: blur(5px);
+                                      transition: all 0.2s ease;
+                                      cursor: pointer;
+                                      user-select: none;
+                                      background-color: #cbd5e1; /* Fallback visually */
+                                      color: transparent;
+                                      border-radius: 4px;
+                                      padding: 0 2px;
+                                    }
+                                    .telegram-preview-container tg-spoiler:hover {
+                                      filter: none;
+                                      background-color: transparent;
+                                      color: inherit;
+                                      user-select: text;
+                                    }
+                                  `}</style>
+                                  <div 
+                                    className="text-[15px] text-slate-900 leading-[1.6] whitespace-pre-wrap font-sans"
+                                    dangerouslySetInnerHTML={{ __html: currentPost.text || 'Текст поста...' }}
+                                  />
+                                </div>
                               )}
                         </div>
 
@@ -837,7 +897,7 @@ const App: React.FC = () => {
                    className="bg-slate-50 border border-slate-100 rounded-2xl p-4 transition-all hover:border-violet-200 group"
                  >
                    {!currentPost.imageUrl ? (
-                     <div className="flex flex-col items-center justify-center gap-4 py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl group-hover:border-violet-300/50 transition-colors bg-white/50">
+                     <div className="relative flex flex-col items-center justify-center gap-4 py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl group-hover:border-violet-300/50 transition-colors bg-white/50">
                        <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-300 group-hover:text-violet-500 transition-colors">
                          <Upload size={20} />
                        </div>
@@ -878,20 +938,14 @@ const App: React.FC = () => {
                    </div>
                  </div>
               </div>
-              {/* Text Editor */}
-              <div className="relative">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Редактировать текст</label>
-                <textarea 
+              {/* PostEditor - Rich Text Formatting */}
+              {!currentPost.generating && (
+                <TipTapEditor
                   value={currentPost.text}
-                  onChange={(e) => setCurrentPost({ ...currentPost, text: e.target.value })}
-                  disabled={currentPost.generating}
-                  className="w-full bg-slate-50 border border-slate-100 p-6 rounded-2xl min-h-[200px] focus:border-violet-500 outline-none text-sm font-medium leading-relaxed text-slate-700 resize-none"
-                  placeholder="Текст поста..."
+                  rawText={currentPost.rawText}
+                  onChange={(text) => setCurrentPost({ ...currentPost, text })}
                 />
-                <div className="absolute bottom-4 right-4 text-[10px] text-slate-300 font-bold">
-                  {currentPost.text?.length || 0} / 1000
-                </div>
-              </div>
+              )}
 
               {/* Cost Panel */}
               {currentPost.usage && !currentPost.generating && (
@@ -903,12 +957,14 @@ const App: React.FC = () => {
                         (currentPost.analysisUsage?.estimatedCostUsd || 0) + 
                         (currentPost.ideasUsage?.estimatedCostUsd || 0) + 
                         (currentPost.usage?.estimatedCostUsd || 0) + 
+                        (currentPost.polishingUsage?.estimatedCostUsd || 0) +
                         (currentPost.imageUsage?.estimatedCostUsd || 0)
                       ).toFixed(4)}
                     </div>
                   </div>
                   <div className="flex-1 flex flex-wrap gap-3 justify-end text-[9px]">
                     {currentPost.usage && <span className="bg-slate-800 px-2 py-1 rounded">Текст: ${currentPost.usage.estimatedCostUsd.toFixed(4)}</span>}
+                    {currentPost.polishingUsage && <span className="bg-slate-800 px-2 py-1 rounded">Полировка: ${currentPost.polishingUsage.estimatedCostUsd.toFixed(4)}</span>}
                     {currentPost.imageUsage && <span className="bg-slate-800 px-2 py-1 rounded">Изображение: ${currentPost.imageUsage.estimatedCostUsd.toFixed(4)}</span>}
                   </div>
                 </div>
@@ -918,10 +974,33 @@ const App: React.FC = () => {
               {publishSuccess ? (
                 <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl flex flex-col items-center gap-4">
                   <CheckCircle2 size={32} className="text-emerald-500" />
-                  <a href={publishSuccess.url} target="_blank" className="w-full py-4 bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+                  <a href={publishSuccess.url} target="_blank" className="w-full py-4 bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-600 transition-colors">
                     Открыть в Telegram <ExternalLink size={14} />
                   </a>
-                  <button onClick={() => setPublishSuccess(null)} className="text-[10px] font-bold text-emerald-500 uppercase">Назад</button>
+                  
+                  <div className="flex w-full gap-2">
+                       <button onClick={() => setPublishSuccess(null)} className="flex-1 py-3 text-[10px] font-bold text-slate-400 uppercase bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">Новый пост</button>
+                       {publishSuccess.messageId && (
+                           <button 
+                             onClick={async () => {
+                                 if (!confirm('Удалить этот пост из канала навсегда?')) return;
+                                 if (!publishSuccess.chatId || !publishSuccess.messageId) return;
+                                 
+                                 const token = profile?.linkedChannel?.botToken || TELEGRAM_BOT_TOKEN;
+                                 const res = await TelegramService.deleteMessage(publishSuccess.chatId, publishSuccess.messageId, token);
+                                 if (res.success) {
+                                     setPublishSuccess(null); // Return to editor
+                                     // Optional: Toast "Deleted"
+                                 } else {
+                                     alert('Ошибка удаления: ' + res.error);
+                                 }
+                             }}
+                             className="flex-1 py-3 text-[10px] font-bold text-rose-500 uppercase bg-rose-50 rounded-lg flex items-center justify-center gap-2 hover:bg-rose-100 transition-colors"
+                           >
+                              <Trash2 size={12} /> Удалить
+                           </button>
+                       )}
+                  </div>
                 </div>
               ) : (
                 <button 

@@ -9,7 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@floating-ui/dom": "^1.7.5",
     "@google/genai": "^1.38.0",
+    "@tiptap/extension-character-count": "^3.18.0",
+    "@tiptap/extension-link": "^3.18.0",
+    "@tiptap/extension-underline": "^3.18.0",
+    "@tiptap/react": "^3.18.0",
+    "@tiptap/starter-kit": "^3.18.0",
     "firebase": "^12.8.0",
     "firebase-admin": "^13.6.0",
     "https": "^1.0.0",
