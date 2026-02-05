@@ -46,6 +46,20 @@ export class UserService {
    */
   static async updateProfile(profile: UserProfile): Promise<void> {
     const docRef = doc(db, this.COLLECTION_NAME, profile.userId);
-    await setDoc(docRef, profile, { merge: true });
+    
+    // Helper to replace undefined with null recursively (Firestore doesn't like undefined)
+    const deepSanitize = (obj: any): any => {
+      if (obj === undefined) return null;
+      if (obj === null || typeof obj !== 'object') return obj;
+      if (Array.isArray(obj)) return obj.map(deepSanitize);
+      return Object.keys(obj).reduce((acc: any, key) => {
+        const val = deepSanitize(obj[key]);
+        if (val !== undefined) acc[key] = val;
+        return acc;
+      }, {});
+    };
+
+    const sanitizedProfile = deepSanitize(profile);
+    await setDoc(docRef, sanitizedProfile, { merge: true });
   }
 }

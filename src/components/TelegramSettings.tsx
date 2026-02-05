@@ -6,6 +6,7 @@ import { Loader2, AlertCircle, Link2, X, Send, Check, Settings } from 'lucide-re
 
 interface TelegramSettingsProps {
   botToken?: string;
+  defaultChannelUrl?: string; // New prop for strict demo mode
   linkedChannel?: LinkedChannel;
   onChannelConnect: (channel: LinkedChannel) => void;
   onChannelDisconnect: () => void;
@@ -15,6 +16,7 @@ const DEFAULT_BOT_NAME = 'telegenie_beta_bot';
 
 export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
   botToken: defaultToken,
+  defaultChannelUrl,
   linkedChannel,
   onChannelConnect,
   onChannelDisconnect
@@ -49,6 +51,18 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
     }
   }, [linkedChannel]);
 
+  // Effect: Enforce default channel in Demo Mode
+  React.useEffect(() => {
+    if (!useCustomBot && defaultChannelUrl) {
+        // Extract username from URL for display logic
+        const defaultUsername = defaultChannelUrl.replace('https://t.me/', '').replace('@', '');
+        setUsername(defaultUsername);
+    } else if (!useCustomBot && !defaultChannelUrl && !linkedChannel) {
+        // If no default URL provided, leave empty or clear? 
+        // Better to check if we switched FROM custom.
+    }
+  }, [useCustomBot, defaultChannelUrl]);
+
   const handleConnect = async () => {
     if (!username.trim()) {
       setError('Введите @username канала');
@@ -72,6 +86,15 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
          setError('Демо-бот недоступен. Используйте своего бота.');
          return;
       }
+      // Strict check for demo channel if provided
+      if (defaultChannelUrl) {
+          const defaultUser = defaultChannelUrl.replace('https://t.me/', '').replace('@', '').toLowerCase();
+          const currentUser = username.replace('https://t.me/', '').replace('@', '').toLowerCase();
+          if (defaultUser !== currentUser) {
+             setError(`Демо-бот работает только с каналом @${defaultUser}`);
+             return;
+          }
+      }
     }
 
     setLoading(true);
@@ -91,32 +114,12 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
       title: result.title || username,
       linkedAt: Date.now(),
       verified: true,
-      botToken: isCustom ? tokenToUse : undefined // undefined is fine for local objects, but checking for Firestore safety next step.
-      // actually, Firestore hates undefined. Let's make it null if not present, but types say string | undefined. 
-      // The Service likely handles the DB save. If the DB save is failing on undefined, we should maybe delete the key if undefined before saving?
-      // Or simply explicit null. 
-      // Let's rely on the parent or service to clean it up, BUT the error came from "setDoc". 
-      // If we pass 'undefined' to setDoc it fails. 
-      // Safe fix: Use null for "no custom token" if the Type allows it. 
-      // Checking types: botToken?: string. 
-      // If I cannot change types easily right now, I will omit the key if undefined.
+      botToken: isCustom ? tokenToUse : undefined,
+      photoUrl: result.photoUrl,
+      memberCount: result.memberCount
     };
-
-    // To avoid "undefined" error in Firestore, we ensure we don't pass undefined.
-    // The previous error was: "Unsupported field value: undefined".
-    // We will clean this up in the parent, OR we ensure it's null here? 
-    // Types say string | undefined. So we can't pass null if strict.
-    // Wait, the UserProfile has linkedChannel?: LinkedChannel.
-    // The error happens when saving this object to Firestore.
-    // I should probably ensure the 'onChannelConnect' handler cleans this up, OR I conditionally create the object.
     
-    // Better strategy:
-    const safeChannel = {
-        ...channel,
-         botToken: isCustom ? tokenToUse : null 
-    } as any; // Temporary cast to bypass strict check if type forbids null, to fix runtime error.
-    // Actually, let's fix the type in types.ts in a separate step if needed, but for now, let's just NOT include the key if it is undefined.
-    
+    // Explicit cleaning
     if (!isCustom) {
         delete channel.botToken;
     }
@@ -145,6 +148,12 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
               <li>Добавьте этого бота в <b>Администраторы</b> вашего канала.</li>
               <li>Введите токен и ссылку на канал (t.me/...) ниже.</li>
             </ol>
+             {/* Note about Demo Bot */}
+             {!useCustomBot && defaultChannelUrl && (
+                 <div className="mt-2 text-xs font-bold text-emerald-600 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                     ✨ Активирован Демо-Бот для {defaultChannelUrl.replace('https://t.me/','@')}
+                 </div>
+             )}
           </div>
         )}
 
@@ -193,7 +202,8 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
                         value={username.replace('https://t.me/', '').replace('@', '')}
                         onChange={(e) => setUsername(e.target.value.replace('https://t.me/', '').replace('@', ''))}
                         placeholder="channel_name"
-                        className="bg-transparent text-sm font-bold text-slate-900 outline-none w-full py-3 pl-0.5 placeholder:text-slate-400 placeholder:font-medium"
+                        disabled={!useCustomBot && !!defaultChannelUrl} // Lock input if Demo Mode
+                        className={`bg-transparent text-sm font-bold text-slate-900 outline-none w-full py-3 pl-0.5 placeholder:text-slate-400 placeholder:font-medium ${!useCustomBot && defaultChannelUrl ? 'opacity-50 cursor-not-allowed' : ''}`}
                         />
                     </div>
 

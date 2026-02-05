@@ -1,17 +1,16 @@
 
 export enum PostGoal {
-  INFORMATIONAL = 'Информационный',
-  ENTERTAINING = 'Развлекательный',
-  ENGAGING = 'Вовлекающий',
-  SELLING = 'Продающий'
+  SELL = 'Продать',
+  ENGAGE = 'Вовлечь',
+  EDUCATE = 'Обучить',
+  INFORM = 'Проинформировать'
 }
 
 export enum PostFormat {
+  TWEET = 'Твит',
   STORY = 'История',
-  INSTRUCTION = 'Инструкция',
   LIST = 'Список',
-  CASE = 'Кейс',
-  OPINION = 'Личное мнение'
+  CASE = 'Кейс'
 }
 
 export type PostIntent = 'value' | 'engagement' | 'sales';
@@ -43,6 +42,8 @@ export interface LinkedChannel {
   linkedAt: number;     // Timestamp when linked
   verified: boolean;    // Bot has posting permissions
   botToken?: string;    // Optional custom bot token
+  photoUrl?: string;    // Channel avatar URL
+  memberCount?: number; // Subscriber count
 }
 
 export interface UserProfile {
@@ -67,9 +68,11 @@ export interface ChannelStrategy {
   id: string;
   channelUrl: string;
   goal: PostGoal;
-  format: PostFormat;
-  userComments: string;
-  withImage?: boolean; // Flag to enable/disable image generation
+  format: PostFormat; // Keep for internal logic if needed, though UI hides it
+  userComments: string; // Keeps existing field, but 'point' might replace or augment it.
+  positioning?: string; // Who am I (Brand/Expert identity)
+  point?: string; // Core message/product/news for this specific generation
+  withImage?: boolean;
   analyzedChannel?: ChannelInfo;
   analysisUsage?: UsageMetadata;
 }

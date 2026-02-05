@@ -65,7 +65,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
     content: value,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose-base focus:outline-none min-h-[300px] px-6 py-4 text-slate-900 whitespace-pre-wrap',
+        class: 'prose prose-sm sm:prose-base focus:outline-none min-h-[400px] h-full px-6 py-4 text-slate-900 whitespace-pre-wrap',
       },
     },
     onUpdate: ({ editor }) => {
@@ -75,7 +75,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
 
   // Sync external value changes (e.g. from Polishing agent)
   useEffect(() => {
-    if (editor && value !== editor.getHTML()) {
+    if (editor && typeof value === 'string' && value !== editor.getHTML()) {
       // Check if value needs newline conversion (Telegram HTML -> Web HTML)
       // If value contains newlines but no paragraphs/breaks, it's likely raw text/Telegram HTML
       let content = value;
@@ -126,7 +126,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
   const chars = editor.storage.characterCount.characters();
 
   return (
-    <div className="bg-white rounded-[1.5rem] border border-slate-200 overflow-hidden shadow-sm transition-all hover:border-violet-200 hover:shadow-md relative z-10">
+    <div className="bg-white overflow-hidden relative z-10 h-full flex flex-col">
       <style>{`
         /* Custom Editor Styles */
         .prose code {
@@ -262,8 +262,8 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
       </div>
 
       {/* Editor Content */}
-      <div className="prose-container relative">
-        <EditorContent editor={editor} />
+      <div className="prose-container relative flex-1 overflow-y-auto">
+        <EditorContent editor={editor} className="h-full" />
         
         {/* Character Count */}
         <div className={`absolute bottom-3 right-4 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md border ${chars > 1024 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-slate-100/50 text-slate-400 border-slate-200'}`}>

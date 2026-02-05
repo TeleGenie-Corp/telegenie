@@ -96,7 +96,7 @@ export class TelegramService {
   static async verifyBotInChannel(
     channelUsername: string,
     botToken: string
-  ): Promise<{ success: boolean; chatId?: string; title?: string; error?: string }> {
+  ): Promise<{ success: boolean; chatId?: string; title?: string; photoUrl?: string; memberCount?: number; error?: string }> {
     const apiUrl = `https://api.telegram.org/bot${botToken}`;
     const username = channelUsername.startsWith('@') ? channelUsername : `@${channelUsername}`;
 
@@ -116,6 +116,36 @@ export class TelegramService {
       const chat = chatResult.result;
       const chatId = String(chat.id);
       const title = chat.title || username;
+
+      // Get photo URL if available
+      let photoUrl: string | undefined;
+      if (chat.photo?.big_file_id) {
+        try {
+          const fileResponse = await fetch(`${apiUrl}/getFile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ file_id: chat.photo.big_file_id })
+          });
+          const fileResult = await fileResponse.json();
+          if (fileResult.ok && fileResult.result.file_path) {
+            photoUrl = `https://api.telegram.org/file/bot${botToken}/${fileResult.result.file_path}`;
+          }
+        } catch (e) { console.warn('Failed to fetch channel photo:', e); }
+      }
+
+      // Get member count
+      let memberCount: number | undefined;
+      try {
+        const countResponse = await fetch(`${apiUrl}/getChatMemberCount`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId })
+        });
+        const countResult = await countResponse.json();
+        if (countResult.ok) {
+          memberCount = countResult.result;
+        }
+      } catch (e) { console.warn('Failed to fetch member count:', e); }
 
       // Check if bot can post messages
       const adminsResponse = await fetch(`${apiUrl}/getChatAdministrators`, {
@@ -145,7 +175,7 @@ export class TelegramService {
         return { success: false, error: 'У бота нет прав на публикацию' };
       }
 
-      return { success: true, chatId, title };
+      return { success: true, chatId, title, photoUrl, memberCount };
     } catch (error: any) {
       console.error('Channel verification error:', error);
       return { success: false, error: error.message || 'Ошибка проверки канала' };
