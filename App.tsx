@@ -36,7 +36,10 @@ import { TelegramSettings } from './src/components/TelegramSettings';
 import { TipTapEditor } from './src/components/TipTapEditor';
 import { PositioningModal } from './src/components/PositioningModal';
 import { WorkspaceScreen } from './src/components/WorkspaceScreen';
+import { SubscriptionModal } from './src/components/SubscriptionModal';
 import { CreateBrandModal } from './src/components/CreateBrandModal';
+
+
 
 const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
@@ -207,6 +210,7 @@ const App: React.FC = () => {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showPositioningModal, setShowPositioningModal] = useState(false);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
 
   // --- WORKSPACE STATE ---
@@ -434,7 +438,7 @@ const App: React.FC = () => {
     
     setPipelineState({ stage: 'polishing', progress: 50, currentTask: 'Редактирую...' });
     try {
-      const result = await GeminiService.polishContent(currentPost.text, instruction);
+      const result = await GeminiService.polishContent(currentPost.text, instruction, strategy);
       const updatedText = result.text;
       
       setCurrentPost(p => p ? { ...p, text: updatedText } : null);
@@ -692,6 +696,14 @@ const App: React.FC = () => {
                     <div className="w-px h-4 bg-slate-200"></div>
 
                     <div className="hidden sm:flex items-center gap-3 bg-slate-50 py-1.5 px-3 rounded-full border border-slate-100">
+                        <button 
+                            onClick={() => setShowSubscriptionModal(true)}
+                            className="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors"
+                        >
+                            {profile.subscription?.tier === 'pro' || profile.subscription?.tier === 'agency' ? 'Plan' : 'Upgrade'}
+                        </button>
+                        <span className="text-xs font-bold text-slate-500 uppercase">{profile.subscription?.tier || 'Free'}</span>
+                        <div className="w-px h-3 bg-slate-200"></div>
                         <span className="text-xs font-bold text-slate-500">${profile.balance.toFixed(2)}</span>
                         <div className="w-px h-3 bg-slate-200"></div>
                         {user?.avatar ? <img src={user.avatar} className="w-5 h-5 rounded-full" /> : <div className="w-5 h-5 bg-violet-500 rounded-full text-[10px] text-white flex items-center justify-center">{user?.first_name[0]}</div>}
@@ -974,7 +986,7 @@ const App: React.FC = () => {
                 
                 {/* Messages - Scrollable */}
                 <div className="flex-1 p-4 overflow-y-auto custom-scrollbar flex flex-col justify-end">
-                    {currentPost && !currentPost.generating ? (
+                    {currentPost && !currentPost.generating && (currentPost.text || currentPost.imageUrl) ? (
                         <div className="bg-white rounded-2xl p-3 shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-500">
                             {currentPost.imageUrl && (
                                 <div className="rounded-xl overflow-hidden mb-3">
@@ -982,7 +994,7 @@ const App: React.FC = () => {
                                 </div>
                             )}
                             <div 
-                               className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none prose-p:my-1.5" 
+                               className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none prose-p:my-0 prose-p:min-h-[1.5em] prose-p:empty:h-[1.5em]" 
                                dangerouslySetInnerHTML={{ __html: currentPost.text }}
                             />
                             <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
@@ -993,8 +1005,23 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     ) : (
-                        <div className="text-center text-white/60 text-sm py-10">
-                            {currentPost?.generating ? 'Генерирую...' : 'Здесь появится пост'}
+                        <div className="flex flex-col items-center justify-center h-full text-center p-8 space-y-4 animate-in fade-in duration-500">
+                            {currentPost?.generating ? (
+                                <>
+                                    <div className="w-12 h-12 rounded-full border-4 border-white/20 border-t-white animate-spin"></div>
+                                    <p className="text-white/80 font-bold text-sm tracking-wide">Пишу пост...</p>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white/50 border border-white/10">
+                                        <Wand2 size={32} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-white/90 font-bold text-sm">Черновик пуст</p>
+                                        <p className="text-white/50 text-xs">Начни писать или выбери идею</p>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     )}
                 </div>
@@ -1039,6 +1066,14 @@ const App: React.FC = () => {
         }}
         channelUrl={strategy.channelUrl}
         currentPositioning={strategy.positioning}
+      />
+
+      {/* SUBSCRIPTION MODAL */}
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        userId={user?.id || ''}
+        currentTier={profile?.subscription?.tier || 'free'}
       />
 
     </div>

@@ -396,28 +396,43 @@ export class GeminiService {
    * Polishes/edits content based on user instruction.
    * Uses fast model directly - no heavy tools needed for simple text edits.
    */
-  static async polishContent(text: string, instruction: string): Promise<{ text: string, usage: UsageMetadata }> {
+  static async polishContent(text: string, instruction: string, strategy: ChannelStrategy): Promise<{ text: string, usage: UsageMetadata }> {
     const ai = this.getAI();
     const { CostCalculator } = await import('./costCalculator');
     const model = 'gemini-2.0-flash-lite'; // Fast model for text-only edits
     
+    // Construct context
+    const authorContext = strategy.positioning 
+      ? `ПОЗИЦИОНИРОВАНИЕ АВТОРА: ${strategy.positioning}`
+      : `СТИЛЬ АВТОРА: ${strategy.analyzedChannel?.context || 'Экспертный'}`;
+
+    const pointContext = strategy.point
+      ? `ГЛАВНЫЙ ПОИНТ (СУТЬ): "${strategy.point}"`
+      : `ТЕМАТИКА КАНАЛА: ${strategy.analyzedChannel?.topic || 'Бизнес'}`;
+
     const prompt = `ОТРЕДАКТИРУЙ ТЕКСТ ПО ИНСТРУКЦИИ.
+    
+    КОНТЕКСТ АВТОРА И ЗАДАЧИ:
+    - ${authorContext}
+    - ${pointContext}
+    - ЦЕЛЬ ПОСТА: ${strategy.goal}
 
-ИНСТРУКЦИЯ: ${instruction}
+    ИНСТРУКЦИЯ ПОЛЬЗОВАТЕЛЯ: ${instruction}
 
-ИСХОДНЫЙ ТЕКСТ:
-${text}
+    ИСХОДНЫЙ ТЕКСТ:
+    ${text}
 
-ПРАВИЛА:
-- Сохрани общий смысл.
-- Не добавляй ничего лишнего.
-- Буква «ё» обязательна.
-- Возвращай ТОЛЬКО отредактированный текст.`;
+    ПРАВИЛА:
+    1. Строго следуй инструкции.
+    2. Сохрани авторский стиль (если инструкция не говорит об обратном).
+    3. Не добавляй "отсебятины", работай с исходником.
+    4. Буква «ё» обязательна.
+    5. Возвращай ТОЛЬКО отредактированный текст (Markdown).`;
 
     const response = await ai.models.generateContent({
       model,
       contents: prompt,
-      config: { systemInstruction: 'Ты редактор. Возвращай только текст без комментариев.' }
+      config: { systemInstruction: 'Ты профессиональный редактор. Твоя задача — улучшить текст, сохранив голос автора.' }
     });
 
     const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);

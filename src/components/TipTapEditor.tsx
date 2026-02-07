@@ -172,16 +172,15 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
 
         /* Enforce Paragraph Spacing */
         .prose p {
-            margin-top: 0 !important;
-            margin-bottom: 0 !important;
+            margin-top: 0.5em !important;
+            margin-bottom: 0.5em !important;
             line-height: 1.6;
+            min-height: 1.6em; /* Ensure empty paragraphs have height */
         }
-        .prose p:first-child { margin-top: 0 !important; }
-        .prose p:last-child { margin-bottom: 0 !important; }
         
-        /* Hide ProseMirror internal breaks - these are for cursor, not output */
+        /* Show ProseMirror internal breaks - essential for empty lines */
         .prose .ProseMirror-trailingBreak {
-            display: none;
+            display: block;
         }
       `}</style>
 

@@ -31,6 +31,18 @@ export class UserService {
   }
 
   /**
+   * Retrieves user profile without side effects (no creation).
+   */
+  static async getUserProfile(userId: string): Promise<UserProfile | null> {
+    const docRef = doc(db, this.COLLECTION_NAME, userId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as UserProfile;
+    }
+    return null;
+  }
+
+  /**
    * Deducts credits from user balance.
    */
   static async deductCredits(userId: string, amount: number): Promise<void> {

@@ -96,6 +96,34 @@ export interface PostProject {
   updatedAt: number;
 }
 
+// === BILLING & SUBSCRIPTIONS ===
+
+export type SubscriptionTier = 'free' | 'pro' | 'agency';
+
+export interface SubscriptionPlan {
+  id: SubscriptionTier;
+  name: string;
+  price: number;
+  currency: string;
+  limits: {
+    postsPerMonth: number;
+    aiTokens: number;
+    brandsCount: number;
+  };
+  features: string[];
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  amount: number;
+  currency: string;
+  status: 'pending' | 'success' | 'failed';
+  type: 'subscription' | 'topup';
+  createdAt: number;
+  planId?: string;
+}
+
 export interface UserProfile {
   userId: string;
   savedStrategies: ChannelStrategy[];
@@ -104,6 +132,19 @@ export interface UserProfile {
   createdAt: number;
   telegram?: TelegramUser; // Linked Telegram account for channel integration
   linkedChannel?: LinkedChannel; // Connected channel for publishing
+  
+  // Billing & Usage
+  subscription?: {
+    tier: SubscriptionTier;
+    status: 'active' | 'canceled' | 'expired';
+    currentPeriodEnd: number;
+    autoRenew: boolean;
+  };
+  usage?: {
+    postsThisMonth: number;
+    tokensThisMonth: number;
+    lastReset: number;
+  };
 }
 
 export interface ChannelInfo {
