@@ -5,6 +5,66 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>TeleGenie — ИИ-ассистент для Telegram</title>
         <script src="https://cdn.tailwindcss.com"></script>
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            // 1. RAW BRAND PALETTE
+                            bombay: {
+                                light: '#B5F4FD',  // Light Blue
+                                mid: '#00C3F2',    // Mid Blue
+                                navy: '#000B46',   // Navy
+                            },
+                            
+                            // 2. SEMANTIC TOKENS (Design System)
+                            primary: {
+                                DEFAULT: '#00C3F2', // Bombay Mid Blue
+                                foreground: '#000B46',
+                                50:  '#F2FCFE',
+                                100: '#E6FAFE',
+                                200: '#B5F4FD', // Light Blue accent
+                                300: '#7CDFF9',
+                                400: '#3ED0F5',
+                                500: '#00C3F2', // MAIN BRAND COLOR
+                                600: '#00A0C6', // Hover
+                                700: '#0076A3',
+                                800: '#00567A',
+                                900: '#000B46', // Navy
+                            },
+                            secondary: {
+                                DEFAULT: '#000B46', // Bombay Navy
+                                foreground: '#FFFFFF',
+                            },
+                            
+                            // 3. LEGACY MAPPING (So current UI uses new palette)
+                            // We map 'violet' to our Primary Brand Scale
+                            violet: {
+                                50:  '#F2FCFE',
+                                100: '#E6FAFE',
+                                200: '#B5F4FD',
+                                300: '#7CDFF9',
+                                400: '#3ED0F5',
+                                500: '#00C3F2',
+                                600: '#00A0C6',
+                                700: '#0076A3',
+                                800: '#00567A',
+                                900: '#000B46',
+                                950: '#000522',
+                            },
+                            
+                            // 4. NEUTRALS & STATES
+                            // We keep standard 'slate' for strict UI neutrals (not branded)
+                            // We keep 'emerald'/'rose'/'amber' for semantic states (Success/Error/Warning)
+                        },
+                        fontFamily: {
+                            sans: ['Manrope', 'sans-serif'],
+                            display: ['Unbounded', 'sans-serif'],
+                        }
+                    }
+                }
+            }
+        </script>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link
@@ -15,14 +75,28 @@
             body {
                 font-family: "Manrope", sans-serif;
                 background-color: #ffffff;
-                color: #0f172a;
+                color: #000B46; /* Navy */
             }
             .font-display {
                 font-family: "Unbounded", sans-serif;
             }
             ::selection {
-                background-color: #4f46e5;
-                color: #ffffff;
+                background-color: #00C3F2; /* Mid Blue */
+                color: #000B46;
+            }
+            /* Custom scrollbar matching new theme */
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 4px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background-color: #B5F4FD;
+                border-radius: 20px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                background-color: #00C3F2;
             }
         </style>
         <script type="importmap">

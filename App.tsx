@@ -19,19 +19,24 @@ import {
   Menu,
   X,
   Send,
-  Wand2, // Icon for "Magic/Thinking"
+  Wand2,
   UserCircle,
-  MessageSquareQuote
+  MessageSquareQuote,
+  LayoutGrid
 } from 'lucide-react';
-import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, User, TelegramUser, UserProfile, PipelineState, GenerationConfig, LinkedChannel } from './types';
+import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, User, TelegramUser, UserProfile, PipelineState, GenerationConfig, LinkedChannel, Brand, PostProject } from './types';
 import { PostGenerationService } from './services/postGenerationService';
 import { GeminiService } from './services/geminiService';
 import { TelegramService } from './services/telegramService';
+import { BrandService } from './services/brandService';
+import { PostProjectService } from './services/postProjectService';
 import { Auth } from './src/components/Auth';
 import { Dashboard } from './src/components/Dashboard';
 import { TelegramSettings } from './src/components/TelegramSettings';
 import { TipTapEditor } from './src/components/TipTapEditor';
 import { PositioningModal } from './src/components/PositioningModal';
+import { WorkspaceScreen } from './src/components/WorkspaceScreen';
+import { CreateBrandModal } from './src/components/CreateBrandModal';
 
 const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
 const TELEGRAM_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
@@ -158,7 +163,7 @@ const GenerationLoading: React.FC<{ state: PipelineState }> = ({ state }) => {
             
             <div className="text-center space-y-2 max-w-sm">
                 <h3 className="text-xl font-bold text-slate-900">Creating Content</h3>
-                <p className="text-slate-500 font-medium animate-pulse">{state.stage === 'idle' ? 'Initializing...' : state.stage === 'generation' ? 'Constructing narrative...' : state.stage === 'polishing' ? 'Applying finishing touches...' : 'Validating output...'}</p>
+                <p className="text-slate-500 font-medium animate-pulse">{state.stage === 'idle' ? 'Initializing...' : state.stage === 'generating_content' ? 'Constructing narrative...' : state.stage === 'polishing' ? 'Applying finishing touches...' : 'Validating output...'}</p>
             </div>
 
             <div className="w-full max-w-xs bg-slate-100 rounded-full h-1.5 overflow-hidden">
@@ -185,7 +190,7 @@ const App: React.FC = () => {
     return {
       id: parsed?.id || Math.random().toString(36).substr(2, 9),
       channelUrl: parsed?.channelUrl || '',
-      goal: parsed?.goal || PostGoal.INFORMATIONAL,
+      goal: parsed?.goal || PostGoal.INFORM,
       format: PostFormat.LIST, // Default
       userComments: '', // Default unused
       withImage: false 
@@ -203,6 +208,15 @@ const App: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showPositioningModal, setShowPositioningModal] = useState(false);
   const [editPrompt, setEditPrompt] = useState('');
+
+  // --- WORKSPACE STATE ---
+  const [viewMode, setViewMode] = useState<'workspace' | 'editor'>('workspace');
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [postProjects, setPostProjects] = useState<PostProject[]>([]);
+  const [currentBrand, setCurrentBrand] = useState<Brand | null>(null);
+  const [currentProject, setCurrentProject] = useState<PostProject | null>(null);
+  const [showCreateBrandModal, setShowCreateBrandModal] = useState(false);
+  const [loadingWorkspace, setLoadingWorkspace] = useState(false);
 
   // --- REFS ---
   const lastAnalyzedUrlRef = useRef('');
@@ -271,15 +285,81 @@ const App: React.FC = () => {
     if (strategy.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(strategy));
   }, [strategy]);
 
+  // --- LOAD WORKSPACE (BRANDS + POSTS) ---
+  useEffect(() => {
+    if (!user) return;
+    const loadWorkspace = async () => {
+      setLoadingWorkspace(true);
+      try {
+        const [loadedBrands, loadedPosts] = await Promise.all([
+          BrandService.getBrands(user.id),
+          PostProjectService.getProjects(user.id)
+        ]);
+        setBrands(loadedBrands);
+        setPostProjects(loadedPosts);
+      } catch (e) {
+        console.error('Failed to load workspace:', e);
+      } finally {
+        setLoadingWorkspace(false);
+      }
+    };
+    loadWorkspace();
+  }, [user?.id]);
+
+  // --- PERSISTENCE ---
+  
+  // Ref for debouncing save
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Direct save handler (debounced)
+  const handleContentChange = (newHtml: string) => {
+    // 1. Update local state immediately
+    setCurrentPost(prev => prev ? ({ ...prev, text: newHtml }) : null);
+    
+    // 2. Schedule save
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    
+    setIsSaving(true);
+    saveTimeoutRef.current = setTimeout(async () => {
+        if (!user || !currentProject) return;
+        
+        try {
+            await PostProjectService.updateContent(
+                user.id, 
+                currentProject.id, 
+                newHtml,
+                currentPost?.rawText || '', // Preserve raw text if possible, or use empty
+                currentPost?.imageUrl
+            );
+            
+            // Sync list state silently
+            setPostProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, text: newHtml, updatedAt: Date.now() } : p));
+            setIsSaving(false);
+        } catch (e) {
+            console.error("Auto-save failed:", e);
+            setIsSaving(false); // Should probably show error state
+        }
+    }, 1000); // 1s debounce
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
   // --- ACTIONS ---
   const handleLogout = async () => {
     const { auth } = await import('./services/firebaseConfig');
     await auth.signOut();
   };
 
+  // ... (handleChannelConnect / Disconnect remain same) ...
   const handleChannelConnect = async (channel: LinkedChannel) => {
     if (!profile) return;
-    const { UserService } = await import('./services/userService'); // Dynamic import
+    const { UserService } = await import('./services/userService');
     const updated = { ...profile, linkedChannel: channel };
     await UserService.updateProfile(updated);
     setProfile(updated);
@@ -291,6 +371,222 @@ const App: React.FC = () => {
       const updated = { ...profile, linkedChannel: undefined };
       await UserService.updateProfile(updated);
       setProfile(updated);
+  };
+  // ...
+
+  // ... (Workspace Actions remain same) ...
+
+  const handleSelectIdea = async (idea: Idea) => {
+    if (!profile || profile.balance <= 0) return setError("Недостаточно кредитов");
+    if (!currentProject) return setError("Проект не выбран");
+
+    setError(null);
+    setCurrentPost({ id: currentProject.id, text: '', generating: true, timestamp: Date.now() });
+    setPipelineState({ stage: 'validating', progress: 5, currentTask: 'Booting...' });
+
+    const config: GenerationConfig = { withImage: strategy.withImage || false, withAnalysis: false };
+    const result = await PostGenerationService.generate(
+        { idea, strategy, config, userId: user!.id }, 
+        setPipelineState,
+        (partialText) => {
+            // STREAMING UPDATE
+            // This updates the UI in real-time
+            // AND triggers the auto-save useEffect (debounced)
+            setCurrentPost(prev => prev ? { ...prev, text: partialText } : { 
+                id: currentProject.id, 
+                text: partialText, 
+                generating: true, 
+                timestamp: Date.now() 
+            });
+        }
+    );
+
+    if (!result.success || !result.post) {
+      setError(result.errors.join(', '));
+      setCurrentPost(null);
+      return;
+    }
+
+    const newPost = result.post;
+    // Overwrite the project ID because generate returns a new random ID usually, but we are working on a specific project
+    newPost.id = currentProject.id;
+    
+    setCurrentPost(newPost);
+    
+    // SAVE TO FIRESTORE IMMEDIATELY
+    if (user) {
+        await PostProjectService.updateIdeas(user.id, currentProject.id, ideas, idea.id);
+        await PostProjectService.updateContent(user.id, currentProject.id, newPost.text, newPost.rawText, newPost.imageUrl);
+        // Update local project list to reflect changes immediately
+        setPostProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, text: newPost.text, ideas, selectedIdeaId: idea.id, updatedAt: Date.now() } : p));
+    }
+
+    try {
+        const { UserService } = await import('./services/userService');
+        const updated = { ...profile, balance: profile.balance - result.costs.total, generationHistory: [newPost, ...profile.generationHistory].slice(0, 50) };
+        await UserService.updateProfile(updated);
+        setProfile(updated);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleAIEdit = async (instruction: string) => {
+    if (!currentPost || currentPost.generating || !user || !currentProject) return;
+    
+    setPipelineState({ stage: 'polishing', progress: 50, currentTask: 'Редактирую...' });
+    try {
+      const result = await GeminiService.polishContent(currentPost.text, instruction);
+      const updatedText = result.text;
+      
+      setCurrentPost(p => p ? { ...p, text: updatedText } : null);
+      
+      // SAVE TO FIRESTORE
+      await PostProjectService.updateContent(user.id, currentProject.id, updatedText, currentPost.rawText, currentPost.imageUrl);
+       // Update local project list
+      setPostProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, text: updatedText, updatedAt: Date.now() } : p));
+
+      setEditPrompt('');
+    } catch (e: any) {
+      setError(e.message || 'Ошибка редактирования');
+    } finally {
+      setPipelineState({ stage: 'idle', progress: 0 });
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!currentPost || !profile || !currentProject) return;
+    const chatId = profile.linkedChannel?.chatId || TELEGRAM_CHAT_ID;
+    const token = profile.linkedChannel?.botToken || TELEGRAM_BOT_TOKEN;
+    
+    if (!chatId) return setError("Нет подключенного канала");
+    
+    setPublishing(true);
+    try {
+        const res = await TelegramService.publish(currentPost.text, token, chatId, currentPost.imageUrl);
+        if (res.success) {
+            alert("Опубликовано!");
+            
+            // SAVE STATUS TO FIRESTORE
+            if (user) {
+                await PostProjectService.markPublished(user.id, currentProject.id, res.messageId); 
+                // Update local list
+                setPostProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, status: 'published', publishedAt: Date.now() } : p));
+            }
+
+            const { UserService } = await import('./services/userService');
+            const updatedHist = profile.generationHistory.map(p => p.id === currentPost.id ? { ...p, publishedAt: Date.now() } : p);
+            const updatedProfile = { ...profile, generationHistory: updatedHist };
+            await UserService.updateProfile(updatedProfile);
+            setProfile(updatedProfile);
+        } else {
+            alert(res.message);
+        }
+    } catch (e: any) { alert(e.message); }
+    finally { setPublishing(false); }
+  };
+  const handleCreateBrand = async (data: {name: string, channelUrl: string}) => {
+    if (!user) return;
+    const brand = await BrandService.createBrand(user.id, data);
+    setBrands(prev => [brand, ...prev]);
+    setCurrentBrand(brand);
+    // Open positioning modal immediately for the new brand
+    handleEditPositioning(brand);
+  };
+
+  const handleSelectPost = async (post: PostProject) => {
+    const brand = brands.find(b => b.id === post.brandId);
+    if (!brand) return;
+    
+    setCurrentBrand(brand);
+    setCurrentProject(post);
+    setViewMode('editor');
+    
+    // Sync to old state model for compatibility
+    setStrategy(prev => ({
+      ...prev,
+      channelUrl: brand.channelUrl,
+      goal: post.goal,
+      positioning: brand.positioning,
+      analyzedChannel: brand.analyzedChannel
+    }));
+    setIdeas(post.ideas);
+    setIdeas(post.ideas);
+    
+    // Always open the post, even if text is empty (it might be a draft)
+    setCurrentPost({
+      id: post.id,
+      text: post.text || '', // Default to empty string
+      rawText: post.rawText,
+      imageUrl: post.imageUrl,
+      generating: false,
+      timestamp: post.updatedAt || Date.now()
+    });
+    
+    // Sync with Firestore to ensure fresh content (fix for stale list state)
+    if (user) {
+        PostProjectService.getProject(user.id, post.id).then(freshPost => {
+            if (freshPost) {
+                // Update editor context with fresh data
+                setCurrentPost({
+                    id: freshPost.id,
+                    text: freshPost.text || '',
+                    rawText: freshPost.rawText,
+                    imageUrl: freshPost.imageUrl,
+                    generating: false,
+                    timestamp: freshPost.updatedAt
+                });
+                // Update list state to prevent future staleness
+                setPostProjects(prev => prev.map(p => p.id === freshPost.id ? freshPost : p));
+                // Update ideas context
+                setIdeas(freshPost.ideas);
+            }
+        }).catch(err => console.error("Failed to refresh post:", err));
+    }
+  };
+
+  const handleCreatePost = async (brandId: string) => {
+    if (!user) return;
+    const brand = brands.find(b => b.id === brandId);
+    if (brand) setStrategy(s => ({...s, channelUrl: brand.channelUrl, positioning: brand.positioning}));
+    
+    const project = await PostProjectService.createProject(user.id, brandId, strategy.goal);
+    setPostProjects(prev => [project, ...prev]);
+    await handleSelectPost(project);
+  };
+
+  const handleEditPositioning = (brand: Brand) => {
+    setCurrentBrand(brand); // Ensure this brand is active context
+    // Update strategy context for the modal
+    setStrategy(s => ({
+        ...s, 
+        channelUrl: brand.channelUrl,
+        positioning: brand.positioning
+    }));
+    setShowPositioningModal(true);
+  };
+
+  const handleUpdateBrandPositioning = async (pos: string) => {
+    if (!user || !currentBrand) return;
+    
+    // 1. Update in Firestore
+    await BrandService.updatePositioning(user.id, currentBrand.id, pos);
+    
+    // 2. Update local state
+    const updatedBrand = { ...currentBrand, positioning: pos };
+    setBrands(prev => prev.map(b => b.id === currentBrand.id ? updatedBrand : b));
+    setCurrentBrand(updatedBrand);
+    
+    // 3. Update strategy if we are in editor or just to keep sync
+    setStrategy(s => ({ ...s, positioning: pos }));
+  };
+
+  const handleEditBrand = (brand: Brand) => {
+    setCurrentBrand(brand);
+    setShowSettings(true);
+  };
+
+  const handleBackToWorkspace = () => {
+    setViewMode('workspace');
+    setCurrentProject(null);
   };
 
   const handleGenerateIdeas = async () => {
@@ -320,71 +616,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSelectIdea = async (idea: Idea) => {
-    if (!profile || profile.balance <= 0) return setError("Недостаточно кредитов");
-    
-    setError(null);
-    // Explicitly set generating state
-    setCurrentPost({ id: 'generating', text: '', generating: true, timestamp: Date.now() });
-    setPipelineState({ stage: 'validating', progress: 5, currentTask: 'Booting...' });
 
-    const config: GenerationConfig = { withImage: strategy.withImage || false, withAnalysis: false };
-    const result = await PostGenerationService.generate({ idea, strategy, config, userId: user!.id }, setPipelineState);
-
-    if (!result.success || !result.post) {
-      setError(result.errors.join(', '));
-      setCurrentPost(null);
-      return;
-    }
-
-    const newPost = result.post;
-    setCurrentPost(newPost); // This automatically sets generating: false (or undefined) effectively
-    try {
-        const { UserService } = await import('./services/userService');
-        const updated = { ...profile, balance: profile.balance - result.costs.total, generationHistory: [newPost, ...profile.generationHistory].slice(0, 50) };
-        await UserService.updateProfile(updated);
-        setProfile(updated);
-    } catch (e) { console.error(e); }
-  };
-
-  const handleAIEdit = async (instruction: string) => {
-    if (!currentPost || currentPost.generating) return;
-    
-    setPipelineState({ stage: 'polishing', progress: 50, currentTask: 'Редактирую...' });
-    try {
-      const result = await GeminiService.polishContent(currentPost.text, instruction);
-      setCurrentPost(p => p ? { ...p, text: result.text } : null);
-      setEditPrompt('');
-    } catch (e: any) {
-      setError(e.message || 'Ошибка редактирования');
-    } finally {
-      setPipelineState({ stage: 'idle', progress: 0 });
-    }
-  };
-
-  const handlePublish = async () => {
-    if (!currentPost || !profile) return;
-    const chatId = profile.linkedChannel?.chatId || TELEGRAM_CHAT_ID;
-    const token = profile.linkedChannel?.botToken || TELEGRAM_BOT_TOKEN;
-    
-    if (!chatId) return setError("Нет подключенного канала");
-    
-    setPublishing(true);
-    try {
-        const res = await TelegramService.publish(currentPost.text, token, chatId, currentPost.imageUrl);
-        if (res.success) {
-            alert("Опубликовано!");
-            const { UserService } = await import('./services/userService');
-            const updatedHist = profile.generationHistory.map(p => p.id === currentPost.id ? { ...p, publishedAt: Date.now() } : p);
-            const updatedProfile = { ...profile, generationHistory: updatedHist };
-            await UserService.updateProfile(updatedProfile);
-            setProfile(updatedProfile);
-        } else {
-            alert(res.message);
-        }
-    } catch (e: any) { alert(e.message); }
-    finally { setPublishing(false); }
-  };
 
   // --- RENDER ---
   if (showLogin) {
@@ -417,8 +649,23 @@ const App: React.FC = () => {
       {/* 1. TOP BAR */}
       <header className="h-16 bg-white border-b border-slate-200 shrink-0 px-6 flex items-center justify-between z-20 shadow-sm relative">
         <div className="flex items-center gap-4">
+            {viewMode === 'editor' && (
+              <button 
+                onClick={handleBackToWorkspace}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors text-xs font-medium"
+              >
+                <LayoutGrid size={14} />
+                Workspace
+              </button>
+            )}
             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-xs">TG</div>
             <h1 className="font-display font-bold text-lg tracking-tight text-slate-900">TeleGenie <span className="text-slate-400 font-medium">Studio</span></h1>
+            {currentBrand && viewMode === 'editor' && (
+              <div className="hidden md:flex items-center gap-2 text-xs text-slate-500">
+                <span>·</span>
+                <span className="font-medium text-violet-600">{currentBrand.name}</span>
+              </div>
+            )}
         </div>
         <div className="flex items-center gap-4">
              {profile && (
@@ -466,8 +713,32 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* 2. MAIN GRID */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-12 overflow-hidden relative">
+      {/* CREATE BRAND MODAL */}
+      <CreateBrandModal
+        isOpen={showCreateBrandModal}
+        onClose={() => setShowCreateBrandModal(false)}
+        onSave={handleCreateBrand}
+      />
+
+      {/* WORKSPACE VIEW */}
+      {viewMode === 'workspace' ? (
+        <WorkspaceScreen
+          brands={brands}
+          posts={postProjects}
+          onSelectPost={handleSelectPost}
+          onCreatePost={handleCreatePost}
+          onCreateBrand={() => setShowCreateBrandModal(true)}
+          onEditBrand={handleEditBrand}
+          onDeleteBrand={() => {}}
+          onOpenPositioning={handleEditPositioning}
+          loading={loadingWorkspace}
+        />
+      ) : (
+        <>
+          {/* 2. MAIN GRID - EDITOR VIEW */}
+          <div className="flex-1 grid grid-cols-1 md:grid-cols-12 overflow-hidden relative">
+        
+        {/* ... */}
         
         {/* LEFT SIDEBAR: CONTEXT, STRATEGY, IDEAS (3 cols) */}
         <aside className={`absolute inset-y-0 left-0 w-80 bg-white border-r border-slate-200 z-10 transform transition-transform md:relative md:transform-none md:w-auto md:col-span-3 lg:col-span-3 flex flex-col overflow-hidden ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full'}`}>
@@ -500,13 +771,10 @@ const App: React.FC = () => {
                           <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2">
                               <LinkIcon size={12} /> Канал
                           </h3>
-                          <input 
-                             type="text"
-                             value={strategy.channelUrl}
-                             onChange={(e) => setStrategy(s => ({...s, channelUrl: e.target.value}))}
-                             placeholder="https://t.me/yourchannel"
-                             className="w-full bg-slate-50 border border-slate-200 text-xs font-medium rounded-xl p-2.5 outline-none focus:border-violet-300 focus:bg-white transition-all placeholder:text-slate-300"
-                          />
+                          <div className="w-full bg-slate-100/50 border border-slate-200 text-xs font-medium rounded-xl p-3 text-slate-600 flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></div>
+                              <span className="truncate">{strategy.channelUrl || 'Канал не выбран'}</span>
+                          </div>
                      </div>
 
                     {/* Positioning */}
@@ -610,7 +878,7 @@ const App: React.FC = () => {
                         <div className="flex-1 max-w-2xl mx-auto w-full px-8 py-10">
                             <TipTapEditor 
                                 value={currentPost.text} 
-                                onChange={(html) => setCurrentPost(p => p ? ({...p, text: html}) : null)}
+                                onChange={handleContentChange}
                             />
                         </div>
                     </div>
@@ -717,7 +985,12 @@ const App: React.FC = () => {
                                className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none prose-p:my-1.5" 
                                dangerouslySetInnerHTML={{ __html: currentPost.text }}
                             />
-                            <div className="text-[10px] text-slate-400 text-right mt-2 pt-2 border-t border-slate-100">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                            <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
+                                <span className={`text-[10px] font-bold uppercase tracking-widest transition-opacity ${isSaving ? 'text-violet-500 opacity-100' : 'text-slate-300 opacity-0'}`}>
+                                    {isSaving ? 'Saving...' : 'Saved'}
+                                </span>
+                                <div className="text-[10px] text-slate-400">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                            </div>
                         </div>
                     ) : (
                         <div className="text-center text-white/60 text-sm py-10">
@@ -741,6 +1014,8 @@ const App: React.FC = () => {
         </aside>
 
       </div>
+      </>
+      )}
 
       {/* ERROR TOAST */}
       {error && (
@@ -755,7 +1030,13 @@ const App: React.FC = () => {
       <PositioningModal 
         isOpen={showPositioningModal}
         onClose={() => setShowPositioningModal(false)}
-        onSave={(pos) => setStrategy(s => ({...s, positioning: pos}))}
+        onSave={(pos) => {
+            if (viewMode === 'workspace') {
+                handleUpdateBrandPositioning(pos);
+            } else {
+                setStrategy(s => ({...s, positioning: pos}));
+            }
+        }}
         channelUrl={strategy.channelUrl}
         currentPositioning={strategy.positioning}
       />

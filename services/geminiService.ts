@@ -303,7 +303,58 @@ export class GeminiService {
   }
 
   /**
+   * Streams content generation for real-time feedback.
+   */
+  static async *generatePostContentStream(idea: Idea, strategy: ChannelStrategy): AsyncGenerator<{ text: string, usage?: UsageMetadata }> {
+    const ai = this.getAI();
+    const info = strategy.analyzedChannel;
+    const { CostCalculator } = await import('./costCalculator');
+    const model = 'gemini-2.0-flash-lite'; // Use fast model for streaming
+
+    const authorContext = strategy.positioning 
+      ? `ПОЗИЦИОНИРОВАНИЕ: ${strategy.positioning}`
+      : `СТИЛЬ АВТОРА: ${info?.context}`;
+
+    const prompt = `НАПИШИ ПОСТ ДЛЯ КАНАЛА «${info?.name}».
+    
+    ВХОДНЫЕ ДАННЫЕ:
+    - Идея: "${idea.title}"
+    - Цель: ${strategy.goal}
+    - ${authorContext}
+    
+    ГЛАВНЫЕ ПРАВИЛА:
+    1. Сразу к делу.
+    2. Сильные глаголы.
+    3. Ритм (чередуй длину фраз).
+    4. Без воды.
+    
+    ВЫДАЙ ТОЛЬКО ТЕКСТ ПОСТА (Markdown).`;
+
+    const stream = await ai.models.generateContentStream({
+      model,
+      contents: prompt,
+      config: { systemInstruction: SYSTEM_PROMPT_BASE }
+    });
+
+    let fullText = '';
+    
+    for await (const chunk of stream) {
+      if (chunk.text) {
+        fullText += chunk.text;
+        yield { text: fullText };
+      }
+    }
+
+    // Final yield with usage
+    // Note: Usage might only be available at the end or via a refined API call
+    // For now we estimate or try to get it from the final chunk if available
+    // const finalUsage = ... 
+    // yield { text: fullText, usage: finalUsage };
+  }
+
+  /**
    * Generates images using gemini-2.5-flash-image.
+   * ... existing generateImage ...
    */
   static async generateImage(prompt: string): Promise<{ imageUrl: string | null, usage: UsageMetadata | null }> {
     try {

@@ -26,7 +26,8 @@ export class PostGenerationService {
    */
   static async generate(
     input: GenerationInput,
-    onProgress?: ProgressCallback
+    onProgress?: ProgressCallback,
+    onPartialText?: (text: string) => void
   ): Promise<GenerationResult> {
     const startedAt = Date.now();
     const errors: string[] = [];
@@ -54,10 +55,32 @@ export class PostGenerationService {
 
       // === GENERATE CONTENT ===
       emit('generating_content', 20, 'Генерация текста поста...');
-      const contentResult = await GeminiService.generatePostContent(input.idea, input.strategy);
-      costs.content = contentResult.usage?.estimatedCostUsd || 0;
+      
+      let generatedText = '';
+      let contentUsage: UsageMetadata | undefined;
 
-      if (!contentResult.text) {
+      // Use streaming if available
+      try {
+        const stream = GeminiService.generatePostContentStream(input.idea, input.strategy);
+        for await (const chunk of stream) {
+          generatedText = chunk.text;
+          // Emit usage if available in chunk, otherwise keep undefined for now
+          if (chunk.usage) contentUsage = chunk.usage; 
+          
+          if (onPartialText) {
+             onPartialText(generatedText);
+          }
+        }
+      } catch (e) {
+          console.warn("Streaming failed, falling back to blocking", e);
+          const fallback = await GeminiService.generatePostContent(input.idea, input.strategy);
+          generatedText = fallback.text;
+          contentUsage = fallback.usage;
+      }
+      
+      costs.content = contentUsage?.estimatedCostUsd || 0;
+
+      if (!generatedText) {
         errors.push('Не удалось сгенерировать текст');
         return this.fail(errors, costs, startedAt);
       }
@@ -66,10 +89,14 @@ export class PostGenerationService {
       emit('polishing', 35, 'Форматирование текста...');
       const { TextPolishingService } = await import('./textPolishingService');
       const polishedResult = await TextPolishingService.polishAndFormat(
-        contentResult.text,
+        generatedText,
         input.strategy
       );
       costs.polishing = polishedResult.usage?.estimatedCostUsd || 0;
+      
+      // Update with polished text if needed, or keep original as raw
+      // Actually we save generatedText as rawText
+
 
       // === GENERATE IMAGE (optional) ===
       let imageUrl: string | undefined;
@@ -107,11 +134,11 @@ export class PostGenerationService {
       const post: Post = {
         id: `post-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         text: polishedResult.formattedText,
-        rawText: contentResult.text, // Keep original for editor reset
+        rawText: generatedText, // Keep original for editor reset
         imageUrl,
         generating: false,
         timestamp: Date.now(),
-        usage: contentResult.usage,
+        usage: contentUsage,
         polishingUsage: polishedResult.usage,
         imageUsage,
         analysisUsage: input.strategy.analysisUsage,

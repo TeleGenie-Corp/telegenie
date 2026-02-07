@@ -46,6 +46,56 @@ export interface LinkedChannel {
   memberCount?: number; // Subscriber count
 }
 
+// === WORKSPACE DATA MODEL ===
+
+export interface Brand {
+  id: string;
+  name: string;                    // Display name
+  channelUrl: string;              // t.me/username
+  linkedChannel?: LinkedChannel;   // Publishing config (chatId, botToken, etc)
+  positioning?: string;            // Brand positioning formula
+  analyzedChannel?: ChannelInfo;   // Cached channel analysis
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface PostVersion {
+  text: string;
+  imageUrl?: string;
+  savedAt: number;
+}
+
+export type PostStatus = 'draft' | 'published' | 'archived';
+
+export interface PostProject {
+  id: string;
+  brandId: string;                 // Reference to Brand
+  status: PostStatus;
+  
+  // Strategy
+  goal: PostGoal;
+  point?: string;                  // Current topic/news
+  userComments?: string;
+  
+  // Content
+  ideas: Idea[];
+  selectedIdeaId?: string;
+  text: string;
+  rawText?: string;
+  imageUrl?: string;
+  
+  // History
+  versions: PostVersion[];
+  
+  // Publish
+  publishedAt?: number;
+  publishedMessageId?: number;
+  
+  // Meta
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface UserProfile {
   userId: string;
   savedStrategies: ChannelStrategy[];
