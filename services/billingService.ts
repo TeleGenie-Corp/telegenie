@@ -12,47 +12,31 @@ const PLANS: SubscriptionPlan[] = [
       aiTokens: 10000,
       brandsCount: 1
     },
-    features: [
-      '5 постов в месяц',
-      'Базовый AI редактор',
-      '1 Бренд'
-    ]
+    features: []
   },
   {
     id: 'pro',
-    name: 'Pro',
-    price: 990,
+    name: 'Expert',
+    price: 490,
     currency: 'RUB',
     limits: {
       postsPerMonth: 50,
       aiTokens: 100000,
       brandsCount: 5
     },
-    features: [
-      '50 постов в месяц',
-      'Продвинутый AI (GPT-4/Claude 3)',
-      '5 Брендов',
-      'Анализ каналов конкурентов',
-      'Приоритетная поддержка'
-    ]
+    features: []
   },
   {
-    id: 'agency',
-    name: 'Agency',
-    price: 4990,
+    id: 'monster',
+    name: 'Monster Blogger',
+    price: 2490,
     currency: 'RUB',
     limits: {
-      postsPerMonth: 500,
-      aiTokens: 1000000,
-      brandsCount: 20
+      postsPerMonth: 250,
+      aiTokens: 500000,
+      brandsCount: 25
     },
-    features: [
-      'Безлимит постов (FUP)',
-      'Максимальное качество генерации',
-      '20 Брендов',
-      'API доступ',
-      'Персональный менеджер'
-    ]
+    features: []
   }
 ];
 
@@ -63,35 +47,45 @@ export class BillingService {
   }
 
   static async subscribe(userId: string, planId: SubscriptionTier): Promise<boolean> {
-    // MOCK PAYMENT PROCESS
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate delay
-    
-    // In real app: Validate payment via Stripe/Recurly
-    // Here: Just upgrade the user
-    
     const profile = await UserService.getUserProfile(userId);
     if (!profile) throw new Error("User not found");
 
-    const newSubscription = {
-      tier: planId,
-      status: 'active' as const,
-      currentPeriodEnd: Date.now() + 30 * 24 * 60 * 60 * 1000, // +30 days
-      autoRenew: true
-    };
-    
-    const updatedProfile = {
-      ...profile,
-      subscription: newSubscription
-    };
+    const plan = PLANS.find(p => p.id === planId);
+    if (!plan) throw new Error("Plan not found");
 
-    await UserService.updateProfile(updatedProfile);
+    // Dynamic import to avoid circular dependency issues if any
+    const { CloudPaymentsService } = await import('./cloudPaymentsService');
     
-    // Create Transaction Record
-    // In real app, this comes from webhook
-    // We don't have a transaction service yet, so we just log it conceptually
-    // or add to a 'transactions' collection if we had one.
-    
-    return true;
+    // Use user email if available, otherwise ask user or use dummy for test
+    const userEmail = 'user@example.com'; // TODO: Get from Auth or UserProfile
+
+    try {
+        const success = await CloudPaymentsService.createSubscription(userId, userEmail, {
+            id: plan.id,
+            price: plan.price,
+            name: plan.name
+        });
+
+        if (!success) return false;
+
+        // Optimistic update
+        const newSubscription = {
+            tier: planId,
+            status: 'active' as const,
+            currentPeriodEnd: Date.now() + 30 * 24 * 60 * 60 * 1000, 
+            autoRenew: true
+        };
+        
+        await UserService.updateProfile({
+            ...profile,
+            subscription: newSubscription
+        });
+        
+        return true;
+    } catch (e) {
+        console.error("Subscription error", e);
+        return false;
+    }
   }
 
   static async checkLimit(userId: string, feature: 'posts' | 'brands'): Promise<boolean> {
@@ -108,10 +102,10 @@ export class BillingService {
     }
     
     if (feature === 'brands') {
-       // We would need to count actual brands here.
-       // For now, let's assume usage tracking is updated elsewhere or we fetch count.
-       // Mocking this check:
-       return true; 
+       // Dynamic import to avoid circular dependency
+       const { BrandService } = await import('./brandService');
+       const brands = await BrandService.getBrands(userId);
+       return brands.length < plan.limits.brandsCount;
     }
 
     return false;

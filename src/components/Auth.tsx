@@ -20,6 +20,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [linkSent, setLinkSent] = useState(false);
 
   // 1. Google Popup Strategy (Fastest)
+  // 1. Google Smart Strategy (Popup -> Fallback to Redirect)
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
@@ -27,16 +28,23 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       const result = await signInWithPopup(auth, googleProvider);
       onLogin(result.user);
     } catch (err: any) {
-      console.error(err);
+      console.error("Popup failed, trying redirect...", err);
+      
+      // Auto-fallback to redirect if popup is blocked or closed
       if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
-        setError("Попап заблокирован. Попробуйте метод с редиректом ниже.");
+        try {
+            await signInWithRedirect(auth, googleProvider);
+        } catch (redirErr: any) {
+            setError("Не удалось выполнить вход: " + redirErr.message);
+            setLoading(false);
+        }
       } else if (err.code === 'auth/network-request-failed') {
-        setError("Ошибка сети. Попробуйте VPN или метод с редиректом.");
+        setError("Ошибка сети. Проверьте соединение.");
+        setLoading(false);
       } else {
-        setError("Ошибка авторизации. Попробуйте другие методы.");
+        setError("Ошибка авторизации: " + err.message);
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -110,24 +118,14 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
       </div>
 
       <div className="space-y-3">
-        {/* Primary: Google Popup */}
+        {/* Primary: Google Smart Login */}
         <button
           onClick={handleGoogleLogin}
           disabled={loading}
           className="w-full bg-white border border-slate-200 py-4 rounded-2xl flex items-center justify-center gap-3 font-bold text-slate-700 hover:border-violet-200 hover:text-violet-600 transition-all shadow-sm active:scale-95 disabled:opacity-50 group relative overflow-hidden"
         >
           {loading ? <Loader2 size={20} className="animate-spin" /> : <Chrome size={20} className="text-slate-400 group-hover:text-violet-500 transition-colors" />}
-          <span className="text-sm uppercase tracking-wider relative z-10">Google (Быстро)</span>
-        </button>
-
-        {/* Secondary: Google Redirect */}
-        <button
-          onClick={handleGoogleRedirect}
-          disabled={loading}
-          className="w-full bg-slate-50 border border-slate-100 py-3 rounded-2xl flex items-center justify-center gap-3 font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all active:scale-95 disabled:opacity-50"
-        >
-          <RefreshCw size={16} />
-          <span className="text-xs uppercase tracking-wider">Google (Редирект)</span>
+          <span className="text-sm uppercase tracking-wider relative z-10">Войти через Google</span>
         </button>
 
         {!showEmailAuth ? (

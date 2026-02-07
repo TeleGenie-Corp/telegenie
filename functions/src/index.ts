@@ -1,79 +1,19 @@
 import { onRequest } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
-import * as https from "https";
 import * as admin from "firebase-admin";
 
+// Initialize Firebase Admin once
 if (admin.apps.length === 0) {
     admin.initializeApp();
 }
 
-class ChannelService {
-    async getChannelInfo(username: string) {
-        const url = `https://t.me/s/${username}`;
-        try {
-            const html = await this._fetchUrl(url);
-            return this._parseHtml(username, html);
-        } catch (error: any) {
-            return { error: error.message };
-        }
-    }
+// Imports from modules
+import { ChannelService } from "./services/channel.service";
+import { handleWebhook } from "./controllers/payment.controller";
 
-    private _fetchUrl(url: string): Promise<string> {
-        return new Promise((resolve, reject) => {
-            https.get(url, (res) => {
-                let data = '';
-                res.on('data', (chunk) => { data += chunk; });
-                res.on('end', () => resolve(data));
-            }).on('error', (err) => reject(err));
-        });
-    }
-
-    private _parseHtml(username: string, html: string) {
-        const titleMatch = html.match(/<meta property="og:title" content="([^"]+)">/);
-        const descMatch = html.match(/<meta property="og:description" content="([^"]+)">/);
-        const imageMatch = html.match(/<meta property="og:image" content="([^"]+)">/);
-        
-        const title = titleMatch ? this._decodeEntity(titleMatch[1]) : "Unknown";
-        const description = descMatch ? this._decodeEntity(descMatch[1]) : "No description";
-        const image = imageMatch ? imageMatch[1] : null;
-
-        const postRegex = /<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)<\/div>/gs;
-        
-        const posts: string[] = [];
-        let match;
-        while ((match = postRegex.exec(html)) !== null) {
-            const rawContent = match[1];
-            if(rawContent.trim().length > 0) {
-                posts.push(this._cleanText(rawContent));
-            }
-        }
-        return {
-            username: username,
-            title: title,
-            description: description,
-            image: image,
-            stats: {
-                scraped_posts_count: posts.length
-            },
-            last_posts: posts.slice(-5)
-        };
-    }
-
-    private _cleanText(html: string) {
-        let text = html.replace(/<br\s*\/?>/gi, '\n');
-        text = text.replace(/<[^>]+>/g, '');
-        return this._decodeEntity(text).trim();
-    }
-
-    private _decodeEntity(str: string) {
-        return str.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec)))
-                  .replace(/&quot;/g, '"')
-                  .replace(/&amp;/g, '&')
-                  .replace(/&lt;/g, '<')
-                  .replace(/&gt;/g, '>');
-    }
-}
-
+/**
+ * 1. Channel Info Scraper
+ */
 export const getChannelInfo = onRequest({ cors: true }, async (req, res) => {
     const username = (req.query.name as string) || (req.body.name as string) || 'nenashev_vision';
     
@@ -85,8 +25,12 @@ export const getChannelInfo = onRequest({ cors: true }, async (req, res) => {
 });
 
 /**
- * Administrative function to seed $1000 credits to all existing users.
- * Requires a special secret key in headers for safety.
+ * 2. CloudPayments Webhook
+ */
+export const cpWebhook = onRequest({ cors: true }, handleWebhook);
+
+/**
+ * 3. Migration / Admin Tools
  */
 export const seedCredits = onRequest({ cors: true }, async (req, res) => {
     const authSecret = req.headers['x-migration-secret'];

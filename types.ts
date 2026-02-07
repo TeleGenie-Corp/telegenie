@@ -98,7 +98,7 @@ export interface PostProject {
 
 // === BILLING & SUBSCRIPTIONS ===
 
-export type SubscriptionTier = 'free' | 'pro' | 'agency';
+export type SubscriptionTier = 'free' | 'pro' | 'monster';
 
 export interface SubscriptionPlan {
   id: SubscriptionTier;

@@ -2,46 +2,71 @@
 trigger: always_on
 ---
 
-Design System & UX Architecture Role: You are a World-Class Product Designer &
-UX Architect. Your task is to define and enforce a strict, premium design
-language for a suite of "Micro-SaaS" products.
+Design System & UX Architecture
 
-Design DNA: "Silent Luxury" & "Hidden Color".
+Role: You are a World-Class Product Designer & UX Architect. Your task is to
+define and enforce a strict, premium design language.
 
-1. The "Hidden Color" Philosophy The interface must appear pristine and
-   monochromatic at rest—a "White Canvas". Color is a privilege earned by
-   interaction. It should feel like the interface wakes up when the user touches
-   it.
+## Design DNA: "Bombay Sapphire" & "Digital Ink"
 
-Rest State: Pure White (#FFFFFF) and Cool Slates. No heavy shadows. No static
-color blocks. Active State: Vibrant Grape/Violet blooms on interaction (Hover,
-Focus, Active). 2. Visual Dictionary A. Palette Canvas: bg-white (Infinite
-space). Structure: border-slate-100 (Subtle division). Typography:
-text-slate-900 (Primary), text-slate-400 (Secondary). The Secret:
-content-violet-600 (Grape). Only used for: Cursor/Caret. Focus rings. Hover
-states of cards/buttons. Active toggle states. B. Typography Font: 'Manrope'
-(Modern Geometrics). Hierarchy: Headlines: Massive, tight tracking
-(tracking-tightest), Heavy weights (800/900). Labels: Micro-caps, wide tracking
-(tracking-widest), Bold (700), Slate-400. Body: Readable, open leading. C.
-Shapes & Physics Containers: "Super-Rounded" (rounded-[2.5rem]). Depth: Flat.
-Use borders (1px solid slate-100) to define depth. No Drop Shadows. Physics:
-Buttons scale down on click (scale-95). Colors fade in (duration-300). 3. Image
-& Illustration Style: "Clean Glass & Clay" All visual assets must strictly
-follow this hybrid 3D/Flat aesthetic:
+1. **The Philosophy**: The interface is a pristine, high-contrast digital paper.
+   - **Ink (Slate-900)**: Used for primary text and high-impact actions
+     (buttons, headers).
+   - **Gem (Violet-600)**: The "soul" of the brand. Used sparingly for magic
+     moments, AI actions, and premium states.
+   - **Glass (White/Slate-50)**: The canvas. Layered with subtle borders, never
+     shadows.
 
-Materials:
+## 2. Visual Dictionary
 
-Matte Clay: Soft, non-reflective surfaces for main objects. Frosted Glass:
-Translucent, blurred elements (Acrylic/Glassmorphism) floating in the scene.
-Nature: Single organic element (leaf, stone, water drop) for contrast. Lighting:
+### A. Palette
 
-Soft, diffuse studio lighting. No harsh shadows or high contrast. Composition:
+- **Canvas**: `bg-slate-50` (App Background), `bg-white` (Cards/Panels).
+- **Ink**: `text-slate-900` (Headings/Primary), `bg-slate-900` (Primary
+  Buttons).
+- **Graphite**: `text-slate-500` (Secondary/Meta), `text-slate-400`
+  (Icons/Tertiary).
+- **Accents**:
+  - **Violet-600**: AI Actions, Brand Highlights, "Pro" features.
+  - **Emerald-400/500**: Success, Active State, "Free" tier.
+  - **Rose-500**: Destructive, Errors, Alerts.
+- **Structure**: `border-slate-100` (Subtle), `border-slate-200` (Hover/Active).
 
-Minimalist centerpieces. Airy, spacious backgrounds (White/Grey). Accent: Soft
-Violet gradients/reflections matching the UI accent. 4. Component Rules The
-"Ghost" Button Default: Transparent bg, Slate-900 text, no border. Hover:
-Violet-50 bg (very light), Violet-600 text. Active: Scale 0.95. The "Info" Card
-Default: White bg, Slate-100 border. Hover: Border turns Violet-200. Title turns
-Violet-600. Transition: Smooth 300ms ease-out. Input Fields Default: Minimalist
-bottom border (border-b-2 slate-100). Focus: Border becomes Violet-500. No heavy
-outlines.
+### B. Typography
+
+- **Font**: 'Manrope' (Modern Geometrics).
+- **Headings**: `font-display`, `font-black`, `tracking-tight`.
+- **Labels**: `text-xs`, `font-bold`, `uppercase`, `tracking-wide`.
+- **Body**: `font-medium`, `text-slate-600`, `leading-relaxed`.
+
+### C. Shapes & Physics
+
+- **Containers**: "Super-Rounded" (`rounded-[2rem]` or `rounded-3xl`) for
+  modals/cards.
+- **Elements**: `rounded-xl` or `rounded-2xl` for buttons/inputs.
+- **Depth**: Flat, border-based hierarchy. Shadows used _only_ for floating
+  elements (modals, dropdowns) as `shadow-xl`.
+- **Physics**: `active:scale-95` on all interactive elements. Transitions
+  `duration-200` or `duration-300`.
+
+## 3. Component Rules
+
+- **Buttons**:
+  - _Primary_: `bg-slate-900 text-white hover:bg-slate-800`.
+  - _AI/Magic_: `bg-violet-600 text-white shadow-lg shadow-violet-200`.
+  - _Ghost_:
+    `bg-transparent hover:bg-slate-100 text-slate-500 hover:text-slate-900`.
+- **Cards (Bento)**:
+  - White background, `border border-slate-100`.
+  - Hover: `border-slate-200` or `border-violet-100`, slight lift
+    (`-translate-y-1`).
+- **Inputs**:
+  - `bg-slate-50`, `border-transparent` -> `focus:bg-white`,
+    `focus:border-violet-200`.
+  - No harsh outlines.
+
+## 4. Layout Principles (Bento Grid)
+
+- Organize content into modular, grid-based "cells".
+- Each cell is self-contained with a clear header/icon.
+- Use `gap-4` or `gap-6` for breathing room.

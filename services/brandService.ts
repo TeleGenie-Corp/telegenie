@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 import { Brand, LinkedChannel, ChannelInfo } from '../types';
 
@@ -23,6 +23,17 @@ export class BrandService {
     const q = query(this.getBrandsCollection(userId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Brand));
+  }
+
+  /**
+   * Subscribe to brands for a user.
+   */
+  static subscribeToBrands(userId: string, callback: (brands: Brand[]) => void): () => void {
+    const q = query(this.getBrandsCollection(userId), orderBy('createdAt', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+      const brands = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Brand));
+      callback(brands);
+    });
   }
 
   /**

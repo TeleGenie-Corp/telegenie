@@ -30,6 +30,7 @@ import { GeminiService } from './services/geminiService';
 import { TelegramService } from './services/telegramService';
 import { BrandService } from './services/brandService';
 import { PostProjectService } from './services/postProjectService';
+import { BillingService } from './services/billingService';
 import { Auth } from './src/components/Auth';
 import { Dashboard } from './src/components/Dashboard';
 import { TelegramSettings } from './src/components/TelegramSettings';
@@ -38,6 +39,7 @@ import { PositioningModal } from './src/components/PositioningModal';
 import { WorkspaceScreen } from './src/components/WorkspaceScreen';
 import { SubscriptionModal } from './src/components/SubscriptionModal';
 import { CreateBrandModal } from './src/components/CreateBrandModal';
+import { VPNModal } from './src/components/VPNModal';
 
 
 
@@ -221,6 +223,7 @@ const App: React.FC = () => {
   const [currentProject, setCurrentProject] = useState<PostProject | null>(null);
   const [showCreateBrandModal, setShowCreateBrandModal] = useState(false);
   const [loadingWorkspace, setLoadingWorkspace] = useState(false);
+  const [showVPNModal, setShowVPNModal] = useState(false);
 
   // --- REFS ---
   const lastAnalyzedUrlRef = useRef('');
@@ -290,24 +293,24 @@ const App: React.FC = () => {
   }, [strategy]);
 
   // --- LOAD WORKSPACE (BRANDS + POSTS) ---
+  // --- LOAD WORKSPACE (BRANDS + POSTS) ---
   useEffect(() => {
     if (!user) return;
-    const loadWorkspace = async () => {
-      setLoadingWorkspace(true);
-      try {
-        const [loadedBrands, loadedPosts] = await Promise.all([
-          BrandService.getBrands(user.id),
-          PostProjectService.getProjects(user.id)
-        ]);
-        setBrands(loadedBrands);
-        setPostProjects(loadedPosts);
-      } catch (e) {
-        console.error('Failed to load workspace:', e);
-      } finally {
+    setLoadingWorkspace(true);
+
+    const unsubBrands = BrandService.subscribeToBrands(user.id, (brands) => {
+        setBrands(brands);
         setLoadingWorkspace(false);
-      }
+    });
+
+    const unsubProjects = PostProjectService.subscribeToProjects(user.id, (projects) => {
+        setPostProjects(projects);
+    });
+
+    return () => {
+        unsubBrands();
+        unsubProjects();
     };
-    loadWorkspace();
   }, [user?.id]);
 
   // --- PERSISTENCE ---
@@ -384,6 +387,15 @@ const App: React.FC = () => {
     if (!profile || profile.balance <= 0) return setError("Недостаточно кредитов");
     if (!currentProject) return setError("Проект не выбран");
 
+    // CHECK USAGE LIMITS
+    const canPost = await BillingService.checkLimit(user!.id, 'posts');
+    if (!canPost) {
+        const { AnalyticsService } = await import('./services/analyticsService');
+        AnalyticsService.log({ name: 'subscription_click', params: { location: 'limit_posts' } });
+        setShowSubscriptionModal(true);
+        return;
+    }
+
     setError(null);
     setCurrentPost({ id: currentProject.id, text: '', generating: true, timestamp: Date.now() });
     setPipelineState({ stage: 'validating', progress: 5, currentTask: 'Booting...' });
@@ -406,7 +418,11 @@ const App: React.FC = () => {
     );
 
     if (!result.success || !result.post) {
-      setError(result.errors.join(', '));
+      if (result.errors.some(e => e.includes('VPN_REQUIRED'))) {
+          setShowVPNModal(true);
+      } else {
+          setError(result.errors.join(', '));
+      }
       setCurrentPost(null);
       return;
     }
@@ -423,6 +439,12 @@ const App: React.FC = () => {
         await PostProjectService.updateContent(user.id, currentProject.id, newPost.text, newPost.rawText, newPost.imageUrl);
         // Update local project list to reflect changes immediately
         setPostProjects(prev => prev.map(p => p.id === currentProject.id ? { ...p, text: newPost.text, ideas, selectedIdeaId: idea.id, updatedAt: Date.now() } : p));
+        
+        // INCREMENT USAGE
+        await BillingService.incrementUsage(user.id, 'posts', 1);
+
+        const { AnalyticsService } = await import('./services/analyticsService');
+        AnalyticsService.log({ name: 'generate_post', params: { method: 'idea', topic: idea.title } });
     }
 
     try {
@@ -430,7 +452,18 @@ const App: React.FC = () => {
         const updated = { ...profile, balance: profile.balance - result.costs.total, generationHistory: [newPost, ...profile.generationHistory].slice(0, 50) };
         await UserService.updateProfile(updated);
         setProfile(updated);
-    } catch (e) { console.error(e); }
+        setProfile(updated);
+    } catch (e: any) { 
+        console.error(e); 
+        if (e.message?.includes('VPN_REQUIRED')) {
+            const { AnalyticsService } = await import('./services/analyticsService');
+            AnalyticsService.log({ name: 'error_vpn', params: { location: 'generate_post' } });
+            
+            setShowVPNModal(true);
+            setPipelineState({ stage: 'idle', progress: 0 }); // Reset state
+            setCurrentPost(null); // Clear generating state
+        }
+    }
   };
 
   const handleAIEdit = async (instruction: string) => {
@@ -450,7 +483,12 @@ const App: React.FC = () => {
 
       setEditPrompt('');
     } catch (e: any) {
-      setError(e.message || 'Ошибка редактирования');
+      console.error(e);
+      if (e.message?.includes('VPN_REQUIRED')) {
+          setShowVPNModal(true);
+      } else {
+          setError(e.message || 'Ошибка редактирования');
+      }
     } finally {
       setPipelineState({ stage: 'idle', progress: 0 });
     }
@@ -469,6 +507,9 @@ const App: React.FC = () => {
         if (res.success) {
             alert("Опубликовано!");
             
+            const { AnalyticsService } = await import('./services/analyticsService');
+            AnalyticsService.log({ name: 'publish_telegram', params: { channel_id: chatId } });
+
             // SAVE STATUS TO FIRESTORE
             if (user) {
                 await PostProjectService.markPublished(user.id, currentProject.id, res.messageId); 
@@ -489,9 +530,21 @@ const App: React.FC = () => {
   };
   const handleCreateBrand = async (data: {name: string, channelUrl: string}) => {
     if (!user) return;
+    
+    // CHECK LIMITS
+    const canAdd = await BillingService.checkLimit(user.id, 'brands');
+    if (!canAdd) {
+        setShowSubscriptionModal(true);
+        return;
+    }
+
     const brand = await BrandService.createBrand(user.id, data);
     setBrands(prev => [brand, ...prev]);
     setCurrentBrand(brand);
+    
+    const { AnalyticsService } = await import('./services/analyticsService');
+    AnalyticsService.log({ name: 'create_brand', params: { name: brand.name } });
+
     // Open positioning modal immediately for the new brand
     handleEditPositioning(brand);
   };
@@ -609,11 +662,20 @@ const App: React.FC = () => {
         lastAnalyzedUrlRef.current = strategy.channelUrl;
         setAnalyzing(false);
       }
+      
+      const { AnalyticsService } = await import('./services/analyticsService');
+      AnalyticsService.log({ name: 'generate_ideas', params: { topic: strategy.channelUrl } });
+
       const { ideas: generated, usage } = await GeminiService.generateIdeas(currentStrategy);
       const withUsage = generated.map(i => ({ ...i, usage }));
       setIdeas(withUsage);
     } catch (e: any) {
-        setError(e.message || "Ошибка генерации идей");
+        console.error(e);
+        if (e.message?.includes('VPN_REQUIRED')) {
+            setShowVPNModal(true);
+        } else {
+            setError(e.message || "Ошибка генерации идей");
+        }
         setAnalyzing(false);
     } finally {
         setLoadingIdeas(false);
@@ -640,7 +702,6 @@ const App: React.FC = () => {
   return (
     <div className="h-screen flex flex-col bg-slate-50 overflow-hidden font-sans text-slate-900">
       
-      {/* SETTINGS MODAL */}
       <SettingsModal 
         isOpen={showSettings} 
         onClose={() => setShowSettings(false)}
@@ -648,6 +709,15 @@ const App: React.FC = () => {
         onChannelConnect={handleChannelConnect}
         onChannelDisconnect={handleChannelDisconnect}
         defaultChannelUrl={CHANNEL_URL} // Pass actual constant
+      />
+
+      <VPNModal 
+        isOpen={showVPNModal} 
+        onClose={() => setShowVPNModal(false)}
+        onRetry={() => {
+            setShowVPNModal(false);
+            // Optionally we could retry the last action here, but for now just close
+        }}
       />
 
       {/* 1. TOP BAR */}
@@ -700,12 +770,11 @@ const App: React.FC = () => {
                             onClick={() => setShowSubscriptionModal(true)}
                             className="bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors"
                         >
-                            {profile.subscription?.tier === 'pro' || profile.subscription?.tier === 'agency' ? 'Plan' : 'Upgrade'}
+                            {profile.subscription?.tier === 'pro' ? 'Plan' : 'Upgrade'}
                         </button>
                         <span className="text-xs font-bold text-slate-500 uppercase">{profile.subscription?.tier || 'Free'}</span>
                         <div className="w-px h-3 bg-slate-200"></div>
-                        <span className="text-xs font-bold text-slate-500">${profile.balance.toFixed(2)}</span>
-                        <div className="w-px h-3 bg-slate-200"></div>
+
                         {user?.avatar ? <img src={user.avatar} className="w-5 h-5 rounded-full" /> : <div className="w-5 h-5 bg-violet-500 rounded-full text-[10px] text-white flex items-center justify-center">{user?.first_name[0]}</div>}
                     </div>
                     

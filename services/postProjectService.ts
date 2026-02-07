@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, where } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, where, onSnapshot } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 import { PostProject, PostVersion, PostGoal, Idea, PostStatus } from '../types';
 
@@ -26,6 +26,17 @@ export class PostProjectService {
     }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PostProject));
+  }
+
+  /**
+   * Subscribe to projects for a user.
+   */
+  static subscribeToProjects(userId: string, callback: (projects: PostProject[]) => void): () => void {
+    const q = query(this.getPostsCollection(userId), orderBy('updatedAt', 'desc'));
+    return onSnapshot(q, (snapshot) => {
+        const projects = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as PostProject));
+        callback(projects);
+    });
   }
 
   /**

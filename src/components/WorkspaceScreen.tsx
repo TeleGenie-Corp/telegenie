@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileText, Building2, Plus, Clock, Check, Archive, ArrowRight, Settings, Trash2, ChevronRight, UserCircle, Wand2 } from 'lucide-react';
 import { Brand, PostProject, PostGoal } from '../../types';
 
@@ -34,6 +34,12 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
   const [selectedBrandId, setSelectedBrandId] = useState<string | null>(
     brands.length === 1 ? brands[0].id : null
   );
+
+  useEffect(() => {
+      if (!selectedBrandId && brands.length > 0) {
+          setSelectedBrandId(brands[0].id);
+      }
+  }, [brands]);
 
   const filteredPosts = selectedBrandId 
     ? posts.filter(p => p.brandId === selectedBrandId)

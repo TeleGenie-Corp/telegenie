@@ -84,8 +84,8 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
          // Split by single newline to create distinct blocks, preserving empty lines
          const paragraphs = value.split('\n');
          content = paragraphs.map(p => {
-             // TipTap needs <br> for empty paragraphs to be editable/visible
-             return p.trim().length === 0 ? '<p><br></p>' : `<p>${p}</p>`;
+             // TipTap/ProseMirror will handle the break for empty paragraphs automatically
+             return p.trim().length === 0 ? '<p></p>' : `<p>${p}</p>`;
          }).join('');
       }
 
@@ -179,9 +179,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
         }
         
         /* Show ProseMirror internal breaks - essential for empty lines */
-        .prose .ProseMirror-trailingBreak {
-            display: block;
-        }
+        /* .prose .ProseMirror-trailingBreak { display: block; } */
       `}</style>
 
       {/* Toolbar */}

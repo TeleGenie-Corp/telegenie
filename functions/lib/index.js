@@ -33,81 +33,23 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.seedCredits = exports.getChannelInfo = void 0;
+exports.seedCredits = exports.cpWebhook = exports.getChannelInfo = void 0;
 const https_1 = require("firebase-functions/v2/https");
 const logger = __importStar(require("firebase-functions/logger"));
-const https = __importStar(require("https"));
 const admin = __importStar(require("firebase-admin"));
 if (admin.apps.length === 0) {
     admin.initializeApp();
 }
-class ChannelService {
-    async getChannelInfo(username) {
-        const url = `https://t.me/s/${username}`;
-        try {
-            const html = await this._fetchUrl(url);
-            return this._parseHtml(username, html);
-        }
-        catch (error) {
-            return { error: error.message };
-        }
-    }
-    _fetchUrl(url) {
-        return new Promise((resolve, reject) => {
-            https.get(url, (res) => {
-                let data = '';
-                res.on('data', (chunk) => { data += chunk; });
-                res.on('end', () => resolve(data));
-            }).on('error', (err) => reject(err));
-        });
-    }
-    _parseHtml(username, html) {
-        const titleMatch = html.match(/<meta property="og:title" content="([^"]+)">/);
-        const descMatch = html.match(/<meta property="og:description" content="([^"]+)">/);
-        const imageMatch = html.match(/<meta property="og:image" content="([^"]+)">/);
-        const title = titleMatch ? this._decodeEntity(titleMatch[1]) : "Unknown";
-        const description = descMatch ? this._decodeEntity(descMatch[1]) : "No description";
-        const image = imageMatch ? imageMatch[1] : null;
-        const postRegex = /<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)<\/div>/gs;
-        const posts = [];
-        let match;
-        while ((match = postRegex.exec(html)) !== null) {
-            const rawContent = match[1];
-            if (rawContent.trim().length > 0) {
-                posts.push(this._cleanText(rawContent));
-            }
-        }
-        return {
-            username: username,
-            title: title,
-            description: description,
-            image: image,
-            stats: {
-                scraped_posts_count: posts.length
-            },
-            last_posts: posts.slice(-5)
-        };
-    }
-    _cleanText(html) {
-        let text = html.replace(/<br\s*\/?>/gi, '\n');
-        text = text.replace(/<[^>]+>/g, '');
-        return this._decodeEntity(text).trim();
-    }
-    _decodeEntity(str) {
-        return str.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(parseInt(dec)))
-            .replace(/&quot;/g, '"')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>');
-    }
-}
+const channel_service_1 = require("./services/channel.service");
+const payment_controller_1 = require("./controllers/payment.controller");
 exports.getChannelInfo = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
     const username = req.query.name || req.body.name || 'nenashev_vision';
     logger.info(`Processing request for target: ${username}`, { structuredData: true });
-    const service = new ChannelService();
+    const service = new channel_service_1.ChannelService();
     const result = await service.getChannelInfo(username);
     res.json(result);
 });
+exports.cpWebhook = (0, https_1.onRequest)({ cors: true }, payment_controller_1.handleWebhook);
 exports.seedCredits = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
     const authSecret = req.headers['x-migration-secret'];
     if (authSecret !== 'TElegenIe_Studio_2026_SeEd') {
