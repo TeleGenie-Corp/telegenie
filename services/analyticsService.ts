@@ -10,7 +10,11 @@ export type AnalyticsEvent =
   | { name: 'create_brand'; params: { name: string } }
   | { name: 'subscription_click'; params: { location: string } }
   | { name: 'error_vpn'; params: { location?: string } }
-  | { name: 'login'; params: { method: string } };
+  | { name: 'login'; params: { method: string } }
+  | { name: 'view_subscription_list'; params: {} }
+  | { name: 'begin_checkout'; params: { plan_id: string; price: number; currency: string } }
+  | { name: 'purchase_success'; params: { plan_id: string; price: number; transaction_id: string } }
+  | { name: 'purchase_fail'; params: { plan_id: string; price: number; reason?: string } };
 
 export class AnalyticsService {
   
@@ -42,5 +46,21 @@ export class AnalyticsService {
 
   static trackPublish(channelId?: string) {
     this.log({ name: 'publish_telegram', params: { channel_id: channelId } });
+  }
+
+  static trackViewSubscription() {
+    this.log({ name: 'view_subscription_list', params: {} });
+  }
+
+  static trackBeginCheckout(planId: string, price: number) {
+    this.log({ name: 'begin_checkout', params: { plan_id: planId, price, currency: 'RUB' } });
+  }
+
+  static trackPurchaseSuccess(planId: string, price: number, transactionId: string) {
+    this.log({ name: 'purchase_success', params: { plan_id: planId, price, transaction_id: transactionId } });
+  }
+
+  static trackPurchaseFail(planId: string, price: number, reason?: string) {
+    this.log({ name: 'purchase_fail', params: { plan_id: planId, price, reason } });
   }
 }

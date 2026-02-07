@@ -45,10 +45,24 @@ export class CloudPaymentsService {
         data: payment.data
       }, {
         onSuccess: (options: any) => { // success
-          resolve({ success: true, transactionId: options.transactionId }); // Note: raw options structure depends on CP version
+          import('./analyticsService').then(({ AnalyticsService }) => {
+             AnalyticsService.trackPurchaseSuccess(
+                 (payment.data as any)?.planId || 'unknown', 
+                 payment.amount, 
+                 options.transactionId || 'unknown'
+             );
+          });
+          resolve({ success: true, transactionId: options.transactionId }); 
         },
         onFail: (reason: any, options: any) => { // fail
           console.error("Payment failed", reason);
+          import('./analyticsService').then(({ AnalyticsService }) => {
+             AnalyticsService.trackPurchaseFail(
+                 (payment.data as any)?.planId || 'unknown', 
+                 payment.amount, 
+                 reason
+             );
+          });
           resolve({ success: false });
         },
         onComplete: (paymentResult: any, options: any) => { // success or fail

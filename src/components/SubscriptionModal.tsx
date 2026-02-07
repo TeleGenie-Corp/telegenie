@@ -23,12 +23,23 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setPlans(BillingService.getPlans());
+      import('../../services/analyticsService').then(({ AnalyticsService }) => {
+        AnalyticsService.trackViewSubscription();
+      });
     }
   }, [isOpen]);
 
   const handleSubscribe = async (planId: SubscriptionTier) => {
     setProcessingPlan(planId);
     setLoading(true);
+    const plan = plans.find(p => p.id === planId);
+    
+    if (plan) {
+         import('../../services/analyticsService').then(({ AnalyticsService }) => {
+            AnalyticsService.trackBeginCheckout(planId, plan.price);
+         });
+    }
+
     try {
       await BillingService.subscribe(userId, planId);
       // In a real app we'd show success and maybe confetti
