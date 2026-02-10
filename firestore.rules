@@ -2,27 +2,32 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Правила для кэша каналов
+    // Helper: check if user is admin via custom claims
+    function isAdmin() {
+      return request.auth.token.admin == true;
+    }
+
+    // Channel cache
     match /channels/{channelId} {
       allow read, write: if request.auth != null;
     }
     
-    // Правила для пользователей
+    // User data — owner or admin only
     match /users/{userId} {
-      allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'pavelnen@gmail.com');
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
       
       // Brands subcollection
       match /brands/{brandId} {
-        allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'pavelnen@gmail.com');
+        allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
       }
       
       // Posts subcollection
       match /posts/{postId} {
-        allow read, write: if request.auth != null && (request.auth.uid == userId || request.auth.token.email == 'pavelnen@gmail.com');
+        allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
       }
     }
     
-    // По умолчанию запрещаем всё остальное
+    // Deny everything else
     match /{document=**} {
       allow read, write: if false;
     }

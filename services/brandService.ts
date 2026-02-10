@@ -112,4 +112,11 @@ export class BrandService {
   static async deleteBrand(userId: string, brandId: string): Promise<void> {
     await deleteDoc(this.getBrandDoc(userId, brandId));
   }
+
+  /**
+   * Restore a deleted brand (Undo action).
+   */
+  static async restoreBrand(userId: string, brand: Brand): Promise<void> {
+    await setDoc(this.getBrandDoc(userId, brand.id), brand);
+  }
 }

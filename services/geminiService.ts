@@ -9,8 +9,10 @@ export class GeminiService {
    * Initializes the Google GenAI client using the API key from environment variables.
    */
   private static getAI() {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    console.log('[GeminiService] Initializing with key:', apiKey ? `${apiKey.slice(0, 5)}...` : 'UNDEFINED');
     // @ts-ignore
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return new GoogleGenAI({ apiKey });
   }
 
   /**
@@ -179,7 +181,7 @@ export class GeminiService {
         ? `ГЛАВНЫЙ ПОИНТ (Тема поста): "${strategy.point}".\nВСЕ ИДЕИ ДОЛЖНЫ БЫТЬ ПОСВЯЩЕНЫ ЭТОМУ ПОИНТУ, но с разных углов (подходов).`
         : `ТЕМАТИЧЕСКИЙ ФОКУС: ${info?.topic}`;
 
-      const prompt = `Сгенерируй 5 идей для постов для канала «${info?.name}».
+      const prompt = `Сгенерируй 3 идеи для постов для канала «${info?.name}».
       
       ВВОДНЫЕ ДАННЫЕ:
       - Цель: ${strategy.goal}

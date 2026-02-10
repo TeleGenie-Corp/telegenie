@@ -139,6 +139,7 @@ export interface UserProfile {
     status: 'active' | 'canceled' | 'expired';
     currentPeriodEnd: number;
     autoRenew: boolean;
+    subscriptionId?: string;
   };
   usage?: {
     postsThisMonth: number;
@@ -253,6 +254,7 @@ export type PipelineStage =
   | 'polishing'
   | 'generating_image'
   | 'uploading'
+  | 'publishing'
   | 'completed'
   | 'failed';
 

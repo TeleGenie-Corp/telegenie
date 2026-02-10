@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { TelegramUser } from '../types';
+import { TelegramUser } from '../../types';
 
 interface TelegramLoginProps {
   botName: string;

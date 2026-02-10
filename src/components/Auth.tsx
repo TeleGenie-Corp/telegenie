@@ -107,17 +107,7 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   }
 
   return (
-    <div className="w-full max-w-sm mx-auto space-y-8 animate-in fade-in zoom-in duration-500">
-      <div className="text-center space-y-2">
-        <h2 className="text-2xl font-black uppercase tracking-tight text-slate-900">
-          Добро пожаловать
-        </h2>
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-          Выберите способ входа
-        </p>
-      </div>
-
-      <div className="space-y-3">
+    <div className="w-full space-y-3">
         {/* Primary: Google Smart Login */}
         <button
           onClick={handleGoogleLogin}
@@ -166,6 +156,5 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
           </div>
         )}
       </div>
-    </div>
-  );
-};
+    );
+  };

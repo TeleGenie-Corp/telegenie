@@ -57,7 +57,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
           <p className="text-slate-500 text-sm mt-1">Выбери бренд и пост для работы</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           
           {/* Brands Column */}
           <div className="lg:col-span-1 space-y-4">
@@ -78,10 +78,10 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                 <div
                   key={brand.id}
                   onClick={() => setSelectedBrandId(brand.id)}
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all group ${
+                  className={`p-4 rounded-2xl border cursor-pointer transition-all group active:scale-98 ${
                     selectedBrandId === brand.id
                       ? 'bg-white border-violet-300 ring-4 ring-violet-50 shadow-xl shadow-violet-100/50'
-                      : 'bg-white border-slate-200 hover:border-violet-200 hover:shadow-lg hover:shadow-violet-50'
+                      : 'bg-white border-slate-200 hover:border-violet-200 hover:shadow-lg hover:shadow-violet-50 hover:-translate-y-0.5'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -112,6 +112,13 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                         className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
                       >
                         <Settings size={14} />
+                      </button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onDeleteBrand(brand.id); }}
+                        className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
+                        title="Delete Brand"
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>

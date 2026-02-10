@@ -46,7 +46,7 @@ export class BillingService {
     return PLANS;
   }
 
-  static async subscribe(userId: string, planId: SubscriptionTier): Promise<boolean> {
+  static async subscribe(userId: string, planId: SubscriptionTier, customPrice?: number): Promise<boolean> {
     const profile = await UserService.getUserProfile(userId);
     if (!profile) throw new Error("User not found");
 
@@ -62,7 +62,7 @@ export class BillingService {
     try {
         const success = await CloudPaymentsService.createSubscription(userId, userEmail, {
             id: plan.id,
-            price: plan.price,
+            price: customPrice !== undefined ? customPrice : plan.price,
             name: plan.name
         });
 
@@ -146,5 +146,27 @@ export class BillingService {
               planId: 'free'
           }
       ];
+  }
+
+  static async cancelSubscription(userId: string): Promise<boolean> {
+      try {
+          const { functions } = await import('./firebaseConfig');
+          const { httpsCallable } = await import('firebase/functions');
+          const cancelFn = httpsCallable(functions, 'cancelSubscription');
+          await cancelFn();
+          
+          // Optimistic update
+          const profile = await UserService.getUserProfile(userId);
+          if (profile && profile.subscription) {
+              await UserService.updateProfile({
+                  ...profile,
+                  subscription: { ...profile.subscription, autoRenew: false }
+              });
+          }
+          return true;
+      } catch (e) {
+          console.error("Cancel subscription error", e);
+          return false;
+      }
   }
 }

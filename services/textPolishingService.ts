@@ -14,7 +14,7 @@ export class TextPolishingService {
   
   private static getAI() {
     // @ts-ignore
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
   }
 
   /**

@@ -259,13 +259,13 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
       </div>
 
       {/* Editor Content */}
-      <div className="prose-container relative flex-1 overflow-y-auto">
+      <div className="prose-container flex-1 overflow-y-auto relative">
         <EditorContent editor={editor} className="h-full" />
-        
-        {/* Character Count */}
-        <div className={`absolute bottom-3 right-4 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md border ${chars > 1024 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-slate-100/50 text-slate-400 border-slate-200'}`}>
-          {chars} / 1024
-        </div>
+      </div>
+      
+      {/* Character Count - Fixed at bottom */}
+      <div className={`absolute bottom-3 right-4 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md border z-10 ${chars > 1024 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-slate-100/80 text-slate-400 border-slate-200'}`}>
+        {chars} / 1024
       </div>
 
     </div>

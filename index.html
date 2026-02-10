@@ -3,66 +3,27 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>TeleGenie — ИИ-ассистент для Telegram</title>
-        <script src="https://cdn.tailwindcss.com"></script>
+        <title>TeleGenie Studio — ИИ-ассистент для Telegram</title>
+        <meta name="description" content="Создавайте контент для Telegram-каналов с помощью ИИ. Стратегия, генерация идей, умный редактор и публикация — всё в одном месте.">
+        <meta name="theme-color" content="#000B46">
+
+        <!-- Open Graph -->
+        <meta property="og:type" content="website">
+        <meta property="og:title" content="TeleGenie Studio — ИИ-ассистент для Telegram">
+        <meta property="og:description" content="Создавайте контент для Telegram-каналов с помощью ИИ. Стратегия, генерация идей, умный редактор и публикация.">
+        <meta property="og:url" content="https://telegenie.app">
+        <meta property="og:site_name" content="TeleGenie Studio">
+
+        <!-- Favicon + PWA -->
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+        <link rel="manifest" href="/manifest.json">
+
         <script>
-            tailwind.config = {
-                theme: {
-                    extend: {
-                        colors: {
-                            // 1. RAW BRAND PALETTE
-                            bombay: {
-                                light: '#B5F4FD',  // Light Blue
-                                mid: '#00C3F2',    // Mid Blue
-                                navy: '#000B46',   // Navy
-                            },
-                            
-                            // 2. SEMANTIC TOKENS (Design System)
-                            primary: {
-                                DEFAULT: '#00C3F2', // Bombay Mid Blue
-                                foreground: '#000B46',
-                                50:  '#F2FCFE',
-                                100: '#E6FAFE',
-                                200: '#B5F4FD', // Light Blue accent
-                                300: '#7CDFF9',
-                                400: '#3ED0F5',
-                                500: '#00C3F2', // MAIN BRAND COLOR
-                                600: '#00A0C6', // Hover
-                                700: '#0076A3',
-                                800: '#00567A',
-                                900: '#000B46', // Navy
-                            },
-                            secondary: {
-                                DEFAULT: '#000B46', // Bombay Navy
-                                foreground: '#FFFFFF',
-                            },
-                            
-                            // 3. LEGACY MAPPING (So current UI uses new palette)
-                            // We map 'violet' to our Primary Brand Scale
-                            violet: {
-                                50:  '#F2FCFE',
-                                100: '#E6FAFE',
-                                200: '#B5F4FD',
-                                300: '#7CDFF9',
-                                400: '#3ED0F5',
-                                500: '#00C3F2',
-                                600: '#00A0C6',
-                                700: '#0076A3',
-                                800: '#00567A',
-                                900: '#000B46',
-                                950: '#000522',
-                            },
-                            
-                            // 4. NEUTRALS & STATES
-                            // We keep standard 'slate' for strict UI neutrals (not branded)
-                            // We keep 'emerald'/'rose'/'amber' for semantic states (Success/Error/Warning)
-                        },
-                        fontFamily: {
-                            sans: ['Manrope', 'sans-serif'],
-                            display: ['Unbounded', 'sans-serif'],
-                        }
-                    }
-                }
+            // Apply dark mode IMMEDIATELY to prevent FOUC
+            // Priority: 1) explicit user choice  2) browser preference
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
             }
         </script>
         <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -71,34 +32,6 @@
             href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Unbounded:wght@400;700;900&display=swap"
             rel="stylesheet"
         >
-        <style>
-            body {
-                font-family: "Manrope", sans-serif;
-                background-color: #ffffff;
-                color: #000B46; /* Navy */
-            }
-            .font-display {
-                font-family: "Unbounded", sans-serif;
-            }
-            ::selection {
-                background-color: #00C3F2; /* Mid Blue */
-                color: #000B46;
-            }
-            /* Custom scrollbar matching new theme */
-            .custom-scrollbar::-webkit-scrollbar {
-                width: 4px;
-            }
-            .custom-scrollbar::-webkit-scrollbar-track {
-                background: transparent;
-            }
-            .custom-scrollbar::-webkit-scrollbar-thumb {
-                background-color: #B5F4FD;
-                border-radius: 20px;
-            }
-            .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                background-color: #00C3F2;
-            }
-        </style>
         <script type="importmap">
             {
                 "imports": {
@@ -106,8 +39,7 @@
                     "react/": "https://esm.sh/react@^19.2.3/",
                     "react": "https://esm.sh/react@^19.2.3",
                     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-                    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-                    "https": "https://esm.sh/https@^1.0.0"
+                    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
                 }
             }
         </script>

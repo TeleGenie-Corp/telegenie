@@ -19,7 +19,7 @@ export const VPNModal: React.FC<VPNModalProps> = ({ isOpen, onClose, onRetry }) 
       ></div>
 
       {/* Modal Content */}
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm relative overflow-hidden animate-in zoom-in-95 duration-300">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm relative overflow-hidden animate-in zoom-in-95 duration-300">
         
         {/* Header Art */}
         <div className="bg-slate-900 p-8 text-center relative overflow-hidden">
