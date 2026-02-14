@@ -10,6 +10,12 @@ export class GeminiService {
    */
   private static getAI() {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    
+    if (!apiKey || apiKey === 'your_gemini_api_key') {
+      console.error('[GeminiService] CRITICAL: API key is missing or is the default placeholder.');
+      throw new Error('API_KEY_MISSING');
+    }
+
     console.log('[GeminiService] Initializing with key:', apiKey ? `${apiKey.slice(0, 5)}...` : 'UNDEFINED');
     // @ts-ignore
     return new GoogleGenAI({ apiKey });
@@ -331,12 +337,17 @@ export class GeminiService {
       ? `ПОЗИЦИОНИРОВАНИЕ: ${strategy.positioning}`
       : `СТИЛЬ АВТОРА: ${info?.context}`;
 
+    const pointContext = strategy.point
+      ? `ГЛАВНЫЙ ПОИНТ (СУТЬ ПОСТА): "${strategy.point}" (Все должно крутиться вокруг этого).`
+      : '';
+
     const prompt = `НАПИШИ ПОСТ ДЛЯ КАНАЛА «${info?.name}».
     
     ВХОДНЫЕ ДАННЫЕ:
     - Идея: "${idea.title}"
     - Цель: ${strategy.goal}
     - ${authorContext}
+    - ${pointContext}
     
     ГЛАВНЫЕ ПРАВИЛА:
     1. Сразу к делу.
