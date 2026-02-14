@@ -132,12 +132,27 @@ const App: React.FC = () => {
     }
   }, [profile?.linkedChannel]);
 
+  // --- ROUTING ---
+  const isWidget = window.location.pathname === '/widget' || window.location.pathname.startsWith('/widget/');
+
+  // --- MAIN APP ---
+  if (isWidget) {
+    const PublicWidget = React.lazy(() => import('./src/components/PublicWidget'));
+    return (
+      <div className="h-screen bg-slate-50 overflow-hidden font-sans text-slate-900">
+        <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-violet-600" size={32} /></div>}>
+          <PublicWidget />
+          <Toaster position="top-right" richColors closeButton />
+        </Suspense>
+      </div>
+    );
+  }
+
   // --- LOGIN SCREEN ---
   if (showLogin) {
     return <AuthPage onLogin={() => {}} />;
   }
 
-  // --- MAIN APP ---
   return (
     <div className="h-screen flex flex-col bg-slate-50 overflow-hidden font-sans text-slate-900">
       <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-violet-600" size={32} /></div>}>
