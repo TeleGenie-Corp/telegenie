@@ -29,7 +29,7 @@ interface UIState {
 
 const getInitialDarkMode = (): boolean => {
   if (typeof window === 'undefined') return false;
-  const saved = localStorage.getItem('theme');
+  const saved = typeof window !== 'undefined' ? localStorage.getItem('theme') : null;
   if (saved) return saved === 'dark';
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 };

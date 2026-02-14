@@ -26,7 +26,7 @@ const Spoiler = Mark.create({
   },
   addCommands() {
     return {
-      toggleSpoiler: () => ({ commands }) => {
+      toggleSpoiler: () => ({ commands }: { commands: any }) => {
         return commands.toggleMark(this.name)
       },
     } as any

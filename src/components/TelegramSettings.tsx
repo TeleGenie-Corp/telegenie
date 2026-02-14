@@ -100,7 +100,7 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
     setLoading(true);
     setError(null);
 
-    const result = await TelegramService.verifyBotInChannel(username, tokenToUse);
+    const result = await TelegramService.verifyBotInChannel(username, tokenToUse || '');
 
     if (!result.success || !result.chatId) {
       setError(result.error || 'Не удалось подключить канал. Проверьте права бота.');

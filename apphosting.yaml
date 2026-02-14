@@ -1,0 +1,11 @@
+serviceId: telegenie
+region: europe-west1
+env:
+  - variable: NEXT_PUBLIC_GEMINI_API_KEY
+    secret: NEXT_PUBLIC_GEMINI_API_KEY
+  - variable: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
+    secret: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
+  - variable: NEXT_PUBLIC_TELEGRAM_CHAT_ID
+    secret: NEXT_PUBLIC_TELEGRAM_CHAT_ID
+  - variable: NEXT_PUBLIC_CHANNEL_URL
+    value: https://t.me/AiKanalishe

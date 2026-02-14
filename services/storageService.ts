@@ -22,6 +22,7 @@ export class StorageService {
   private static createNewProfile(userId: string): UserProfile {
     return {
       userId,
+      balance: 0, // Default balance
       savedStrategies: [],
       generationHistory: [],
       createdAt: Date.now()

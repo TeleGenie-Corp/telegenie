@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Loader2, Send, Zap, ArrowRight, ExternalLink, Moon, Sun } from 'lucide-react';

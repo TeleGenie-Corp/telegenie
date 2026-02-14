@@ -46,7 +46,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <p className="text-sm text-slate-500 mt-1 max-w-sm">
               Произошла ошибка в этом разделе. Остальное приложение работает.
             </p>
-            {import.meta.env.DEV && this.state.error && (
+            {process.env.NODE_ENV === 'development' && this.state.error && (
               <pre className="mt-4 text-left text-xs bg-slate-100 rounded-xl p-4 max-w-md overflow-auto text-rose-600 font-mono">
                 {this.state.error.message}
               </pre>

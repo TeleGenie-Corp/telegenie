@@ -4,7 +4,7 @@ import { UserProfile, LinkedChannel } from '../../types';
 
 const TelegramSettings = React.lazy(() => import('./TelegramSettings').then(m => ({ default: m.TelegramSettings })));
 
-const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
+const TELEGRAM_BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || '';
 
 export const SettingsModal: React.FC<{ 
   isOpen: boolean; 

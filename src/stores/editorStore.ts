@@ -43,7 +43,7 @@ interface EditorState {
 
 const loadStrategy = (): ChannelStrategy => {
   try {
-    const saved = localStorage.getItem('telegenie_strategy_v11');
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('telegenie_strategy_v11') : null;
     const parsed = saved ? JSON.parse(saved) : null;
     return {
       id: parsed?.id || Math.random().toString(36).substr(2, 9),
@@ -329,8 +329,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // --- PUBLISH ---
   publish: async () => {
-    const TELEGRAM_BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN || '';
-    const TELEGRAM_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID || '';
+    const TELEGRAM_BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || '';
+    const TELEGRAM_CHAT_ID = process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || '';
 
     const { currentPost } = get();
     const profile = useAuthStore.getState().profile;

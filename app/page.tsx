@@ -1,47 +1,48 @@
-import React, { Suspense, useEffect } from 'react';
+'use client';
+
+import React, { Suspense, useEffect, lazy } from 'react';
 import { 
   Sparkles, Zap, Loader2, Layout, Target,
   MessageCircle, Send, Wand2, Settings,
   MessageSquareQuote
 } from 'lucide-react';
-import { PostGoal } from './types';
+import { PostGoal } from '@/types';
 
 // --- Stores ---
-import { useAuthStore } from './src/stores/authStore';
-import { useUIStore } from './src/stores/uiStore';
-import { useWorkspaceStore } from './src/stores/workspaceStore';
-import { useEditorStore } from './src/stores/editorStore';
+import { useAuthStore } from '@/src/stores/authStore';
+import { useUIStore } from '@/src/stores/uiStore';
+import { useWorkspaceStore } from '@/src/stores/workspaceStore';
+import { useEditorStore } from '@/src/stores/editorStore';
 
 // --- Services ---
-import { BillingService } from './services/billingService';
+import { BillingService } from '@/services/billingService';
 
 // --- Components ---
-import { Auth } from './src/components/Auth';
-import { AuthPage } from './src/components/AuthPage';
-import { AppHeader } from './src/components/AppHeader';
-import { AnalysisTerminal } from './src/components/AnalysisTerminal';
-import { GenerationLoading } from './src/components/GenerationLoading';
-import { SettingsModal } from './src/components/SettingsModal';
-import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { AuthPage } from '@/src/components/AuthPage';
+import { AppHeader } from '@/src/components/AppHeader';
+import { AnalysisTerminal } from '@/src/components/AnalysisTerminal';
+import { GenerationLoading } from '@/src/components/GenerationLoading';
+import { SettingsModal } from '@/src/components/SettingsModal';
+import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 
 // --- Lazy Components ---
-const TipTapEditor = React.lazy(() => import('./src/components/TipTapEditor').then(m => ({ default: m.TipTapEditor })));
-const WorkspaceScreen = React.lazy(() => import('./src/components/WorkspaceScreen').then(m => ({ default: m.WorkspaceScreen })));
-const PositioningModal = React.lazy(() => import('./src/components/PositioningModal').then(m => ({ default: m.PositioningModal })));
-const SubscriptionModal = React.lazy(() => import('./src/components/SubscriptionModal').then(m => ({ default: m.SubscriptionModal })));
-const CreateBrandModal = React.lazy(() => import('./src/components/CreateBrandModal').then(m => ({ default: m.CreateBrandModal })));
-const VPNModal = React.lazy(() => import('./src/components/VPNModal').then(m => ({ default: m.VPNModal })));
+const TipTapEditor = lazy(() => import('@/src/components/TipTapEditor').then(m => ({ default: m.TipTapEditor })));
+const WorkspaceScreen = lazy(() => import('@/src/components/WorkspaceScreen').then(m => ({ default: m.WorkspaceScreen })));
+const PositioningModal = lazy(() => import('@/src/components/PositioningModal').then(m => ({ default: m.PositioningModal })));
+const SubscriptionModal = lazy(() => import('@/src/components/SubscriptionModal').then(m => ({ default: m.SubscriptionModal })));
+const CreateBrandModal = lazy(() => import('@/src/components/CreateBrandModal').then(m => ({ default: m.CreateBrandModal })));
+const VPNModal = lazy(() => import('@/src/components/VPNModal').then(m => ({ default: m.VPNModal })));
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { pageTransitions, listContainer, listItem } from './src/animationTokens';
+import { pageTransitions, listContainer, listItem } from '@/src/animationTokens';
 import { Toaster } from 'sonner';
 
-const CHANNEL_URL = import.meta.env.VITE_CHANNEL_URL || 'https://t.me/AiKanalishe';
+const CHANNEL_URL = process.env.NEXT_PUBLIC_CHANNEL_URL || 'https://t.me/AiKanalishe';
 
 // ============================================================
 // APP — Pure Orchestration via Zustand Stores
 // ============================================================
-const App: React.FC = () => {
+export default function Home() {
   // --- STORE SELECTORS ---
   const user = useAuthStore(s => s.user);
   const profile = useAuthStore(s => s.profile);
@@ -132,21 +133,7 @@ const App: React.FC = () => {
     }
   }, [profile?.linkedChannel]);
 
-  // --- ROUTING ---
-  const isWidget = window.location.pathname === '/widget' || window.location.pathname.startsWith('/widget/');
-
   // --- MAIN APP ---
-  if (isWidget) {
-    const PublicWidget = React.lazy(() => import('./src/components/PublicWidget'));
-    return (
-      <div className="h-screen bg-slate-50 overflow-hidden font-sans text-slate-900">
-        <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-violet-600" size={32} /></div>}>
-          <PublicWidget />
-          <Toaster position="top-right" richColors closeButton />
-        </Suspense>
-      </div>
-    );
-  }
 
   // --- LOGIN SCREEN ---
   if (showLogin) {
@@ -555,6 +542,4 @@ const App: React.FC = () => {
       </Suspense>
     </div>
   );
-};
-
-export default App;
+}

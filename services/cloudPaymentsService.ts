@@ -34,7 +34,7 @@ export class CloudPaymentsService {
 
     return new Promise((resolve) => {
       widget.pay('auth', { // 'auth' for two-stage or 'charge' for one-stage. Subscription usually 'charge' w/ recurrent
-        publicId: import.meta.env.VITE_CLOUDPAYMENTS_PUBLIC_ID || 'test_api_00000000000000000000001', // Fallback to test ID
+        publicId: process.env.NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID || 'test_api_00000000000000000000001', // Fallback to test ID
         description: payment.description,
         amount: payment.amount,
         currency: payment.currency,

@@ -29,7 +29,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Email Link Handling
       if (isSignInWithEmailLink(auth, window.location.href)) {
-        let email = window.localStorage.getItem('emailForSignIn');
+        let email = typeof window !== 'undefined' ? window.localStorage.getItem('emailForSignIn') : null;
         if (!email) email = window.prompt('Пожалуйста, подтвердите вашу почту для входа:');
         if (email) {
           try {

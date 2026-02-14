@@ -18,17 +18,21 @@ export type AnalyticsEvent =
 
 export class AnalyticsService {
   
+  
   static log(event: AnalyticsEvent) {
     try {
+      // Guard against SSR
+      if (!analytics) return;
+      
       // Cast to string to avoid overload mismatch with standard/custom events
       const params = { ...event.params };
-      if (import.meta.env.DEV) {
+      if (process.env.NODE_ENV === 'development') {
           (params as any).debug_mode = true;
       }
       logEvent(analytics, event.name as string, params);
       
       // Optional: Log to console in dev mode
-      if (import.meta.env.DEV) {
+      if (process.env.NODE_ENV === 'development') {
         console.log(`[Analytics] ${event.name}`, params);
       }
     } catch (e) {

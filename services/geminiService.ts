@@ -9,7 +9,7 @@ export class GeminiService {
    * Initializes the Google GenAI client using the API key from environment variables.
    */
   private static getAI() {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     
     if (!apiKey || apiKey === 'your_gemini_api_key') {
       console.error('[GeminiService] CRITICAL: API key is missing or is the default placeholder.');
@@ -402,7 +402,7 @@ export class GeminiService {
         })
       );
 
-      const part = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
+      const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
       const usage = CostCalculator.createImageUsageMetadata(model);
       
       if (part?.inlineData) {
