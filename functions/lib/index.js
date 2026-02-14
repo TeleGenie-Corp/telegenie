@@ -1,97 +1,197 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.seedCredits = exports.cpWebhook = exports.getChannelInfo = void 0;
-const https_1 = require("firebase-functions/v2/https");
-const logger = __importStar(require("firebase-functions/logger"));
-const admin = __importStar(require("firebase-admin"));
-if (admin.apps.length === 0) {
-    admin.initializeApp();
-}
-const channel_service_1 = require("./services/channel.service");
-const payment_controller_1 = require("./controllers/payment.controller");
-exports.getChannelInfo = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
-    const username = req.query.name || req.body.name || 'nenashev_vision';
-    logger.info(`Processing request for target: ${username}`, { structuredData: true });
-    const service = new channel_service_1.ChannelService();
-    const result = await service.getChannelInfo(username);
-    res.json(result);
-});
-exports.cpWebhook = (0, https_1.onRequest)({ cors: true }, payment_controller_1.handleWebhook);
-exports.seedCredits = (0, https_1.onRequest)({ cors: true }, async (req, res) => {
-    const authSecret = req.headers['x-migration-secret'];
-    if (authSecret !== 'TElegenIe_Studio_2026_SeEd') {
-        res.status(403).send('Unauthorized');
-        return;
-    }
+exports.publishDemoPost = exports.cancelSubscription = exports.cloudPaymentsWebhook = void 0;
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+const crypto = require("crypto");
+admin.initializeApp();
+const db = admin.firestore();
+exports.cloudPaymentsWebhook = functions.https.onRequest(async (req, res) => {
+    var _a, _b, _c;
     try {
-        const auth = admin.auth();
-        const db = admin.firestore();
-        const listUsersResult = await auth.listUsers();
-        const results = [];
-        for (const userRecord of listUsersResult.users) {
-            const userRef = db.collection('users').doc(userRecord.uid);
-            const doc = await userRef.get();
-            if (!doc.exists) {
-                const profile = {
-                    userId: userRecord.uid,
-                    savedStrategies: [],
-                    generationHistory: [],
-                    balance: 1000,
-                    createdAt: Date.now(),
-                    migrated: true
-                };
-                await userRef.set(profile);
-                results.push({ uid: userRecord.uid, action: 'created' });
-            }
-            else {
-                const data = doc.data();
-                if (data?.balance === undefined) {
-                    await userRef.update({ balance: 1000, migrated: true });
-                    results.push({ uid: userRecord.uid, action: 'updated' });
-                }
-                else {
-                    results.push({ uid: userRecord.uid, action: 'skipped' });
-                }
+        // 1. Security: HMAC Validation
+        const signature = req.headers['content-hmac'];
+        // Get secret from config: firebase functions:config:set cloudpayments.api_secret="YOUR_SECRET"
+        const secret = (_a = functions.config().cloudpayments) === null || _a === void 0 ? void 0 : _a.api_secret;
+        if (!secret) {
+            console.error('Missing cloudpayments.api_secret configuration');
+            // Respond 200 to stop retries if misconfigured (or 500 to alert)
+            // We will assume dev environment might miss it, log error.
+        }
+        else if (signature) {
+            const hmac = crypto.createHmac('sha256', secret);
+            // Firebase standard rawBody buffer
+            hmac.update(req.rawBody);
+            const digest = hmac.digest('base64');
+            if (digest !== signature) {
+                console.warn('Invalid HMAC signature', { expected: signature, got: digest });
+                res.status(401).send('Invalid signature');
+                return;
             }
         }
-        res.json({ success: true, processed: results.length, details: results });
+        // 2. Parse Payload
+        const body = req.body;
+        console.log('Received CloudPayments webhook:', JSON.stringify(body));
+        const userId = body.AccountId;
+        const status = body.Status;
+        // Parse 'Data' which might contain planId
+        let planId = 'pro'; // Default fallback
+        try {
+            const dataParsed = typeof body.Data === 'string' ? JSON.parse(body.Data) : body.Data;
+            if (dataParsed === null || dataParsed === void 0 ? void 0 : dataParsed.planId)
+                planId = dataParsed.planId;
+        }
+        catch (e) {
+            console.warn('Failed to parse Data field', e);
+        }
+        if (!userId) {
+            console.error('No AccountId (userId) in request');
+            res.json({ code: 0 });
+            return;
+        }
+        // 3. Handle Status
+        if (status === 'Completed' || status === 'Authorized') {
+            const userRef = db.collection('users').doc(userId);
+            const userDoc = await userRef.get();
+            const userData = userDoc.data();
+            // Subscription Logic
+            const now = Date.now();
+            const periodDays = 30;
+            // let additionalTime = 0;
+            // Proration: Check if upgrading early
+            if (((_b = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _b === void 0 ? void 0 : _b.status) === 'active' && userData.subscription.currentPeriodEnd > now) {
+                // const oldTier = userData.subscription.tier;
+                // Simple logic: if switching Pro -> Monster, current time is devalued but added.
+                // Actually, simplest fair way: Just Add 30 Days to NOW, ignoring old overlap?
+                // Or Add 30 Days to CurrentEnd?
+                // If we add to CurrentEnd, we give them "Double Subscription" time for the price of one.
+                // Correct 'Upgrade' logic: START NEW PERIOD NOW. Credit remaining value?
+                // If we assume the user just paid Full Price, we just start fresh.
+                // To be generous/easy: We just add 30 days to NOW.
+                // Old time is lost/overwritten. (MVP Approach).
+                // Refined: If we want to support "Pay Difference" in future, we need complex math.
+                // For now: Clean slate.
+            }
+            const currentPeriodEnd = now + (periodDays * 24 * 60 * 60 * 1000);
+            await userRef.set({
+                subscription: {
+                    tier: planId,
+                    status: 'active',
+                    currentPeriodEnd: currentPeriodEnd,
+                    autoRenew: true,
+                    updatedAt: now,
+                    subscriptionId: body.SubscriptionId || ((_c = userData === null || userData === void 0 ? void 0 : userData.subscription) === null || _c === void 0 ? void 0 : _c.subscriptionId) // Persist ID
+                },
+                usage: {
+                    // Reset limit on new payment
+                    postsThisMonth: 0,
+                    tokensThisMonth: 0,
+                    lastReset: now
+                }
+            }, { merge: true });
+            console.log(`Subscription updated for user ${userId} to plan ${planId}`);
+        }
+        else if (status === 'Declined') {
+            console.log(`Payment declined for user ${userId}`);
+            // Optional: Notify user
+        }
+        else if (status === 'Cancelled') {
+            // Handle manual cancellation logic if needed
+        }
+        res.json({ code: 0 });
     }
     catch (error) {
-        logger.error('Migration failed:', error);
-        res.status(500).json({ error: error.message });
+        console.error('Webhook processing error:', error);
+        res.json({ code: 0 });
+    }
+});
+// Callable function to cancel subscription
+exports.cancelSubscription = functions.https.onCall(async (data, context) => {
+    var _a, _b;
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+    }
+    const userId = context.auth.uid;
+    const userRef = db.collection('users').doc(userId);
+    const doc = await userRef.get();
+    const sub = (_a = doc.data()) === null || _a === void 0 ? void 0 : _a.subscription;
+    if (!sub || !sub.subscriptionId) {
+        // Just mark local as canceled if no remote ID
+        await userRef.update({ 'subscription.autoRenew': false });
+        return { success: true, message: 'Local subscription canceled' };
+    }
+    const secret = (_b = functions.config().cloudpayments) === null || _b === void 0 ? void 0 : _b.api_secret;
+    if (!secret)
+        throw new functions.https.HttpsError('failed-precondition', 'API Secret missing');
+    try {
+        // Use native fetch (Node 18+)
+        const response = await fetch('https://api.cloudpayments.ru/subscriptions/cancel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Basic ' + Buffer.from(functions.config().cloudpayments.public_id + ':' + secret).toString('base64')
+            },
+            body: JSON.stringify({ Id: sub.subscriptionId })
+        });
+        const result = await response.json();
+        if (result.Success) {
+            await userRef.update({ 'subscription.autoRenew': false });
+            return { success: true };
+        }
+        else {
+            console.error('CP Cancel Error', result);
+            throw new functions.https.HttpsError('internal', 'CloudPayments error: ' + (result.Message || 'Unknown'));
+        }
+    }
+    catch (e) {
+        console.error("Cancel error", e);
+        throw new functions.https.HttpsError('internal', 'Failed to cancel subscription');
+    }
+});
+// Callable function to publish demo post to @AiKanalishe
+exports.publishDemoPost = functions.https.onCall(async (data, context) => {
+    var _a, _b, _c;
+    // 1. Validation
+    const { text, url } = data;
+    if (!text || typeof text !== 'string') {
+        throw new functions.https.HttpsError('invalid-argument', 'Text is required');
+    }
+    if (text.length > 4096) { // Telegram limit
+        throw new functions.https.HttpsError('invalid-argument', 'Text is too long');
+    }
+    // 2. Configuration
+    const botToken = (_a = functions.config().telegram) === null || _a === void 0 ? void 0 : _a.bot_token;
+    const channelId = ((_b = functions.config().telegram) === null || _b === void 0 ? void 0 : _b.demo_channel_id) || '@AiKanalishe';
+    if (!botToken) {
+        throw new functions.https.HttpsError('failed-precondition', 'Telegram Bot Token not configured');
+    }
+    // 3. Construct Message
+    const footer = `\n\n----\nGenerated by [TeleGenie Demo](https://telegenie-studio.web.app/widget)\nSource: ${url || 'Unknown'}`;
+    const fullMessage = text + footer;
+    try {
+        // 4. Send to Telegram
+        // Using built-in fetch (Node 18+)
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: channelId,
+                text: fullMessage,
+                parse_mode: 'Markdown',
+                disable_web_page_preview: true
+            })
+        });
+        // Need to cast response.json() result
+        const result = (await response.json());
+        if (!result.ok) {
+            console.error('Telegram API Error:', result);
+            throw new functions.https.HttpsError('internal', `Telegram API Error: ${result.description}`);
+        }
+        return { success: true, messageId: (_c = result.result) === null || _c === void 0 ? void 0 : _c.message_id, channelId };
+    }
+    catch (error) {
+        console.error('Publishing failed:', error);
+        throw new functions.https.HttpsError('internal', 'Failed to publish post');
     }
 });
 //# sourceMappingURL=index.js.map

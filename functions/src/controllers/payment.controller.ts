@@ -7,6 +7,7 @@ import { isValidSignature } from "../utils/crypto";
 // type alias for Response
 type Response = express.Response;
 
+/*
 interface CPModel {
     Id: number;
     AccountId: string;
@@ -18,6 +19,7 @@ interface CPModel {
     Status?: string;
     Token?: string; // Recurrent token
 }
+*/
 
 const API_SECRET = process.env.CLOUDPAYMENTS_API_SECRET || 'test_api_secret';
 
@@ -27,7 +29,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
          return;
     }
 
-    const { TransactionId, Amount, Currency, AccountId, Status, Data, Token } = req.body;
+    const { TransactionId, Amount, Currency, AccountId, Data, Token } = req.body;
     const type = req.query.type as string;
 
     const db = admin.firestore();

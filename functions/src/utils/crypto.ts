@@ -1,5 +1,5 @@
 
-import * as crypto from 'crypto';
+// import * as crypto from 'crypto';
 
 export const isValidSignature = (req: any, secret: string) => {
     // CloudPayments sends HMAC-SHA256 signature in 'Content-HMAC' header
