@@ -6,6 +6,23 @@ env:
   - variable: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
     secret: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
   - variable: NEXT_PUBLIC_TELEGRAM_CHAT_ID
-    secret: NEXT_PUBLIC_TELEGRAM_CHAT_ID
+    value: telegenie_beta_bot
   - variable: NEXT_PUBLIC_CHANNEL_URL
     value: https://t.me/AiKanalishe
+  - variable: NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID
+    secret: NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID
+  # Firebase config (can be public, embedded in client)
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: telegenie-studio
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:715095782868:web:649db8bda4a957dc40d241
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: telegenie-studio.firebasestorage.app
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyANwhP5B-Txmea2tjyxR9yrVVWWKysrlI8
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: telegenie-studio.firebaseapp.com
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: 715095782868
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: G-GVY6EKSY05
