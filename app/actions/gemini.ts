@@ -53,7 +53,7 @@ export async function analyzePositioningAction(channelUrl: string) {
   }
 }
 
-export async function generatePositioningFormulaAction(answers: string[]) {
+export async function generatePositioningFormulaAction(answers: Record<string, string>) {
   try {
     return await GeminiService.generatePositioningFormula(answers);
   } catch (error: any) {
