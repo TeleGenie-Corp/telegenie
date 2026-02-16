@@ -20,7 +20,7 @@ import { BillingService } from '@/services/billingService';
 // --- Components ---
 import { AuthPage } from '@/src/components/AuthPage';
 import { AppHeader } from '@/src/components/AppHeader';
-import { AnalysisTerminal } from '@/src/components/AnalysisTerminal';
+
 import { GenerationLoading } from '@/src/components/GenerationLoading';
 import { SettingsModal } from '@/src/components/SettingsModal';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
@@ -255,8 +255,7 @@ export default function Home() {
                   {loadingIdeas ? <Loader2 className="animate-spin" size={14} /> : <Sparkles size={14} />}
                   {loadingIdeas ? 'Анализирую...' : (strategy.point ? 'Развить Поинт' : 'Придумать Идеи')}
                 </button>
-                
-                {analyzing && <AnalysisTerminal analyzing={analyzing} />}
+               <EditorScreen />
               </section>
 
               {/* IDEAS — Loading */}
