@@ -1,5 +1,5 @@
 serviceId: telegenie
-region: europe-west1
+region: europe-west4
 env:
   - variable: GEMINI_API_KEY
     secret: GEMINI_API_KEY
