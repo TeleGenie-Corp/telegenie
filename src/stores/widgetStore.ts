@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { ChannelStrategy, Idea, PostGoal, PostFormat } from '../../types';
-import { GeminiService } from '../../services/geminiService';
+
 import { toast } from 'sonner';
 
 interface IdeaWithGoal extends Idea {

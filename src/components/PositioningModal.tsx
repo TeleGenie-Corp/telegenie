@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Wand2, Check, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
-import { GeminiService } from '../../services/geminiService';
+import { analyzePositioningAction, generatePositioningFormulaAction } from '@/app/actions/gemini';
 import { ChannelInfo } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -38,7 +38,7 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
     if (!channelUrl) return;
     setAnalyzing(true);
     try {
-      const result = await GeminiService.analyzePositioning(channelUrl);
+      const result = await analyzePositioningAction(channelUrl);
       if (result) {
           setAnswers(result);
       }
@@ -52,7 +52,7 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
   const handleGenerateFormula = async () => {
     setLoading(true);
     try {
-      const formula = await GeminiService.generatePositioningFormula(answers);
+      const formula = await generatePositioningFormulaAction(answers);
       setGeneratedFormula(formula);
       setStep('formula');
     } catch (e) {

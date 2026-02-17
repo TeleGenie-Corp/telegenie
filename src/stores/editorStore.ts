@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, PipelineState, GenerationConfig, PostProject } from '../../types';
 import { PostGenerationService } from '../../services/postGenerationService';
-import { GeminiService } from '../../services/geminiService';
+import { analyzeChannelAction, generateIdeasAction, polishContentAction } from '@/app/actions/gemini';
 import { BillingService } from '../../services/billingService';
 import { PostProjectService } from '../../services/postProjectService';
 import { toast } from 'sonner';
@@ -154,7 +154,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       let currentStrategy = strategy;
       if (!strategy.analyzedChannel || strategy.channelUrl !== lastAnalyzedUrl) {
         set({ analyzing: true });
-        const { info, usage } = await GeminiService.analyzeChannel(strategy.channelUrl);
+        const { info, usage } = await analyzeChannelAction(strategy.channelUrl);
         currentStrategy = { ...strategy, analyzedChannel: info, analysisUsage: usage };
         set({ strategy: currentStrategy, analyzing: false });
         lastAnalyzedUrl = strategy.channelUrl;
@@ -164,7 +164,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const { AnalyticsService } = await import('../../services/analyticsService');
       AnalyticsService.log({ name: 'generate_ideas', params: { topic: strategy.channelUrl } });
 
-      const { ideas: generated, usage } = await GeminiService.generateIdeas(currentStrategy);
+      const { ideas: generated, usage } = await generateIdeasAction(currentStrategy);
       const withUsage = generated.map((i) => ({ ...i, usage }));
       set({ ideas: withUsage });
     } catch (e: any) {
@@ -269,7 +269,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     set({ pipelineState: { stage: 'polishing', progress: 50, currentTask: 'Редактирую...' } });
     try {
-      const result = await GeminiService.polishContent(currentPost.text, instruction, strategy);
+      const result = await polishContentAction(currentPost.text, instruction, strategy);
       const updatedText = result.text;
 
       set((s) => ({
