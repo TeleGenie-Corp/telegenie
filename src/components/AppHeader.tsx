@@ -23,8 +23,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
 }) => {
   // Logic to determine display name
   const displayName = profile?.telegram?.first_name 
-    || user?.first_name 
-    || (user?.email ? user.email.split('@')[0] : 'User');
+    || (user?.first_name && user.first_name !== 'User' ? user.first_name : null)
+    || profile?.email 
+    || user?.email 
+    || 'User';
 
   return (
     <header className="h-16 bg-white border-b border-slate-200 shrink-0 px-6 flex items-center justify-between z-20 shadow-sm relative">

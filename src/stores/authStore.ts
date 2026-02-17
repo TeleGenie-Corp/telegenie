@@ -53,6 +53,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           const newUser: User = {
             id: firebaseUser.uid,
             first_name: firebaseUser.displayName || 'User',
+            email: firebaseUser.email || undefined,
             avatar: firebaseUser.photoURL || undefined,
           };
           
@@ -61,7 +62,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
           try {
             const { UserService } = await import('../../services/userService');
-            const userProfile = await UserService.syncProfile(firebaseUser.uid);
+            const userProfile = await UserService.syncProfile(firebaseUser.uid, firebaseUser.email || undefined);
             set({ profile: userProfile, isLoading: false });
           } catch (e) {
             console.error('Profile sync error', e);
