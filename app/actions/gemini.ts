@@ -61,3 +61,13 @@ export async function generatePositioningFormulaAction(answers: Record<string, s
     throw error;
   }
 }
+
+export async function generatePostAction(input: any) {
+  try {
+    const { PostGenerationService } = await import('@/services/postGenerationService');
+    return await PostGenerationService.generate(input);
+  } catch (error: any) {
+    console.error('[generatePostAction]', error);
+    throw error;
+  }
+}

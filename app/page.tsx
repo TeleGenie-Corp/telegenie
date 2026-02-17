@@ -23,6 +23,7 @@ import { BillingService } from '@/services/billingService';
 
 import { AppHeader } from '@/src/components/AppHeader';
 
+import { LandingPage } from '@/src/components/LandingPage';
 import { GenerationLoading } from '@/src/components/GenerationLoading';
 import { SettingsModal } from '@/src/components/SettingsModal';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
@@ -33,7 +34,6 @@ const WorkspaceScreen = lazy(() => import('@/src/components/WorkspaceScreen').th
 const PositioningModal = lazy(() => import('@/src/components/PositioningModal').then(m => ({ default: m.PositioningModal })));
 const SubscriptionModal = lazy(() => import('@/src/components/SubscriptionModal').then(m => ({ default: m.SubscriptionModal })));
 const CreateBrandModal = lazy(() => import('@/src/components/CreateBrandModal').then(m => ({ default: m.CreateBrandModal })));
-const VPNModal = lazy(() => import('@/src/components/VPNModal').then(m => ({ default: m.VPNModal })));
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { pageTransitions, listContainer, listItem } from '@/src/animationTokens';
@@ -62,8 +62,6 @@ export default function Home() {
   const showSubscriptionModal = useUIStore(s => s.showSubscriptionModal);
   const closeSubscription = useUIStore(s => s.closeSubscription);
   const openSubscription = useUIStore(s => s.openSubscription);
-  const showVPNModal = useUIStore(s => s.showVPNModal);
-  const closeVPN = useUIStore(s => s.closeVPN);
   const showMobileSidebar = useUIStore(s => s.showMobileSidebar);
   const toggleMobileSidebar = useUIStore(s => s.toggleMobileSidebar);
   const showCreateBrandModal = useUIStore(s => s.showCreateBrandModal);
@@ -168,18 +166,11 @@ export default function Home() {
     }
   }, []);
 
-  // --- LOGIN SCREEN ---
-  // --- AUTH REDIRECT ---
+  // --- AUTH LOGIC ---
   const isLoadingAuth = useAuthStore(s => s.isLoading);
-  const router = useRouter(); // Need to import useRouter
+  const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoadingAuth && !user) {
-        router.push('/login');
-    }
-  }, [isLoadingAuth, user, router]);
-
-  if (isLoadingAuth || !user) {
+  if (isLoadingAuth) {
        return (
           <div className="flex items-center justify-center min-h-screen bg-slate-50">
               <div className="flex flex-col items-center gap-4">
@@ -188,6 +179,11 @@ export default function Home() {
               </div>
           </div>
       );
+  }
+
+  // Show Landing Page for unauthenticated users
+  if (!user) {
+    return <LandingPage onLogin={() => router.push('/login')} />;
   }
 
 
@@ -204,11 +200,6 @@ export default function Home() {
         onChannelConnect={connectChannel}
         onChannelDisconnect={disconnectChannel}
         defaultChannelUrl={CHANNEL_URL}
-      />
-      <VPNModal 
-        isOpen={showVPNModal} 
-        onClose={closeVPN}
-        onRetry={closeVPN}
       />
       <CreateBrandModal
         isOpen={showCreateBrandModal}
@@ -484,17 +475,17 @@ export default function Home() {
                   <img src={profile.linkedChannel.photoUrl} alt={profile.linkedChannel.title} className="w-10 h-10 rounded-full object-cover" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white flex items-center justify-center font-bold text-sm">
-                    {profile?.linkedChannel?.title?.[0] || strategy.analyzedChannel?.name?.[0] || 'T'}
+                    {profile?.linkedChannel?.title?.[0] || 'A'}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-bold text-slate-900 truncate">
-                    {profile?.linkedChannel?.title || strategy.analyzedChannel?.name || 'Канал'}
+                    {profile?.linkedChannel?.title || 'AI Каналище'}
                   </div>
                   <div className="text-[10px] text-slate-500">
                     {profile?.linkedChannel?.memberCount 
                       ? `${profile.linkedChannel.memberCount.toLocaleString('ru-RU')} подписчиков`
-                      : 'Подписчики'
+                      : 'Демо-канал'
                     }
                   </div>
                 </div>

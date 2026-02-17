@@ -61,6 +61,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     postProjects: typeof updater === 'function' ? updater(s.postProjects) : updater,
   })),
 
+  // --- AUTO ANALYZE ---
+  autoAnalyzeBrand: async (brand: Brand) => {
+    if (brand.analyzedChannel) return;
+    const { useEditorStore } = await import('./editorStore');
+    await useEditorStore.getState().generateIdeas();
+  },
+
   createBrand: async (data) => {
     const userId = useAuthStore.getState().user?.id;
     if (!userId) return;

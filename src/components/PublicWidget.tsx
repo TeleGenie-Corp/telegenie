@@ -36,7 +36,7 @@ export const PublicWidget: React.FC = () => {
   };
 
   return (
-    <div id="widget-root" className="min-h-screen w-full flex items-center justify-center bg-slate-50 p-4 font-sans text-slate-900 selection:bg-violet-100 selection:text-violet-900">
+    <div id="widget-root" className="w-full flex justify-center p-4 font-sans text-slate-900 selection:bg-violet-100 selection:text-violet-900">
       <div className="w-full max-w-lg">
         <div className="flex flex-col space-y-8">
           {/* Header */}

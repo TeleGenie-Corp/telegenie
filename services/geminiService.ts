@@ -40,12 +40,6 @@ export class GeminiService {
                             error?.message?.includes('overloaded') || 
                             error?.message?.includes('429');
         
-        const isRegionError = error?.message?.includes('User location is not supported') || 
-                              error?.message?.includes('403') ||
-                              error?.message?.includes('Request is not permitted');
-        
-        if (isRegionError) throw new Error('VPN_REQUIRED');
-
         if (isOverloaded) {
           console.warn(`Model ${modelName} overloaded or unavailable. Trying next...`);
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -66,14 +60,6 @@ export class GeminiService {
       return await fn();
     } catch (error: any) {
       const isTransient = error?.message?.includes('503') || error?.message?.includes('overloaded');
-      const isRegionError = error?.message?.includes('User location is not supported') || 
-                           error?.message?.includes('403') || 
-                           error?.message?.includes('Request is not permitted');
-
-      if (isRegionError) {
-          throw new Error('VPN_REQUIRED');
-      }
-
       if (isTransient && retries > 0) {
         await new Promise(resolve => setTimeout(resolve, delay));
         return this.executeWithRetry(fn, retries - 1, delay * 1.5);

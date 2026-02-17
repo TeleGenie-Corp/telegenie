@@ -123,6 +123,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Sync fresh data from Firestore
     const user = useAuthStore.getState().user;
     if (user) {
+      if (!get().strategy.analyzedChannel) {
+        get().generateIdeas();
+      }
       PostProjectService.getProject(user.id, post.id).then((freshPost) => {
         if (freshPost) {
           set({
@@ -169,11 +172,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       set({ ideas: withUsage });
     } catch (e: any) {
       console.error(e);
-      if (e.message?.includes('VPN_REQUIRED')) {
-        useUIStore.getState().openVPN();
-      } else {
-        toast.error(e.message || 'Ошибка генерации идей');
-      }
+      toast.error(e.message || 'Ошибка генерации идей');
       set({ analyzing: false });
     } finally {
       set({ loadingIdeas: false });
@@ -205,57 +204,68 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
 
     const config: GenerationConfig = { withImage: strategy.withImage || false, withAnalysis: false };
-    const result = await PostGenerationService.generate(
-      { idea, strategy, config, userId: user.id },
-      (ps) => set({ pipelineState: ps }),
-      (partialText) => {
-        set((s) => ({
-          currentPost: s.currentPost
-            ? { ...s.currentPost, text: partialText }
-            : { id: currentProject.id, text: partialText, generating: true, timestamp: Date.now() },
-        }));
-      },
-    );
-
-    if (!result.success || !result.post) {
-      if (result.errors.some((e: string) => e.includes('VPN_REQUIRED'))) {
-        useUIStore.getState().openVPN();
-      } else {
-        toast.error(result.errors.join(', '));
-      }
-      set({ currentPost: null });
-      return;
-    }
-
-    const newPost = result.post;
-    newPost.id = currentProject.id;
-    set({ currentPost: newPost });
-
-    // SAVE TO FIRESTORE
-    await PostProjectService.updateIdeas(user.id, currentProject.id, ideas, idea.id);
-    await PostProjectService.updateContent(user.id, currentProject.id, newPost.text, newPost.rawText, newPost.imageUrl);
-    useWorkspaceStore.getState().setPostProjects((prev) =>
-      prev.map((p) => (p.id === currentProject.id ? { ...p, text: newPost.text, ideas, selectedIdeaId: idea.id, updatedAt: Date.now() } : p)),
-    );
-
-    await BillingService.incrementUsage(user.id, 'posts', 1);
-
-    const { AnalyticsService } = await import('../../services/analyticsService');
-    AnalyticsService.log({ name: 'generate_post', params: { method: 'idea', topic: idea.title } });
+    
+    // Simulate progress updates since Server Actions are opaque
+    const progressInterval = setInterval(() => {
+      set((s) => {
+        if (!s.pipelineState || s.pipelineState.stage === 'idle') return s;
+        const stages: Array<PipelineState['stage']> = ['validating', 'generating_content', 'polishing', 'generating_image'];
+        const currentIndex = stages.indexOf(s.pipelineState.stage);
+        if (currentIndex < stages.length - 1 && s.pipelineState.progress < 90) {
+           return { 
+             pipelineState: { 
+               ...s.pipelineState, 
+               stage: stages[currentIndex + (s.pipelineState.progress > 70 ? 1 : 0)],
+               progress: Math.min(s.pipelineState.progress + 5, 90),
+               currentTask: 'Работаю над текстом...'
+             } 
+           };
+        }
+        return s;
+      });
+    }, 2000);
 
     try {
+      const { generatePostAction } = await import('@/app/actions/gemini');
+      const result = await generatePostAction({ idea, strategy, config, userId: user.id });
+
+      clearInterval(progressInterval);
+
+      if (!result.success || !result.post) {
+        toast.error(result.errors.join(', '));
+        set({ currentPost: null, pipelineState: { stage: 'idle', progress: 0 } });
+        return;
+      }
+
+      const newPost = result.post;
+      newPost.id = currentProject.id;
+      set({ 
+        currentPost: newPost,
+        pipelineState: { stage: 'idle', progress: 0 } 
+      });
+
+      // SAVE TO FIRESTORE
+      await PostProjectService.updateIdeas(user.id, currentProject.id, ideas, idea.id);
+      await PostProjectService.updateContent(user.id, currentProject.id, newPost.text, newPost.rawText, newPost.imageUrl);
+      useWorkspaceStore.getState().setPostProjects((prev) =>
+        prev.map((p) => (p.id === currentProject.id ? { ...p, text: newPost.text, ideas, selectedIdeaId: idea.id, updatedAt: Date.now() } : p)),
+      );
+
+      await BillingService.incrementUsage(user.id, 'posts', 1);
+
+      const { AnalyticsService } = await import('../../services/analyticsService');
+      AnalyticsService.log({ name: 'generate_post', params: { method: 'idea', topic: idea.title } });
+
       const { UserService } = await import('../../services/userService');
-      const updated = { ...profile, balance: profile.balance - result.costs.total, generationHistory: [newPost, ...profile.generationHistory].slice(0, 50) };
+      const updated = { ...profile, balance: profile.balance - (result.costs?.total || 0), generationHistory: [newPost, ...profile.generationHistory].slice(0, 50) };
       await UserService.updateProfile(updated);
       useAuthStore.getState().updateProfile(updated);
+      
     } catch (e: any) {
+      clearInterval(progressInterval);
       console.error(e);
-      if (e.message?.includes('VPN_REQUIRED')) {
-        const { AnalyticsService: AS } = await import('../../services/analyticsService');
-        AS.log({ name: 'error_vpn', params: { location: 'generate_post' } });
-        useUIStore.getState().openVPN();
-        set({ pipelineState: { stage: 'idle', progress: 0 }, currentPost: null });
-      }
+      toast.error(e.message || 'Ошибка генерации поста');
+      set({ pipelineState: { stage: 'idle', progress: 0 }, currentPost: null });
     }
   },
 
@@ -283,11 +293,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       );
     } catch (e: any) {
       console.error(e);
-      if (e.message?.includes('VPN_REQUIRED')) {
-        useUIStore.getState().openVPN();
-      } else {
-        toast.error(e.message || 'Ошибка редактирования');
-      }
+      toast.error(e.message || 'Ошибка редактирования');
     } finally {
       set({ pipelineState: { stage: 'idle', progress: 0 } });
     }

@@ -8,7 +8,7 @@ const PublicWidget = React.lazy(() => import('@/src/components/PublicWidget'));
 
 export default function WidgetPage() {
   return (
-    <div className="h-screen bg-slate-50 overflow-hidden font-sans text-slate-900">
+    <div className="h-screen bg-slate-50 overflow-hidden font-sans text-slate-900 flex items-center justify-center p-4">
       <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-violet-600" size={32} /></div>}>
         <PublicWidget />
         <Toaster position="top-right" richColors closeButton />

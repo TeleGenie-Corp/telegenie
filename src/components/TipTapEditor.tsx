@@ -46,7 +46,6 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
       StarterKit.configure({
         bulletList: false,
         orderedList: false,
-        // blockquote: false, // Enable blockquote
         heading: false,
         codeBlock: false,
         horizontalRule: false,
