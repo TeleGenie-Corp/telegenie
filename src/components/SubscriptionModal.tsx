@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { SubscriptionPlan, SubscriptionTier, UserProfile } from '../../types';
 import { BillingService } from '../../services/billingService';
 import { UserService } from '../../services/userService';
+import { createPaymentAction } from '@/app/actions/payment';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -65,10 +66,14 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   return;
               }
 
-              confirmationUrl = await BillingService.subscribe(userId, plan.id, payAmount);
+              const result = await createPaymentAction(userId, plan.id, payAmount);
+              if (result.error) throw new Error(result.error);
+              confirmationUrl = result.confirmationUrl || null;
           } else {
               // Expired or generic
-              confirmationUrl = await BillingService.subscribe(userId, plan.id);
+              const result = await createPaymentAction(userId, plan.id);
+              if (result.error) throw new Error(result.error);
+              confirmationUrl = result.confirmationUrl || null;
           }
       } 
       // Logic for Downgrade
@@ -95,13 +100,17 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                    }
                    // Re-subscribe to new plan? Or just let them be free until they pay?
                    // Usually downgrade means paying for cheaper plan.
-                   confirmationUrl = await BillingService.subscribe(userId, plan.id);
+                   const result = await createPaymentAction(userId, plan.id);
+                   if (result.error) throw new Error(result.error);
+                   confirmationUrl = result.confirmationUrl || null;
               }
           }
       } 
       // Standard Subscribe
       else {
-          confirmationUrl = await BillingService.subscribe(userId, plan.id);
+          const result = await createPaymentAction(userId, plan.id);
+          if (result.error) throw new Error(result.error);
+          confirmationUrl = result.confirmationUrl || null;
       }
       
       if (confirmationUrl) {
