@@ -47,3 +47,5 @@ ui-debug.log
 
 # Turbopack cache
 .turbo/
+
+telegenie-studio-firebase-adminsdk-*

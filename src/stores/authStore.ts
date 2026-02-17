@@ -6,6 +6,7 @@ interface AuthState {
   user: User | null;
   profile: UserProfile | null;
   showLogin: boolean;
+  isLoading: boolean;
 
   // --- Actions ---
   init: () => () => void;
@@ -18,12 +19,14 @@ interface AuthState {
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
-  showLogin: true,
+  showLogin: false, // Don't show login by default, wait for loading
+  isLoading: true, // Start in loading state
 
   init: () => {
     let unsubscribe: (() => void) | undefined;
 
     const run = async () => {
+      // Import Firebase Auth dynamically
       const { auth } = await import('../../services/firebaseConfig');
       const { onAuthStateChanged, isSignInWithEmailLink, signInWithEmailLink, getRedirectResult } = await import('firebase/auth');
 
@@ -52,17 +55,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             first_name: firebaseUser.displayName || 'User',
             avatar: firebaseUser.photoURL || undefined,
           };
-          set({ user: newUser, showLogin: false });
+          
+          // Optimistic update
+          set({ user: newUser, showLogin: false }); 
 
           try {
             const { UserService } = await import('../../services/userService');
             const userProfile = await UserService.syncProfile(firebaseUser.uid);
-            set({ profile: userProfile });
+            set({ profile: userProfile, isLoading: false });
           } catch (e) {
             console.error('Profile sync error', e);
+            set({ isLoading: false });
           }
         } else {
-          set({ user: null, profile: null, showLogin: true });
+          set({ user: null, profile: null, showLogin: true, isLoading: false });
         }
       });
     };

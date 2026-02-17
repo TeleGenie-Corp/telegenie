@@ -98,7 +98,7 @@ export interface PostProject {
 
 // === BILLING & SUBSCRIPTIONS ===
 
-export type SubscriptionTier = 'free' | 'pro' | 'monster';
+export type SubscriptionTier = 'free' | 'expert' | 'monster';
 
 export interface SubscriptionPlan {
   id: SubscriptionTier;
@@ -140,6 +140,7 @@ export interface UserProfile {
     status: 'active' | 'canceled' | 'expired';
     currentPeriodEnd: number;
     autoRenew: boolean;
+    nextPlanId?: SubscriptionTier;
     subscriptionId?: string;
     yookassaPaymentMethodId?: string; // Token for YooKassa recurrent payments
   };

@@ -59,7 +59,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
 
             // Determine Plan
             // Data can be passed as JSON string in 'Data' field
-            let planId = 'pro'; // Default
+            let planId = 'expert'; // Default
             try {
                 const metadata = typeof Data === 'string' ? JSON.parse(Data) : Data;
                 if (metadata?.planId) planId = metadata.planId;

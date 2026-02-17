@@ -21,6 +21,7 @@ export interface CreatePaymentParams {
   metadata?: Record<string, any>;
   paymentMethodId?: string; // For recurrent payments
   savePaymentMethod?: boolean; // To save method for future
+  confirmationType?: 'redirect' | 'embedded';
 }
 
 export interface YooKassaPayment {
@@ -28,7 +29,7 @@ export interface YooKassaPayment {
   status: 'pending' | 'waiting_for_capture' | 'succeeded' | 'canceled';
   paid: boolean;
   amount: { value: string; currency: string };
-  confirmation?: { type: string; confirmation_url: string };
+  confirmation?: { type: string; confirmation_url: string; confirmation_token?: string };
   payment_method?: { id: string; saved: boolean };
   metadata?: Record<string, any>;
 }
@@ -58,9 +59,17 @@ export class YooKassaService {
     } else {
       // New payment (user interaction required)
       body.confirmation = {
-        type: 'redirect',
-        return_url: params.returnUrl
+        type: params.confirmationType || 'redirect',
+        locale: 'ru_RU'
       };
+
+      if (params.confirmationType !== 'embedded') {
+          body.confirmation.return_url = params.returnUrl;
+      } else {
+          // Embedded also needs return_url according to docs, but sometimes it receives it differently.
+          // Docs say: "return_url" is required for embedded too.
+          body.confirmation.return_url = params.returnUrl;
+      }
       
       if (params.savePaymentMethod) {
         body.save_payment_method = true;

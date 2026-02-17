@@ -52,7 +52,7 @@ export const cloudPaymentsWebhook = functions.https.onRequest(async (req, res) =
     const status = body.Status;
     
     // Parse 'Data' which might contain planId
-    let planId = 'pro'; // Default fallback
+    let planId = 'expert'; // Default fallback
     try {
         const dataParsed = typeof body.Data === 'string' ? JSON.parse(body.Data) : body.Data;
         if (dataParsed?.planId) planId = dataParsed.planId;

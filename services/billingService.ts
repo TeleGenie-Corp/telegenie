@@ -1,45 +1,7 @@
 import { SubscriptionPlan, SubscriptionTier, Transaction, UserProfile } from '../types';
 import { UserService } from './userService';
 import { YooKassaService } from './yooKassaService';
-
-const PLANS: SubscriptionPlan[] = [
-  {
-    id: 'free',
-    name: 'Starter',
-    price: 0,
-    currency: 'RUB',
-    limits: {
-      postsPerMonth: 5,
-      aiTokens: 10000,
-      brandsCount: 1
-    },
-    features: []
-  },
-  {
-    id: 'pro',
-    name: 'Expert',
-    price: 490,
-    currency: 'RUB',
-    limits: {
-      postsPerMonth: 50,
-      aiTokens: 100000,
-      brandsCount: 5
-    },
-    features: []
-  },
-  {
-    id: 'monster',
-    name: 'Monster Blogger',
-    price: 2490,
-    currency: 'RUB',
-    limits: {
-      postsPerMonth: 250,
-      aiTokens: 500000,
-      brandsCount: 25
-    },
-    features: []
-  }
-];
+import { PLANS } from '../src/constants/plans';
 
 export class BillingService {
 

@@ -81,14 +81,6 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                   </button>
 
                   <button 
-                    type="button"
-                    onClick={onToggleDarkMode}
-                    className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-sm font-medium"
-                  >
-                    {darkMode ? <Sun size={16} /> : <Moon size={16} />}
-                    {darkMode ? 'Light Mode' : 'Dark Mode'}
-                  </button>
-                  <button 
                     onClick={onLogout}
                     className="flex items-center gap-2 w-full p-2 rounded-lg hover:bg-rose-50 text-rose-500 hover:text-rose-700 text-sm font-medium"
                   >

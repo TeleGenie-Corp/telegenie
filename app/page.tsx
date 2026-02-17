@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Suspense, useEffect, lazy } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Sparkles, Zap, Loader2, Layout, Target,
   MessageCircle, Send, Wand2, Settings,
@@ -18,7 +19,8 @@ import { useEditorStore } from '@/src/stores/editorStore';
 import { BillingService } from '@/services/billingService';
 
 // --- Components ---
-import { AuthPage } from '@/src/components/AuthPage';
+// import { AuthPage } from '@/src/components/AuthPage'; // Removed
+
 import { AppHeader } from '@/src/components/AppHeader';
 
 import { GenerationLoading } from '@/src/components/GenerationLoading';
@@ -113,10 +115,9 @@ export default function Home() {
   const publish = useEditorStore(s => s.publish);
 
   // --- INIT: Auth listener + Firestore subscriptions ---
-  useEffect(() => {
-    const unsubAuth = useAuthStore.getState().init();
-    return unsubAuth;
-  }, []);
+  // --- INIT: Auth listener moved to AuthInitializer ---
+  // We just check redirections here
+
 
   // Subscribe to workspace data when user logs in
   useEffect(() => {
@@ -135,10 +136,61 @@ export default function Home() {
 
   // --- MAIN APP ---
 
+  // --- PAYMENT STATUS HANDLER ---
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('payment_status') === 'success') {
+        const paymentId = localStorage.getItem('pending_payment_id');
+        
+        if (paymentId) {
+             // Dynamically import action to check verification
+             import('@/app/actions/payment').then(async ({ verifyPaymentAction }) => {
+                 const { toast } = require('sonner');
+                 const result = await verifyPaymentAction(paymentId);
+                 
+                 if (result.success) {
+                    toast.success('Оплата подтверждена! Тариф обновлен.');
+                    localStorage.removeItem('pending_payment_id');
+                    
+                    // Clear query param
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.pushState({path:newUrl},'',newUrl);
+                    
+                    // Refresh profile (force reload to get new claims/subscription status)
+                    setTimeout(() => window.location.reload(), 1500);
+                 } else {
+                     toast.error(`Ошибка проверки: ${result.error}`);
+                 }
+             });
+        }
+      }
+    }
+  }, []);
+
   // --- LOGIN SCREEN ---
-  if (showLogin) {
-    return <AuthPage onLogin={() => {}} />;
+  // --- AUTH REDIRECT ---
+  const isLoadingAuth = useAuthStore(s => s.isLoading);
+  const router = useRouter(); // Need to import useRouter
+
+  useEffect(() => {
+    if (!isLoadingAuth && !user) {
+        router.push('/login');
+    }
+  }, [isLoadingAuth, user, router]);
+
+  if (isLoadingAuth || !user) {
+       return (
+          <div className="flex items-center justify-center min-h-screen bg-slate-50">
+              <div className="flex flex-col items-center gap-4">
+                  <div className="w-12 h-12 rounded-full border-4 border-slate-200 border-t-violet-600 animate-spin" />
+                  <p className="text-slate-400 text-sm font-medium animate-pulse">Загрузка TeleGenie...</p>
+              </div>
+          </div>
+      );
   }
+
+
 
   return (
     <div className="h-screen flex flex-col bg-slate-50 overflow-hidden font-sans text-slate-900">

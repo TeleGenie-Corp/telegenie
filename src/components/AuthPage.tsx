@@ -47,38 +47,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
   if (!isClient) return null; // Avoid hydration mismatch for theme toggles
 
   return (
-    <div className={`fixed inset-0 overflow-hidden flex items-center justify-center font-sans transition-colors duration-500 ${!darkMode ? 'bg-slate-50' : 'bg-[#0a0e1a]'}`}>
+    <div className="fixed inset-0 overflow-hidden flex items-center justify-center font-sans transition-colors duration-500 bg-slate-50">
       
       {/* BACKGROUND LAYERS */}
       <div className="absolute inset-0 z-0 pointer-events-none">
           {/* Light Mode Gradient */}
-           <div className={`absolute inset-0 bg-gradient-to-br from-violet-50/50 via-white to-fuchsia-50/30 transition-opacity duration-1000 ${darkMode ? 'opacity-0' : 'opacity-100'}`} />
-           
-           {/* Dark Mode Gradient */}
-           <div className={`absolute inset-0 bg-gradient-to-br from-[#0f172a] via-[#0a0e1a] to-[#1e1b4b] transition-opacity duration-1000 ${darkMode ? 'opacity-100' : 'opacity-0'}`} />
+           <div className="absolute inset-0 bg-gradient-to-br from-violet-50/50 via-white to-fuchsia-50/30 transition-opacity duration-1000" />
            
            {/* Accent Orbs */}
-           <div className={`absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full blur-3xl transition-opacity duration-1000 ${
-               darkMode ? 'bg-violet-900/20' : 'bg-violet-200/40'
-           }`} />
-           <div className={`absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full blur-3xl transition-opacity duration-1000 ${
-               darkMode ? 'bg-fuchsia-900/20' : 'bg-fuchsia-200/30'
-           }`} />
-      </div>
-
-      {/* THEME TOGGLE */}
-      <div className="absolute top-6 right-6 z-30">
-        <button 
-          onClick={toggleDarkMode}
-          className={`p-3 rounded-full transition-all duration-300 active:scale-95 ${
-            darkMode 
-              ? 'bg-slate-800/80 text-violet-300 hover:text-white hover:bg-slate-700 backdrop-blur border border-slate-700' 
-              : 'bg-white/80 text-slate-500 hover:text-violet-600 hover:bg-white shadow-sm backdrop-blur border border-white'
-          }`}
-          title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
-        >
-          {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-        </button>
+           <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full blur-3xl transition-opacity duration-1000 bg-violet-200/40" />
+           <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full blur-3xl transition-opacity duration-1000 bg-fuchsia-200/30" />
       </div>
 
       {/* MAIN CONTENT */}
@@ -97,16 +75,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
             </div>
             
             <div className="space-y-1">
-                <h1 className={`font-display text-3xl font-black uppercase tracking-tighter transition-colors duration-500 ${
-                    darkMode ? 'text-white' : 'text-slate-900'
-                }`}>
-                TeleGenie <span className={`text-lg font-bold ml-1 transition-colors duration-500 ${
-                    darkMode ? 'text-violet-400' : 'text-violet-600'
-                }`}>Studio</span>
+                <h1 className="font-display text-3xl font-black uppercase tracking-tighter transition-colors duration-500 text-slate-900">
+                TeleGenie <span className="text-lg font-bold ml-1 transition-colors duration-500 text-violet-600">Studio</span>
                 </h1>
-                <p className={`text-sm font-medium tracking-wide transition-colors duration-500 uppercase ${
-                    darkMode ? 'text-slate-400' : 'text-slate-500'
-                }`}>
+                <p className="text-sm font-medium tracking-wide transition-colors duration-500 uppercase text-slate-500">
                     AI-Powered Content Engine
                 </p>
             </div>
@@ -115,26 +87,18 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
         {/* AUTH CARD */}
         <motion.div 
             variants={itemVariants}
-            className={`
-                relative overflow-hidden rounded-3xl backdrop-blur-xl border transition-all duration-500 group
-                ${darkMode 
-                    ? 'bg-slate-900/60 border-slate-700/50 shadow-2xl shadow-black/50 hover:border-slate-600/50' 
-                    : 'bg-white/70 border-white/60 shadow-2xl shadow-violet-500/10 hover:border-white/80'
-                }
-            `}
+            className="relative overflow-hidden rounded-3xl backdrop-blur-xl border transition-all duration-500 group bg-white/70 border-white/60 shadow-2xl shadow-violet-500/10 hover:border-white/80"
         >
             <div className="relative z-10 p-6 sm:p-8">
                 <Auth onLogin={onLogin} />
             </div>
             
             {/* Subtle Gradient Overlay */}
-            <div className={`absolute inset-0 pointer-events-none bg-gradient-to-tr from-violet-500/5 to-fuchsia-500/5 transition-opacity duration-500 ${darkMode ? 'opacity-20' : 'opacity-0'}`} />
+            <div className="absolute inset-0 pointer-events-none bg-gradient-to-tr from-violet-500/5 to-fuchsia-500/5 transition-opacity duration-500 opacity-0" />
         </motion.div>
         
         {/* FOOTER */}
-        <motion.p variants={itemVariants} className={`text-center mt-8 text-[10px] font-bold uppercase tracking-widest transition-colors duration-500 ${
-            darkMode ? 'text-slate-600' : 'text-slate-400'
-        }`}>
+        <motion.p variants={itemVariants} className="text-center mt-8 text-[10px] font-bold uppercase tracking-widest transition-colors duration-500 text-slate-400">
             &copy; {new Date().getFullYear()} TeleGenie Systems
         </motion.p>
       </motion.div>

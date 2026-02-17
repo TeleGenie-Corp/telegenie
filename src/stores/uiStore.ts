@@ -28,10 +28,7 @@ interface UIState {
 }
 
 const getInitialDarkMode = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  const saved = typeof window !== 'undefined' ? localStorage.getItem('theme') : null;
-  if (saved) return saved === 'dark';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return false; // Disabled
 };
 
 export const useUIStore = create<UIState>((set) => ({
@@ -41,7 +38,7 @@ export const useUIStore = create<UIState>((set) => ({
   showVPNModal: false,
   showMobileSidebar: false,
   showCreateBrandModal: false,
-  darkMode: getInitialDarkMode(),
+  darkMode: false,
 
   openSettings: () => set({ showSettings: true }),
   closeSettings: () => set({ showSettings: false }),
@@ -55,10 +52,11 @@ export const useUIStore = create<UIState>((set) => ({
   openCreateBrand: () => set({ showCreateBrandModal: true }),
   closeCreateBrand: () => set({ showCreateBrandModal: false }),
 
-  toggleDarkMode: () => set((s) => {
-    const next = !s.darkMode;
-    localStorage.setItem('theme', next ? 'dark' : 'light');
-    document.documentElement.classList.toggle('dark', next);
-    return { darkMode: next };
-  }),
+  toggleDarkMode: () => {
+    // No-op, ensure class is removed just in case
+    if (typeof window !== 'undefined') {
+      document.documentElement.classList.remove('dark');
+      localStorage.removeItem('theme');
+    }
+  },
 }));

@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Check, X, Zap, Loader2, Star, Shield, Users, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { SubscriptionPlan, SubscriptionTier, UserProfile } from '../../types';
-import { BillingService } from '../../services/billingService';
 import { UserService } from '../../services/userService';
-import { createPaymentAction } from '@/app/actions/payment';
+import { createPaymentAction, cancelSubscriptionAction, scheduleSubscriptionChangeAction } from '@/app/actions/payment';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -16,6 +15,8 @@ interface SubscriptionModalProps {
 
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { PLANS } from '@/src/constants/plans';
+
 export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ 
   isOpen, 
   onClose,
@@ -23,17 +24,26 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   currentTier,
   profile
 }) => {
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>(PLANS);
   const [loading, setLoading] = useState(false);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
 
+  // YooKassa Widget Logic Removed. Standard redirect flow.
+
   useEffect(() => {
+      // Analytics tracking
     if (isOpen) {
-      setPlans(BillingService.getPlans());
       import('../../services/analyticsService').then(({ AnalyticsService }) => {
         AnalyticsService.trackViewSubscription();
       });
     }
+  }, [isOpen]);
+
+  // Reset state when closing
+  useEffect(() => {
+      if (!isOpen) {
+          setProcessingPlan(null);
+      }
   }, [isOpen]);
 
   const handleSubscribe = async (plan: SubscriptionPlan) => {
@@ -44,9 +54,40 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       const currentPlan = plans.find(p => p.id === currentTier);
       const isUpgrade = currentPlan && plan.price > currentPlan.price;
       const isDowngrade = currentPlan && plan.price < currentPlan.price;
-      let confirmationUrl: string | null = null;
+      
+      const isNext = profile?.subscription?.nextPlanId === plan.id;
+      const willBeFree = !profile?.subscription?.nextPlanId && !profile?.subscription?.autoRenew && plan.id === 'free';
 
-      // Logic for Upgrade with Proration
+      if (isNext || willBeFree) {
+          toast.info("Этот тариф уже запланирован");
+          setLoading(false);
+          setProcessingPlan(null);
+          return;
+      }
+
+      // 1. Logic for Downgrade to Free
+      if (plan.id === 'free') {
+          const result = await cancelSubscriptionAction(userId);
+          if (!result.success) throw new Error(result.error);
+          toast.success("Автопродление выключено. Пакет Starter включится по окончании периода.");
+          window.location.reload();
+          return;
+      }
+
+      // 2. Logic for Downgrade to another Paid Plan
+      if (isDowngrade) {
+          const result = await scheduleSubscriptionChangeAction(userId, plan.id);
+          if (!result.success) throw new Error(result.error);
+          toast.success(`Тариф изменится на ${plan.name} по окончании текущего периода`);
+          setLoading(false);
+          setProcessingPlan(null);
+          return;
+      }
+
+      // 3. Logic for Upgrade (with Proration if active)
+      let confirmationUrl: string | null = null;
+      let paymentId: string | null = null;
+
       if (isUpgrade && profile?.subscription?.currentPeriodEnd && profile.subscription.status === 'active') {
           const now = Date.now();
           const endDate = profile.subscription.currentPeriodEnd;
@@ -55,80 +96,41 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               const remainingDays = (endDate - now) / (1000 * 60 * 60 * 24);
               const dailyRate = currentPlan!.price / 30;
               const remainingValue = dailyRate * remainingDays;
-              
-              // Calculate difference to pay
               const payAmount = Math.max(0, Math.floor(plan.price - remainingValue));
               
-              const confirmed = window.confirm(`Сменить план на ${plan.name}?\nБудет списана разница: ${payAmount}₽ (с учетом остатка ${Math.floor(remainingValue)}₽).\nНовый период начнется сегодня.`);
-              if (!confirmed) {
-                  setLoading(false);
-                  setProcessingPlan(null);
-                  return;
-              }
-
               const result = await createPaymentAction(userId, plan.id, payAmount);
               if (result.error) throw new Error(result.error);
               confirmationUrl = result.confirmationUrl || null;
+              paymentId = result.paymentId || null;
           } else {
-              // Expired or generic
               const result = await createPaymentAction(userId, plan.id);
               if (result.error) throw new Error(result.error);
               confirmationUrl = result.confirmationUrl || null;
+              paymentId = result.paymentId || null;
           }
       } 
-      // Logic for Downgrade
-      else if (isDowngrade) {
-          if (plan.id === 'free') {
-              const confirmed = window.confirm(`Вы уверены, что хотите отменить подписку?\nАвтопродление будет отключено. Текущий период доработает до конца.`);
-              if (confirmed) {
-                  await BillingService.cancelSubscription(userId);
-                  window.location.reload();
-              }
-              return;
-          } else {
-              // Monster -> Pro or similar
-              const confirmed = window.confirm(`Перейти на план ${plan.name}?\nВнимание: Текущий план будет аннулирован, новый план активируется сразу. Переплаты не возвращаются.`);
-              if (confirmed) {
-                  // Cancel current billing
-                  await BillingService.cancelSubscription(userId);
-                  // Manually update tier to new lower tier immediately
-                   if (profile) {
-                       await UserService.updateProfile({
-                           ...profile,
-                           subscription: { ...profile.subscription!, tier: plan.id, autoRenew: false }
-                       });
-                   }
-                   // Re-subscribe to new plan? Or just let them be free until they pay?
-                   // Usually downgrade means paying for cheaper plan.
-                   const result = await createPaymentAction(userId, plan.id);
-                   if (result.error) throw new Error(result.error);
-                   confirmationUrl = result.confirmationUrl || null;
-              }
-          }
-      } 
-      // Standard Subscribe
+      // 4. Standard Purchase
       else {
           const result = await createPaymentAction(userId, plan.id);
           if (result.error) throw new Error(result.error);
           confirmationUrl = result.confirmationUrl || null;
+          paymentId = result.paymentId || null;
       }
       
       if (confirmationUrl) {
+          if (paymentId) {
+             localStorage.setItem('pending_payment_id', paymentId);
+          }
           window.location.href = confirmationUrl;
-      } else if (!isDowngrade || (isDowngrade && plan.price > 0)) {
-           // If we expected a URL but got null (and it wasn't a free downgrade)
-           // But actually downgrade to free returns undefined confirmationUrl which is fine.
-           // The logic above ensures confirmationUrl is set if we called subscribe.
-           if (plan.price > 0 && !confirmationUrl) {
-               toast.error("Ошибка инициализации платежа");
-           }
+      } else {
+          toast.error("Ошибка инициализации платежа");
+          setLoading(false);
+          setProcessingPlan(null);
       }
       
-      // onClose(); // Don't close if redirecting
-    } catch (error) {
+    } catch (error: any) {
       console.error("Subscription failed", error);
-      toast.error("Ошибка при оформлении");
-    } finally {
+      toast.error(error.message || "Ошибка при оформлении");
       setLoading(false);
       setProcessingPlan(null);
     }
@@ -171,7 +173,12 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                             <AlertCircle size={14} />
                             <span>Активен до: <span className="font-bold text-slate-900 dark:text-white">{formatDate(currentPeriodEnd)}</span></span>
                              • 
-                            <span>Статус: <span className={isAutoRenew ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-amber-600 dark:text-amber-400 font-bold"}>{isAutoRenew ? "Автопродление" : "Отменится"}</span></span>
+                            <span>Статус: <span className={(isAutoRenew && !profile?.subscription?.nextPlanId) ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-amber-600 dark:text-amber-400 font-bold"}>
+                                {profile?.subscription?.nextPlanId 
+                                    ? `Следующий тариф: ${PLANS.find(p => p.id === profile?.subscription?.nextPlanId)?.name}` 
+                                    : (isAutoRenew ? "Автопродление" : "Следующий тариф: Starter")
+                                }
+                            </span></span>
                         </div>
                     )}
                     {!currentPeriodEnd && (
@@ -185,7 +192,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                         {plans.map((plan) => {
                             const isCurrent = currentTier === plan.id;
-                            const isFeatures = plan.id === 'pro'; 
+                            const isFeatures = plan.id === 'expert'; 
                             
                             return (
                                 <motion.div 
@@ -250,6 +257,8 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                                             <Loader2 className="animate-spin" />
                                         ) : isCurrent ? (
                                             'Ваш текущий план'
+                                        ) : (profile?.subscription?.nextPlanId === plan.id || (!profile?.subscription?.nextPlanId && !profile?.subscription?.autoRenew && plan.id === 'free')) ? (
+                                            'Запланирован'
                                         ) : (
                                             plan.price > (plans.find(p => p.id === currentTier)?.price || 0) 
                                             ? 'Улучшить' 
@@ -260,6 +269,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                             );
                         })}
                     </div>
+
                     
                     <div className="mt-12 text-center text-xs text-slate-400 dark:text-slate-500 max-w-2xl mx-auto">
                         Оплата происходит через безопасный шлюз. Вы можете отменить подписку в любой момент.

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Manrope, Unbounded } from 'next/font/google';
 import './globals.css';
 import Script from 'next/script';
+import { AuthInitializer } from '@/src/components/AuthInitializer';
 
 const manrope = Manrope({
   subsets: ['latin', 'cyrillic'],
@@ -43,21 +44,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <head>
-         <Script 
-            id="theme-script" 
-            strategy="beforeInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-                const savedTheme = localStorage.getItem('theme');
-                if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                    document.documentElement.classList.add('dark');
-                }
-              `
-            }}
-         />
-      </head>
+      <head />
       <body className={`${manrope.variable} ${unbounded.variable} font-sans`}>
+        <AuthInitializer />
         {children}
         <Script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" strategy="lazyOnload" />
       </body>
