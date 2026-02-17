@@ -41,6 +41,7 @@ interface TipTapEditorProps {
 
 export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         bulletList: false,

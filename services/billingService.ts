@@ -1,5 +1,6 @@
 import { SubscriptionPlan, SubscriptionTier, Transaction, UserProfile } from '../types';
 import { UserService } from './userService';
+import { YooKassaService } from './yooKassaService';
 
 const PLANS: SubscriptionPlan[] = [
   {
@@ -46,45 +47,18 @@ export class BillingService {
     return PLANS;
   }
 
-  static async subscribe(userId: string, planId: SubscriptionTier, customPrice?: number): Promise<boolean> {
-    const profile = await UserService.getUserProfile(userId);
-    if (!profile) throw new Error("User not found");
-
-    const plan = PLANS.find(p => p.id === planId);
-    if (!plan) throw new Error("Plan not found");
-
-    // Dynamic import to avoid circular dependency issues if any
-    const { CloudPaymentsService } = await import('./cloudPaymentsService');
-    
-    // Use user email if available, otherwise ask user or use dummy for test
-    const userEmail = 'user@example.com'; // TODO: Get from Auth or UserProfile
-
+  static async subscribe(userId: string, planId: SubscriptionTier, customPrice?: number): Promise<string | null> {
     try {
-        const success = await CloudPaymentsService.createSubscription(userId, userEmail, {
-            id: plan.id,
-            price: customPrice !== undefined ? customPrice : plan.price,
-            name: plan.name
-        });
-
-        if (!success) return false;
-
-        // Optimistic update
-        const newSubscription = {
-            tier: planId,
-            status: 'active' as const,
-            currentPeriodEnd: Date.now() + 30 * 24 * 60 * 60 * 1000, 
-            autoRenew: true
-        };
+        const payment = await this.createYooKassaPayment(userId, planId);
         
-        await UserService.updateProfile({
-            ...profile,
-            subscription: newSubscription
-        });
+        if (payment.confirmation?.confirmation_url) {
+            return payment.confirmation.confirmation_url;
+        }
         
-        return true;
+        return null;
     } catch (e) {
         console.error("Subscription error", e);
-        return false;
+        return null;
     }
   }
 
@@ -168,5 +142,63 @@ export class BillingService {
           console.error("Cancel subscription error", e);
           return false;
       }
+  }
+  /**
+   * Process successful payment from YooKassa
+   */
+  static async processPaymentSuccess(userId: string, planId: string, paymentMethodId?: string) {
+    const profile = await UserService.getUserProfile(userId);
+    if (!profile) return;
+
+    // Extend subscription
+    const currentEnd = profile.subscription?.currentPeriodEnd || Date.now();
+    const newEnd = Math.max(currentEnd, Date.now()) + 30 * 24 * 60 * 60 * 1000; // +30 days
+
+    const newSubscription = {
+      tier: planId as SubscriptionTier,
+      status: 'active' as const,
+      currentPeriodEnd: newEnd,
+      autoRenew: true,
+      yookassaPaymentMethodId: paymentMethodId || profile.subscription?.yookassaPaymentMethodId // Save token for recurrence
+    };
+
+    await UserService.updateProfile({
+      ...profile,
+      subscription: newSubscription
+    });
+        
+    // Reset limits if needed or just let cron handle it
+    // For now simplistic: assume limits reset on billing cycle
+  }
+
+  /**
+   * Create YooKassa payment ensuring Recurrent support
+   */
+  static async createYooKassaPayment(userId: string, planId: SubscriptionTier) {
+    const profile = await UserService.getUserProfile(userId);
+    if (!profile) throw new Error("User not found");
+
+    const plan = PLANS.find(p => p.id === planId);
+    if (!plan) throw new Error("Plan not found");
+
+    const { YooKassaService } = await import('./yooKassaService');
+
+    const amount = plan.price;
+    const description = `Подписка на тариф ${plan.name}`;
+    const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/settings?payment=success`;
+
+    const payment = await YooKassaService.createPayment({
+      amount,
+      description,
+      returnUrl,
+      email: profile.email || 'user@telegenie.ai', // TODO: FZ-54 requires valid email
+      metadata: {
+        userId,
+        planId
+      },
+      savePaymentMethod: true // Important for recurrence!
+    });
+
+    return payment;
   }
 }

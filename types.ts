@@ -126,6 +126,7 @@ export interface Transaction {
 
 export interface UserProfile {
   userId: string;
+  email?: string; // Optional for now, useful for receipts
   savedStrategies: ChannelStrategy[];
   generationHistory: Post[];
   balance: number; // In virtual USD
@@ -140,6 +141,7 @@ export interface UserProfile {
     currentPeriodEnd: number;
     autoRenew: boolean;
     subscriptionId?: string;
+    yookassaPaymentMethodId?: string; // Token for YooKassa recurrent payments
   };
   usage?: {
     postsThisMonth: number;

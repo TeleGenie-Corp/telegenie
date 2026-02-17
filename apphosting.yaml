@@ -11,6 +11,10 @@ env:
     value: https://t.me/AiKanalishe
   - variable: NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID
     secret: NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID
+  - variable: YOOKASSA_SHOP_ID
+    secret: YOOKASSA_SHOP_ID
+  - variable: YOOKASSA_SECRET_KEY
+    secret: YOOKASSA_SECRET_KEY
   # Firebase config (can be public, embedded in client)
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
     value: telegenie-studio

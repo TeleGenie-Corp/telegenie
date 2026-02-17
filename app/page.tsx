@@ -356,6 +356,26 @@ export default function Home() {
                       </button>
                     ))}
                   </div>
+                  
+                  {/* Quick Actions Grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <button 
+                       onClick={() => aiEdit("Упрости текст, сделай его короче и понятнее")}
+                       disabled={pipelineState.stage !== 'idle' && pipelineState.stage !== 'polishing'}
+                       className="p-3 bg-slate-50 hover:bg-violet-50 text-slate-600 hover:text-violet-700 rounded-xl text-xs font-bold transition-all border border-slate-200 hover:border-violet-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Zap size={14} className="text-amber-500" />
+                      Упростить
+                    </button>
+                    <button 
+                       onClick={() => aiEdit("Добавь юмора, энджи и сделай стиль более живым")}
+                       disabled={pipelineState.stage !== 'idle' && pipelineState.stage !== 'polishing'}
+                       className="p-3 bg-slate-50 hover:bg-violet-50 text-slate-600 hover:text-violet-700 rounded-xl text-xs font-bold transition-all border border-slate-200 hover:border-violet-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Sparkles size={14} className="text-violet-500" />
+                      Веселее
+                    </button>
+                  </div>
                   <div className="flex gap-2">
                     <input
                       type="text"

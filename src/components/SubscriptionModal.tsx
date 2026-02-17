@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, Zap, Loader2, Star, Shield, Users, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { SubscriptionPlan, SubscriptionTier, UserProfile } from '../../types';
 import { BillingService } from '../../services/billingService';
 import { UserService } from '../../services/userService';
@@ -42,6 +43,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       const currentPlan = plans.find(p => p.id === currentTier);
       const isUpgrade = currentPlan && plan.price > currentPlan.price;
       const isDowngrade = currentPlan && plan.price < currentPlan.price;
+      let confirmationUrl: string | null = null;
 
       // Logic for Upgrade with Proration
       if (isUpgrade && profile?.subscription?.currentPeriodEnd && profile.subscription.status === 'active') {
@@ -63,10 +65,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                   return;
               }
 
-              await BillingService.subscribe(userId, plan.id, payAmount);
+              confirmationUrl = await BillingService.subscribe(userId, plan.id, payAmount);
           } else {
               // Expired or generic
-              await BillingService.subscribe(userId, plan.id);
+              confirmationUrl = await BillingService.subscribe(userId, plan.id);
           }
       } 
       // Logic for Downgrade
@@ -75,7 +77,9 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
               const confirmed = window.confirm(`Вы уверены, что хотите отменить подписку?\nАвтопродление будет отключено. Текущий период доработает до конца.`);
               if (confirmed) {
                   await BillingService.cancelSubscription(userId);
+                  window.location.reload();
               }
+              return;
           } else {
               // Monster -> Pro or similar
               const confirmed = window.confirm(`Перейти на план ${plan.name}?\nВнимание: Текущий план будет аннулирован, новый план активируется сразу. Переплаты не возвращаются.`);
@@ -89,20 +93,32 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                            subscription: { ...profile.subscription!, tier: plan.id, autoRenew: false }
                        });
                    }
+                   // Re-subscribe to new plan? Or just let them be free until they pay?
+                   // Usually downgrade means paying for cheaper plan.
+                   confirmationUrl = await BillingService.subscribe(userId, plan.id);
               }
           }
-           window.location.reload();
-           return;
       } 
       // Standard Subscribe
       else {
-          await BillingService.subscribe(userId, plan.id);
+          confirmationUrl = await BillingService.subscribe(userId, plan.id);
       }
       
-      onClose();
-      window.location.reload(); 
+      if (confirmationUrl) {
+          window.location.href = confirmationUrl;
+      } else if (!isDowngrade || (isDowngrade && plan.price > 0)) {
+           // If we expected a URL but got null (and it wasn't a free downgrade)
+           // But actually downgrade to free returns undefined confirmationUrl which is fine.
+           // The logic above ensures confirmationUrl is set if we called subscribe.
+           if (plan.price > 0 && !confirmationUrl) {
+               toast.error("Ошибка инициализации платежа");
+           }
+      }
+      
+      // onClose(); // Don't close if redirecting
     } catch (error) {
       console.error("Subscription failed", error);
+      toast.error("Ошибка при оформлении");
     } finally {
       setLoading(false);
       setProcessingPlan(null);
