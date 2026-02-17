@@ -16,6 +16,10 @@ export const PublicWidget: React.FC = () => {
   } = useWidgetStore();
 
   React.useEffect(() => {
+    // Ensure we start in a clean state
+    useWidgetStore.getState().hydrate();
+    useWidgetStore.setState({ isAnalyzing: false });
+
     // Force light mode isolation for the widget
     document.documentElement.classList.remove('dark');
     document.body.classList.remove('dark');
@@ -26,8 +30,6 @@ export const PublicWidget: React.FC = () => {
       // Clean up inline styles on unmount
       document.body.style.backgroundColor = '';
       document.body.style.color = '';
-      // We don't restore 'dark' class because we don't know previous state easily, 
-      // and redirect usually handles full reload or app logic will resync.
     };
   }, []);
 

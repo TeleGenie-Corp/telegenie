@@ -30,6 +30,7 @@ interface WidgetState {
   selectIdea: (idea: IdeaWithGoal) => Promise<void>;
   publishPost: () => Promise<void>;
   reset: () => void;
+  hydrate: () => void;
 }
 
 export const useWidgetStore = create<WidgetState>((set, get) => ({
@@ -44,8 +45,14 @@ export const useWidgetStore = create<WidgetState>((set, get) => ({
   generatedPost: '',
   isPublishing: false,
   publishedUrl: null,
-  demoCount: typeof window !== 'undefined' ? parseInt(localStorage.getItem('telegenie_demo_count') || '0') : 0,
+  demoCount: 0,
   maxDemos: 3,
+
+  hydrate: () => {
+    if (typeof window !== 'undefined') {
+      set({ demoCount: parseInt(localStorage.getItem('telegenie_demo_count') || '0') });
+    }
+  },
 
   setUrl: (url) => set({ url }),
   setPoint: (point) => set({ point }),

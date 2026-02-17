@@ -200,14 +200,21 @@ export const publishDemoPost = functions.https.onCall(async (data, context) => {
 
     try {
         // 4. Send to Telegram
+        // Ensure channelId starts with @ if it's a handle
+        const targetChatId = channelId.startsWith('@') || /^-?\d+$/.test(channelId) 
+            ? channelId 
+            : `@${channelId}`;
+
+        console.log(`Publishing to Telegram. Bot: ${botToken.substring(0, 10)}..., Chat: ${targetChatId}`);
+
         // Using built-in fetch (Node 18+)
         const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                chat_id: channelId,
+                chat_id: targetChatId,
                 text: fullMessage,
-                parse_mode: 'Markdown', // or 'HTML' if needed, but Gemini outputs Markdown usually
+                parse_mode: 'HTML', // HTML is more robust for general text with special chars
                 disable_web_page_preview: true
             })
         });

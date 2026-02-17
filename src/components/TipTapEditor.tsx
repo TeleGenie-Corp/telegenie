@@ -1,7 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
-import Underline from '@tiptap/extension-underline';
 import CharacterCount from '@tiptap/extension-character-count';
 import { Mark, mergeAttributes } from '@tiptap/core';
 import React, { useEffect } from 'react';
@@ -50,14 +48,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
         codeBlock: false,
         horizontalRule: false,
       }),
-      Underline,
       Spoiler,
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-violet-600 underline decoration-violet-300 underline-offset-2',
-        },
-      }),
       CharacterCount.configure({
         limit: 1024,
       }),
@@ -75,7 +66,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
 
   // Sync external value changes (e.g. from Polishing agent)
   useEffect(() => {
-    if (editor && typeof value === 'string' && value !== editor.getHTML()) {
+    if (editor && !editor.isFocused && typeof value === 'string' && value !== editor.getHTML()) {
       // Check if value needs newline conversion (Telegram HTML -> Web HTML)
       // If value contains newlines but no paragraphs/breaks, it's likely raw text/Telegram HTML
       let content = value;
