@@ -471,25 +471,37 @@ export default function Home() {
             {/* Telegram Preview */}
             <div className="flex-1 bg-[#879bb1] bg-[url('https://web.telegram.org/img/bg_0.png')] flex flex-col min-h-0">
               <div className="bg-white/95 backdrop-blur-sm p-3 border-b border-black/5 flex items-center gap-3">
-                {profile?.linkedChannel?.photoUrl ? (
-                  <img src={profile.linkedChannel.photoUrl} alt={profile.linkedChannel.title} className="w-10 h-10 rounded-full object-cover" />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white flex items-center justify-center font-bold text-sm">
-                    {profile?.linkedChannel?.title?.[0] || 'A'}
+                {/* Channel Link & Avatar */}
+                <a 
+                  href={currentBrand?.channelUrl || (profile?.linkedChannel?.username ? `https://t.me/${profile.linkedChannel.username.replace('@', '')}` : '#')} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity group"
+                >
+                  {(currentBrand?.linkedChannel?.photoUrl || profile?.linkedChannel?.photoUrl) ? (
+                    <img 
+                      src={currentBrand?.linkedChannel?.photoUrl || profile?.linkedChannel?.photoUrl} 
+                      alt="Avatar" 
+                      className="w-10 h-10 rounded-full object-cover border border-black/5" 
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                      {(currentBrand?.name || profile?.linkedChannel?.title)?.[0] || 'A'}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-slate-900 truncate group-hover:text-violet-600 transition-colors">
+                      {currentBrand?.linkedChannel?.title || profile?.linkedChannel?.title || currentBrand?.name || 'AI Каналище'}
+                    </div>
+                    <div className="text-[10px] text-slate-500">
+                      {(currentBrand?.linkedChannel?.memberCount || profile?.linkedChannel?.memberCount)
+                        ? `${(currentBrand?.linkedChannel?.memberCount || profile?.linkedChannel?.memberCount)?.toLocaleString('ru-RU')} подписчиков`
+                        : 'Демо-канал'
+                      }
+                    </div>
                   </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-slate-900 truncate">
-                    {profile?.linkedChannel?.title || 'AI Каналище'}
-                  </div>
-                  <div className="text-[10px] text-slate-500">
-                    {profile?.linkedChannel?.memberCount 
-                      ? `${profile.linkedChannel.memberCount.toLocaleString('ru-RU')} подписчиков`
-                      : 'Демо-канал'
-                    }
-                  </div>
-                </div>
-                <button onClick={openSettings} className="p-2 rounded-full hover:bg-black/5 transition-colors text-slate-400 hover:text-slate-600" title="Настройки канала">
+                </a>
+                <button onClick={openSettings} className="p-2 rounded-full hover:bg-black/5 transition-colors text-slate-400 hover:text-slate-600 shrink-0" title="Настройки канала">
                   <Settings size={16} />
                 </button>
               </div>

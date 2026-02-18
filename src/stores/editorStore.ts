@@ -351,7 +351,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const { TelegramService } = await import('../../services/telegramService');
       const res = await TelegramService.publish(currentPost.text, token, chatId, currentPost.imageUrl);
       if (res.success) {
-        toast.success('Опубликовано!');
+        const messageId = res.messageId;
+        const brand = useWorkspaceStore.getState().currentBrand;
+        const lc = brand?.linkedChannel || profile?.linkedChannel;
+        
+        let postLink = '';
+        if (lc?.username) {
+            postLink = `https://t.me/${lc.username.replace('@', '')}/${messageId}`;
+        } else if (chatId.startsWith('-100')) {
+            postLink = `https://t.me/c/${chatId.replace('-100', '')}/${messageId}`;
+        }
+
+        toast.success('Опубликовано!', {
+            action: postLink ? {
+                label: 'Посмотреть',
+                onClick: () => window.open(postLink, '_blank')
+            } : undefined
+        });
 
         const { AnalyticsService } = await import('../../services/analyticsService');
         AnalyticsService.log({ name: 'publish_telegram', params: { channel_id: chatId } });
