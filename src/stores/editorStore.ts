@@ -123,9 +123,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     // Sync fresh data from Firestore
     const user = useAuthStore.getState().user;
     if (user) {
-      if (!get().strategy.analyzedChannel) {
-        get().generateIdeas();
-      }
       PostProjectService.getProject(user.id, post.id).then((freshPost) => {
         if (freshPost) {
           set({

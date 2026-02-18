@@ -12,6 +12,11 @@ export class TelegramService {
 
     const apiUrl = `https://api.telegram.org/bot${botToken}`;
     
+    // Ensure chatId starts with @ if it's a username (not a numeric ID)
+    const normalizedChatId = (typeof chatId === 'string' && !chatId.startsWith('@') && !chatId.startsWith('-')) 
+      ? `@${chatId}` 
+      : chatId;
+    
     // Convert Web HTML (from TipTap) to Telegram HTML
     const processedText = text
       // Convert Spoilers (handle potential multi-line content)
@@ -35,7 +40,7 @@ export class TelegramService {
 
       if (mediaUrl) {
         const formData = new FormData();
-        formData.append('chat_id', chatId);
+        formData.append('chat_id', normalizedChatId);
 
         const res = await fetch(mediaUrl);
         const mediaBlob = await res.blob();
@@ -70,7 +75,7 @@ export class TelegramService {
         const response = await fetch(`${apiUrl}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: chatId, text: safeText, parse_mode: 'HTML' })
+          body: JSON.stringify({ chat_id: normalizedChatId, text: safeText, parse_mode: 'HTML' })
         });
         const result = await response.json();
         if (!result.ok) throw new Error(result.description);
