@@ -75,6 +75,7 @@ export default function TermsPage() {
             <p className="text-sm text-slate-600 mt-2 font-medium">
               ИП Ненашев Павел Сергеевич<br />
               ИНН: 745115499703<br />
+              Адрес: г. Санкт-Петербург, пр-д 1-й Предпортовый, д. 15, стр. 1, 373<br />
               Email: nenashev.studio@gmail.com
             </p>
           </div>
