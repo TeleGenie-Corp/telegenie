@@ -21,7 +21,7 @@ export interface CreatePaymentParams {
   metadata?: Record<string, any>;
   paymentMethodId?: string; // For recurrent payments
   savePaymentMethod?: boolean; // To save method for future
-  confirmationType?: 'redirect' | 'embedded';
+  confirmationType?: 'redirect' | 'embedded' | 'qr';
 }
 
 export interface YooKassaPayment {
@@ -108,9 +108,15 @@ export class YooKassaService {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        console.error('YooKassa createPayment error:', error);
-        throw new Error(`YooKassa Error: ${error.description || response.statusText}`);
+        const errorText = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch (e) {
+          errorData = { description: errorText };
+        }
+        console.error('YooKassa createPayment error:', errorData);
+        throw new Error(`YooKassa Error: ${errorData.description || response.statusText}`);
       }
 
       return await response.json();

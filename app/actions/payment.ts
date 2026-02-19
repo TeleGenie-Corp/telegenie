@@ -48,8 +48,15 @@ export async function createPaymentAction(userId: string, planId: string, custom
         planId
       },
       savePaymentMethod: true, // Important for recurrence
-      confirmationType: 'redirect'
+      confirmationType: 'embedded'
     });
+
+    if (payment.confirmation?.confirmation_token) {
+        return { 
+            confirmationToken: payment.confirmation.confirmation_token,
+            paymentId: payment.id 
+        };
+    }
 
     if (payment.confirmation?.confirmation_url) {
         return { 

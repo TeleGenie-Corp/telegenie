@@ -49,6 +49,7 @@ export default function RootLayout({
         <AuthInitializer />
         {children}
         <Script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" strategy="lazyOnload" />
+        <Script src="https://yookassa.ru/checkout-widget/v1/checkout-widget.js" strategy="beforeInteractive" />
       </body>
     </html>
   );

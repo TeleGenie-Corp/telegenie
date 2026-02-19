@@ -37,6 +37,10 @@ export async function POST(req: NextRequest) {
     if (event === 'payment.canceled') {
         console.log('[YooKassa Webhook] Payment canceled', body.object.id);
     }
+
+    if (event === 'payment_method.active') {
+        console.log('[YooKassa Webhook] Payment method activated/saved', body.object.id);
+    }
     
     return NextResponse.json({ status: 'ok' });
   } catch (e) {
