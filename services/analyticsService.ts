@@ -159,6 +159,19 @@ export class AnalyticsService {
 
   static trackPurchaseSuccess(planId: string, price: number, transactionId: string) {
     this.log({ name: 'purchase_success', params: { plan_id: planId, price, transaction_id: transactionId } });
+    // Standard GA4 eCommerce — enables Revenue in Monetization reports
+    try {
+      if (analytics) {
+        logEvent(analytics, 'purchase', {
+          transaction_id: transactionId,
+          value: price,
+          currency: 'RUB',
+          items: [{ item_id: planId, item_name: planId, price, quantity: 1 }],
+        });
+      }
+    } catch (e) {
+      console.warn('[Analytics] purchase ecommerce event failed', e);
+    }
   }
 
   static trackPurchaseFail(planId: string, price: number, reason?: string) {
