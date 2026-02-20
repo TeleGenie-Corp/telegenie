@@ -51,10 +51,16 @@ export class BillingService {
       const profile = await UserService.getUserProfile(userId);
       if (!profile) return;
       
-      const currentUsage = profile.usage || { postsThisMonth: 0, tokensThisMonth: 0, lastReset: Date.now() };
+      const now = Date.now();
+      const currentUsage = profile.usage || { postsThisMonth: 0, tokensThisMonth: 0, lastReset: now };
       
-      // Reset logic (naive)
-      // Check if lastReset is previous month...
+      // Reset logic: if more than 30 days passed since last reset
+      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+      if (now - currentUsage.lastReset > thirtyDaysMs) {
+          currentUsage.postsThisMonth = 0;
+          currentUsage.tokensThisMonth = 0;
+          currentUsage.lastReset = now;
+      }
       
       if (feature === 'posts') {
           currentUsage.postsThisMonth += amount;

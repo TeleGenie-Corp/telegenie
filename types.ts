@@ -90,6 +90,11 @@ export interface PostProject {
   // Publish
   publishedAt?: number;
   publishedMessageId?: number;
+  publishedChannel?: {
+    chatId: string;
+    username?: string;
+    title?: string;
+  };
   
   // Meta
   createdAt: number;
@@ -143,6 +148,8 @@ export interface UserProfile {
     nextPlanId?: SubscriptionTier;
     subscriptionId?: string;
     yookassaPaymentMethodId?: string; // Token for YooKassa recurrent payments
+    cardLast4?: string;
+    cardType?: string;
   };
   usage?: {
     postsThisMonth: number;

@@ -7,6 +7,8 @@ interface UIState {
   showSubscriptionModal: boolean;
   showMobileSidebar: boolean;
   showCreateBrandModal: boolean;
+  showPublishedPostModal: boolean;
+  activePublishedPost: any | null; // PostProject
 
   // --- Dark Mode ---
   darkMode: boolean;
@@ -21,6 +23,8 @@ interface UIState {
   toggleMobileSidebar: () => void;
   openCreateBrand: () => void;
   closeCreateBrand: () => void;
+  openPublishedPost: (post: any) => void;
+  closePublishedPost: () => void;
   toggleDarkMode: () => void;
 }
 
@@ -34,6 +38,8 @@ export const useUIStore = create<UIState>((set) => ({
   showSubscriptionModal: false,
   showMobileSidebar: false,
   showCreateBrandModal: false,
+  showPublishedPostModal: false,
+  activePublishedPost: null,
   darkMode: false,
 
   openSettings: () => set({ showSettings: true }),
@@ -45,6 +51,8 @@ export const useUIStore = create<UIState>((set) => ({
   toggleMobileSidebar: () => set((s) => ({ showMobileSidebar: !s.showMobileSidebar })),
   openCreateBrand: () => set({ showCreateBrandModal: true }),
   closeCreateBrand: () => set({ showCreateBrandModal: false }),
+  openPublishedPost: (post: any) => set({ showPublishedPostModal: true, activePublishedPost: post }),
+  closePublishedPost: () => set({ showPublishedPostModal: false, activePublishedPost: null }),
 
   toggleDarkMode: () => {
     // No-op, ensure class is removed just in case

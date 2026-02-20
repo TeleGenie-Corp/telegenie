@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Check, X, Zap, Loader2, Star, Shield, Users, AlertCircle } from 'lucide-react';
+import { Check, X, Zap, Loader2, Star, Shield, Users, AlertCircle, CreditCard, Trash2, HelpCircle, BadgeCheck, Clock, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { SubscriptionPlan, SubscriptionTier, UserProfile } from '../../types';
-import { UserService } from '../../services/userService';
-import { createPaymentAction, cancelSubscriptionAction, scheduleSubscriptionChangeAction, verifyPaymentAction } from '@/app/actions/payment';
+import { createPaymentAction, cancelSubscriptionAction, scheduleSubscriptionChangeAction, verifyPaymentAction, unbindCardAction } from '@/app/actions/payment';
+import { BrandService } from '../../services/brandService';
 import { YookassaWidgetModal } from './YookassaWidgetModal';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PLANS } from '@/src/constants/plans';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -14,10 +16,6 @@ interface SubscriptionModalProps {
   profile: UserProfile | null;
 }
 
-import { motion, AnimatePresence } from 'framer-motion';
-
-import { PLANS } from '@/src/constants/plans';
-
 export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ 
   isOpen, 
   onClose,
@@ -25,30 +23,24 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
   currentTier,
   profile
 }) => {
-  const [plans, setPlans] = useState<SubscriptionPlan[]>(PLANS);
+  const [plans] = useState<SubscriptionPlan[]>(PLANS);
   const [loading, setLoading] = useState(false);
+  const [unbinding, setUnbinding] = useState(false);
+  const [brandsCount, setBrandsCount] = useState<number>(0);
   const [processingPlan, setProcessingPlan] = useState<string | null>(null);
   const [widgetOpen, setWidgetOpen] = useState(false);
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
   const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
 
-  // YooKassa Widget Logic Removed. Standard redirect flow.
-
   useEffect(() => {
-      // Analytics tracking
     if (isOpen) {
       import('../../services/analyticsService').then(({ AnalyticsService }) => {
         AnalyticsService.trackViewSubscription();
       });
+      // Fetch Brands Count
+      BrandService.getBrands(userId).then(brands => setBrandsCount(brands.length));
     }
-  }, [isOpen]);
-
-  // Reset state when closing
-  useEffect(() => {
-      if (!isOpen) {
-          setProcessingPlan(null);
-      }
-  }, [isOpen]);
+  }, [isOpen, userId]);
 
   const handleSubscribe = async (plan: SubscriptionPlan) => {
     setProcessingPlan(plan.id);
@@ -59,17 +51,13 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       const isUpgrade = currentPlan && plan.price > currentPlan.price;
       const isDowngrade = currentPlan && plan.price < currentPlan.price;
       
-      const isNext = profile?.subscription?.nextPlanId === plan.id;
-      const willBeFree = !profile?.subscription?.nextPlanId && !profile?.subscription?.autoRenew && plan.id === 'free';
-
-      if (isNext || willBeFree) {
+      if (profile?.subscription?.nextPlanId === plan.id) {
           toast.info("Этот тариф уже запланирован");
           setLoading(false);
           setProcessingPlan(null);
           return;
       }
 
-      // 1. Logic for Downgrade to Free
       if (plan.id === 'free') {
           const result = await cancelSubscriptionAction(userId);
           if (!result.success) throw new Error(result.error);
@@ -78,7 +66,6 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           return;
       }
 
-      // 2. Logic for Downgrade to another Paid Plan
       if (isDowngrade) {
           const result = await scheduleSubscriptionChangeAction(userId, plan.id);
           if (!result.success) throw new Error(result.error);
@@ -88,73 +75,69 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           return;
       }
 
-      // 3. Logic for Upgrade (with Proration if active)
-      let confirmationUrl: string | null = null;
-      let confirmationToken: string | null = null;
-      let paymentId: string | null = null;
-
+      let result;
       if (isUpgrade && profile?.subscription?.currentPeriodEnd && profile.subscription.status === 'active') {
           const now = Date.now();
           const endDate = profile.subscription.currentPeriodEnd;
-          
           if (endDate > now) {
               const remainingDays = (endDate - now) / (1000 * 60 * 60 * 24);
-              const dailyRate = currentPlan!.price / 30;
-              const remainingValue = dailyRate * remainingDays;
+              const remainingValue = (currentPlan!.price / 30) * remainingDays;
               const payAmount = Math.max(0, Math.floor(plan.price - remainingValue));
-              
-              const result = await createPaymentAction(userId, plan.id, payAmount);
-              if (result.error) throw new Error(result.error);
-              confirmationUrl = result.confirmationUrl || null;
-              confirmationToken = result.confirmationToken || null;
-              paymentId = result.paymentId || null;
+              result = await createPaymentAction(userId, plan.id, payAmount);
           } else {
-              const result = await createPaymentAction(userId, plan.id);
-              if (result.error) throw new Error(result.error);
-              confirmationUrl = result.confirmationUrl || null;
-              confirmationToken = result.confirmationToken || null;
-              paymentId = result.paymentId || null;
+              result = await createPaymentAction(userId, plan.id);
           }
-      } 
-      // 4. Standard Purchase
-      else {
-          const result = await createPaymentAction(userId, plan.id);
-          if (result.error) throw new Error(result.error);
-          confirmationUrl = result.confirmationUrl || null;
-          confirmationToken = result.confirmationToken || null;
-          paymentId = result.paymentId || null;
-      }
-      
-      if (confirmationToken) {
-          if (paymentId) {
-             setPendingPaymentId(paymentId);
-             localStorage.setItem('pending_payment_id', paymentId);
-          }
-          setConfirmationToken(confirmationToken);
-          setWidgetOpen(true);
-          setLoading(false);
-      } else if (confirmationUrl) {
-           if (paymentId) {
-             localStorage.setItem('pending_payment_id', paymentId);
-          }
-          window.location.href = confirmationUrl;
       } else {
-          toast.error("Ошибка инициализации платежа");
-          setLoading(false);
-          setProcessingPlan(null);
+          result = await createPaymentAction(userId, plan.id);
+      }
+
+      if (result.error) throw new Error(result.error);
+
+      if (result.confirmationToken) {
+          if (result.paymentId) {
+             setPendingPaymentId(result.paymentId);
+             localStorage.setItem('pending_payment_id', result.paymentId);
+          }
+          setConfirmationToken(result.confirmationToken);
+          setWidgetOpen(true);
+      } else if (result.confirmationUrl) {
+          window.location.href = result.confirmationUrl;
       }
       
     } catch (error: any) {
-      console.error("Subscription failed", error);
       toast.error(error.message || "Ошибка при оформлении");
+    } finally {
       setLoading(false);
       setProcessingPlan(null);
     }
   };
 
+  const handleUnbindCard = async () => {
+      if (!confirm('Вы уверены, что хотите отвязать карту? Это отключит автоматическое продление подписки.')) return;
+      
+      setUnbinding(true);
+      try {
+          const result = await unbindCardAction(userId);
+          if (result.success) {
+              toast.success("Карта успешно отвязана");
+              // We could reload or just wait for parent to update profile
+              setTimeout(() => window.location.reload(), 1000);
+          } else {
+              throw new Error(result.error);
+          }
+      } catch (err: any) {
+          toast.error("Ошибка при отвязке: " + err.message);
+      } finally {
+          setUnbinding(false);
+      }
+  };
+
   const currentPeriodEnd = profile?.subscription?.currentPeriodEnd;
   const isAutoRenew = profile?.subscription?.autoRenew;
-  const formatDate = (ts: number) => new Date(ts).toLocaleDateString('ru-RU');
+  const formatDate = (ts: number) => new Date(ts).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+
+  const cardLast4 = profile?.subscription?.cardLast4;
+  const cardType = profile?.subscription?.cardType;
 
   return (
     <>
@@ -165,95 +148,172 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" 
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
                 onClick={onClose} 
               />
               
               <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="bg-white dark:bg-slate-900 relative w-full max-w-lg sm:max-w-2xl lg:max-w-5xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-slate-50 dark:bg-slate-950 relative w-full max-w-6xl rounded-[2.5rem] shadow-2xl overflow-hidden max-h-[92vh] flex flex-col"
               >
-                  {/* ... contents ... */}
-                  <button onClick={onClose} className="absolute top-6 right-6 p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors z-10">
-                      <X size={24} />
-                  </button>
+                  {/* Header Dashboard */}
+                  <div className="p-8 sm:p-10 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-5">
+                            <div className="w-16 h-16 rounded-[1.25rem] bg-violet-600 flex items-center justify-center text-white shadow-2xl shadow-violet-200 dark:shadow-none">
+                                <Zap size={32} fill="white" />
+                            </div>
+                            <div>
+                                <h2 className="text-3xl font-display font-black text-slate-900 dark:text-white tracking-tight">Центр подписки</h2>
+                                <p className="text-slate-500 font-medium">Управление вашим тарифом и платежами</p>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="absolute top-8 right-8 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all active:scale-90">
+                            <X size={28} />
+                        </button>
+                    </div>
 
-                  <div className="p-8 pb-0 text-center">
-                      <h2 className="text-3xl font-display font-black text-slate-900 dark:text-white mb-2">
-                          Тарифы и Подписка
-                      </h2>
-                      {currentPeriodEnd && (
-                          <div className="flex items-center justify-center gap-2 mt-2 text-sm text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 py-1 px-3 rounded-full inline-flex mx-auto w-fit border border-slate-100 dark:border-slate-700">
-                              <AlertCircle size={14} />
-                              <span>Активен до: <span className="font-bold text-slate-900 dark:text-white">{formatDate(currentPeriodEnd)}</span></span>
-                               • 
-                              <span>Статус: <span className={(isAutoRenew && !profile?.subscription?.nextPlanId) ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-amber-600 dark:text-amber-400 font-bold"}>
-                                  {profile?.subscription?.nextPlanId 
-                                      ? `Следующий тариф: ${PLANS.find(p => p.id === profile?.subscription?.nextPlanId)?.name}` 
-                                      : (isAutoRenew ? "Автопродление" : "Следующий тариф: Starter")
-                                  }
-                              </span></span>
-                          </div>
-                      )}
-                      {!currentPeriodEnd && (
-                         <p className="text-slate-500 dark:text-slate-400 max-w-lg mx-auto">
-                          Разблокируйте полную мощь AI для управления вашими Telegram каналами.
-                         </p>
-                      )}
+                    {/* Bento Top Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
+                        {/* Status Card */}
+                        <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Текущий статус</span>
+                                <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-600">
+                                    Активен
+                                </div>
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black text-slate-900 dark:text-white mb-1">
+                                    {PLANS.find(p => p.id === currentTier)?.name || 'Starter'}
+                                </h3>
+                                {currentPeriodEnd && (
+                                    <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
+                                        <Clock size={14} />
+                                        До {formatDate(currentPeriodEnd)}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Payment Method Card */}
+                        <div className="bg-slate-50 dark:bg-slate-800/40 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col justify-between">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Способ оплаты</span>
+                                <CreditCard size={18} className="text-slate-400" />
+                            </div>
+                            {cardLast4 ? (
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-lg font-bold text-slate-900 dark:text-white">•••• {cardLast4}</p>
+                                        <p className="text-xs text-slate-400 font-bold uppercase">{cardType || 'Bank Card'}</p>
+                                    </div>
+                                    <button 
+                                        onClick={handleUnbindCard}
+                                        disabled={unbinding}
+                                        className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-2xl transition-all active:scale-90"
+                                    >
+                                        {unbinding ? <Loader2 className="animate-spin" size={20} /> : <Trash2 size={20} />}
+                                    </button>
+                                </div>
+                            ) : (
+                                <p className="text-sm font-bold text-slate-400">Карта не привязана</p>
+                            )}
+                        </div>
+
+                        {/* Quick Action / Highlight / Usage */}
+                        <div className="hidden lg:flex bg-emerald-500 p-6 rounded-3xl shadow-xl shadow-emerald-100 dark:shadow-none flex-col justify-between text-white">
+                             <div className="flex items-center justify-between mb-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Использование</span>
+                                <ArrowUpRight size={18} className="opacity-80" />
+                             </div>
+                             <div className="space-y-4">
+                                <div>
+                                    <div className="flex justify-between text-[10px] font-black uppercase mb-1 opacity-90">
+                                        <span>Посты (в месяц)</span>
+                                        <span>{profile?.usage?.postsThisMonth || 0} / {PLANS.find(p => p.id === currentTier)?.limits.postsPerMonth || 10}</span>
+                                    </div>
+                                    <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-white transition-all duration-500" 
+                                            style={{ width: `${Math.min(100, ((profile?.usage?.postsThisMonth || 0) / (PLANS.find(p => p.id === currentTier)?.limits.postsPerMonth || 10)) * 100)}%` }}
+                                        />
+                                    </div>
+                                    {currentPeriodEnd && (
+                                        <div className="mt-1.5 text-[9px] font-bold uppercase tracking-wider opacity-60 flex items-center gap-1">
+                                            <Clock size={8} />
+                                            Лимит обновится {formatDate(currentPeriodEnd)}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="pt-2 border-t border-white/10">
+                                    <div className="flex justify-between text-[10px] font-black uppercase mb-1 opacity-90">
+                                        <span>Бренды (всего)</span>
+                                        <span>{brandsCount} / {PLANS.find(p => p.id === currentTier)?.limits.brandsCount || 1}</span>
+                                    </div>
+                                    <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-white transition-all duration-500" 
+                                            style={{ width: `${Math.min(100, (brandsCount / (PLANS.find(p => p.id === currentTier)?.limits.brandsCount || 1)) * 100)}%` }}
+                                        />
+                                    </div>
+                                </div>
+                             </div>
+                        </div>
+                    </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-                          {plans.map((plan) => {
+                  {/* Plans Selection Area */}
+                  <div className="flex-1 overflow-y-auto p-8 sm:p-10 custom-scrollbar">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                          {plans.map((plan, index) => {
                               const isCurrent = currentTier === plan.id;
-                              const isFeatures = plan.id === 'expert'; 
+                              const isFeatured = plan.id === 'expert'; 
+                              const isScheduled = profile?.subscription?.nextPlanId === plan.id;
                               
                               return (
                                   <motion.div 
                                       key={plan.id}
-                                      whileHover={{ y: -5 }}
-                                      className={`relative rounded-3xl p-5 lg:p-6 flex flex-col h-full border-2 transition-all duration-300 shadow-sm hover:shadow-xl
+                                      initial={{ opacity: 0, y: 20 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      transition={{ delay: index * 0.1 }}
+                                      className={`group relative rounded-[2.5rem] p-8 flex flex-col h-full border-2 transition-all duration-300
                                       ${isCurrent 
-                                          ? 'border-emerald-500 bg-emerald-50/10 dark:bg-emerald-900/10' 
-                                          : isFeatures 
-                                              ? 'border-violet-600 shadow-lg shadow-violet-100 dark:shadow-none' 
-                                              : 'border-slate-100 dark:border-slate-700 hover:border-violet-200 dark:hover:border-violet-800 bg-white dark:bg-slate-800'
+                                          ? 'border-violet-600 bg-white dark:bg-slate-900 shadow-2xl shadow-violet-100 dark:shadow-none' 
+                                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-700'
                                       }`}
                                   >
-                                      {isFeatures && !isCurrent && (
-                                          <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-violet-600 text-white px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest shadow-lg z-10">
-                                              Most Popular
+                                      {isFeatured && (
+                                          <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-violet-600 text-white px-6 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-xl z-20">
+                                              Популярно
                                           </div>
                                       )}
                                       
-                                      {isCurrent && (
-                                          <div className="absolute top-4 right-4 text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wide flex items-center gap-1">
-                                              <Check size={12} strokeWidth={4} /> Current
+                                      <div className="flex items-center justify-between mb-8">
+                                          <div>
+                                              <h3 className="text-2xl font-black text-slate-900 dark:text-white capitalize">{plan.name}</h3>
+                                              <div className="flex items-baseline gap-1 mt-1">
+                                                <span className="text-3xl font-black text-slate-900 dark:text-white">{plan.price}₽</span>
+                                                <span className="text-slate-400 font-bold text-xs uppercase">/мес</span>
+                                              </div>
                                           </div>
-                                      )}
-
-                                      <div className="mb-6">
-                                          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{plan.name}</h3>
-                                          <div className="flex items-baseline gap-1">
-                                              <span className="text-3xl font-black text-slate-900 dark:text-white">
-                                                  {plan.price > 0 ? `${plan.price}₽` : 'Бесплатно'}
-                                              </span>
-                                              {plan.price > 0 && <span className="text-slate-400 dark:text-slate-500 font-medium">/мес</span>}
-                                          </div>
+                                          {isCurrent ? (
+                                              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                                                  <BadgeCheck size={28} />
+                                              </div>
+                                          ) : (
+                                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isFeatured ? 'bg-violet-100 text-violet-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                  <ArrowUpRight size={24} />
+                                              </div>
+                                          )}
                                       </div>
 
-                                      <div className="space-y-4 flex-1 mb-8">
-                                          {plan.limits.postsPerMonth < 1000 && (
-                                              <FeatureItem label={`${plan.limits.postsPerMonth} постов/мес`} />
-                                          )}
-                                          {plan.limits.postsPerMonth >= 1000 && (
-                                              <FeatureItem label="Безлимит постов" highlight />
-                                          )}
-                                          <FeatureItem label={`До ${plan.limits.brandsCount} брендов`} />
-                                          {plan.features.map((feature, idx) => (
+                                      <div className="space-y-4 flex-1 mb-10">
+                                          <FeatureItem label={`${plan.limits.postsPerMonth >= 1000 ? 'Безлимит' : plan.limits.postsPerMonth} постов / мес`} highlight={isCurrent || isFeatured} />
+                                          <FeatureItem label={`${plan.limits.brandsCount} брендов`} highlight={isCurrent || isFeatured} />
+                                          {plan.features.slice(0, 4).map((feature, idx) => (
                                               <FeatureItem key={idx} label={feature} />
                                           ))}
                                       </div>
@@ -261,25 +321,25 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                                       <motion.button
                                           whileTap={{ scale: 0.95 }}
                                           onClick={() => !isCurrent && handleSubscribe(plan)}
-                                          disabled={loading || isCurrent}
-                                          className={`w-full py-4 rounded-xl font-bold text-sm tracking-wide transition-all flex items-center justify-center gap-2
+                                          disabled={loading || isCurrent || isScheduled}
+                                          className={`w-full py-5 rounded-[1.25rem] font-black text-sm uppercase tracking-widest transition-all flex items-center justify-center gap-3
                                           ${isCurrent 
-                                              ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-default'
-                                              : isFeatures
-                                                  ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-200 dark:shadow-none'
-                                                  : 'bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900'
+                                              ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-100 cursor-default'
+                                              : isScheduled
+                                                ? 'bg-slate-100 text-slate-400 cursor-default'
+                                                : isFeatured
+                                                  ? 'bg-violet-600 hover:bg-violet-700 text-white shadow-xl shadow-violet-100'
+                                                  : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:scale-[1.02]'
                                           }`}
                                       >
                                           {loading && processingPlan === plan.id ? (
                                               <Loader2 className="animate-spin" />
                                           ) : isCurrent ? (
-                                              'Ваш текущий план'
-                                          ) : (profile?.subscription?.nextPlanId === plan.id || (!profile?.subscription?.nextPlanId && !profile?.subscription?.autoRenew && plan.id === 'free')) ? (
+                                              'Текущий план'
+                                          ) : isScheduled ? (
                                               'Запланирован'
                                           ) : (
-                                              plan.price > (plans.find(p => p.id === currentTier)?.price || 0) 
-                                              ? 'Улучшить' 
-                                              : plan.price === 0 ? 'Отменить подписку' : 'Перейти'
+                                              plan.price > (plans.find(p => p.id === currentTier)?.price || 0) ? 'Улучшить сейчас' : 'Выбрать тариф'
                                           )}
                                       </motion.button>
                                   </motion.div>
@@ -287,10 +347,17 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
                           })}
                       </div>
 
-                      
-                      <div className="mt-12 text-center text-xs text-slate-400 dark:text-slate-500 max-w-2xl mx-auto">
-                          Оплата происходит через безопасный шлюз. Вы можете отменить подписку в любой момент.
-                          При отмене подписка действует до конца оплаченного периода.
+                      {/* Footer Info */}
+                      <div className="mt-16 flex flex-col md:flex-row items-center justify-center p-8 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-200 dark:border-slate-800 gap-6">
+                           <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                                    <Shield size={24} />
+                                </div>
+                                <div className="text-left">
+                                    <p className="text-sm font-bold text-slate-900 dark:text-white">Безопасные платежи</p>
+                                    <p className="text-xs text-slate-500 font-medium">Ваши данные защищены ЮKassa и PCI DSS</p>
+                                </div>
+                           </div>
                       </div>
                   </div>
               </motion.div>
@@ -331,10 +398,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 };
 
 const FeatureItem = ({ label, highlight = false }: { label: string; highlight?: boolean }) => (
-    <div className="flex items-start gap-3 text-sm">
-        <div className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${highlight ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500'}`}>
-            <Check size={12} strokeWidth={3} />
+    <div className="flex items-start gap-4 text-sm group/item">
+        <div className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-colors ${highlight ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-300'}`}>
+            <Check size={14} strokeWidth={4} />
         </div>
-        <span className={`font-medium ${highlight ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-400'}`}>{label}</span>
+        <span className={`font-bold transition-colors ${highlight ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}>{label}</span>
     </div>
 );

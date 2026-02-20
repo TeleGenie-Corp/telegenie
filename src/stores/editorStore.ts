@@ -93,6 +93,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const brand = brands.find((b) => b.id === post.brandId);
     if (!brand) return;
 
+    if (post.status === 'published') {
+        useUIStore.getState().openPublishedPost(post);
+        return;
+    }
+
     setCurrentBrand(brand);
     setCurrentProject(post);
     setViewMode('editor');
@@ -373,9 +378,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         AnalyticsService.log({ name: 'publish_telegram', params: { channel_id: chatId } });
 
         if (user) {
-          await PostProjectService.markPublished(user.id, currentProject.id, res.messageId);
+          const channelInfo = {
+            chatId: chatId,
+            username: lc?.username || profile?.linkedChannel?.username,
+            title: lc?.title || profile?.linkedChannel?.title || brand?.name || 'Канал'
+          };
+
+          await PostProjectService.markPublished(user.id, currentProject.id, res.messageId, channelInfo);
+          
           useWorkspaceStore.getState().setPostProjects((prev) =>
-            prev.map((p) => (p.id === currentProject.id ? { ...p, status: 'published', publishedAt: Date.now() } : p)),
+            prev.map((p) => (p.id === currentProject.id ? { 
+                ...p, 
+                status: 'published', 
+                publishedAt: Date.now(),
+                publishedMessageId: res.messageId,
+                publishedChannel: channelInfo
+            } : p)),
           );
         }
 

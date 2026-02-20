@@ -34,6 +34,7 @@ const WorkspaceScreen = lazy(() => import('@/src/components/WorkspaceScreen').th
 const PositioningModal = lazy(() => import('@/src/components/PositioningModal').then(m => ({ default: m.PositioningModal })));
 const SubscriptionModal = lazy(() => import('@/src/components/SubscriptionModal').then(m => ({ default: m.SubscriptionModal })));
 const CreateBrandModal = lazy(() => import('@/src/components/CreateBrandModal').then(m => ({ default: m.CreateBrandModal })));
+const PublishedPostModal = lazy(() => import('@/src/components/PublishedPostModal').then(m => ({ default: m.PublishedPostModal })));
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { pageTransitions, listContainer, listItem } from '@/src/animationTokens';
@@ -79,6 +80,9 @@ export default function Home() {
   };
   const closeCreateBrand = useUIStore(s => s.closeCreateBrand);
   const openSettings = useUIStore(s => s.openSettings);
+  const showPublishedPostModal = useUIStore(s => s.showPublishedPostModal);
+  const activePublishedPost = useUIStore(s => s.activePublishedPost);
+  const closePublishedPost = useUIStore(s => s.closePublishedPost);
 
   const viewMode = useWorkspaceStore(s => s.viewMode);
   const brands = useWorkspaceStore(s => s.brands);
@@ -205,6 +209,13 @@ export default function Home() {
         isOpen={showCreateBrandModal}
         onClose={closeCreateBrand}
         onSave={createBrand}
+      />
+      
+      <PublishedPostModal
+        isOpen={showPublishedPostModal}
+        onClose={closePublishedPost}
+        post={activePublishedPost}
+        brand={brands.find(b => b.id === activePublishedPost?.brandId) || null}
       />
 
       {/* HEADER */}
@@ -473,7 +484,13 @@ export default function Home() {
               <div className="bg-white/95 backdrop-blur-sm p-3 border-b border-black/5 flex items-center gap-3">
                 {/* Channel Link & Avatar */}
                 <a 
-                  href={currentBrand?.channelUrl || (profile?.linkedChannel?.username ? `https://t.me/${profile.linkedChannel.username.replace('@', '')}` : '#')} 
+                  href={
+                    (currentBrand?.linkedChannel?.username || profile?.linkedChannel?.username) 
+                      ? `https://t.me/${(currentBrand?.linkedChannel?.username || profile?.linkedChannel?.username)?.replace('@', '')}` 
+                      : (currentBrand?.linkedChannel?.chatId || profile?.linkedChannel?.chatId)
+                        ? `https://t.me/c/${(currentBrand?.linkedChannel?.chatId || profile?.linkedChannel?.chatId)?.toString().replace('-100', '')}`
+                        : currentBrand?.channelUrl || '#'
+                  } 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity group"
@@ -514,7 +531,13 @@ export default function Home() {
                         <img src={currentPost.imageUrl} alt="Post" className="w-full h-auto object-cover" />
                       </div>
                     )}
-                    <div className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none prose-p:my-0 prose-p:min-h-[1.5em] prose-p:empty:h-[1.5em]" dangerouslySetInnerHTML={{ __html: currentPost.text }} />
+                    <div 
+                      className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none 
+                        prose-p:my-0 prose-p:min-h-[1.25rem] 
+                        [&_p:empty]:h-[1.25rem] [&_p:empty]:block
+                        [&_p>br]:h-[1.25rem]" 
+                      dangerouslySetInnerHTML={{ __html: currentPost.text }} 
+                    />
                     <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
                       <span className={`text-[10px] font-bold uppercase tracking-widest transition-opacity ${isSaving ? 'text-violet-500 opacity-100' : 'text-slate-300 opacity-0'}`}>
                         {isSaving ? 'Saving...' : 'Saved'}

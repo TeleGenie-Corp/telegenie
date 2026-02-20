@@ -30,8 +30,7 @@ export const SiteFooter: React.FC = () => {
               </div>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-loose">
                 ИП Ненашев Павел Сергеевич<br />
-                ИНН: 745115499703<br />
-                Адрес: г. Санкт-Петербург, пр-д 1-й Предпортовый, д. 15, стр. 1, 373
+                ИНН: 745115499703
               </p>
             </div>
           </div>

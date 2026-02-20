@@ -107,9 +107,28 @@ export async function verifyPaymentAction(paymentId: string): Promise<{ success:
             // Save Payment Method for Recurrent Payments
             if (payment.payment_method?.saved && payment.payment_method?.id) {
                 updateData['subscription.yookassaPaymentMethodId'] = payment.payment_method.id;
+                
+                // Save Card Details for UI transparency
+                if ((payment.payment_method as any).card) {
+                    const card = (payment.payment_method as any).card;
+                    updateData['subscription.cardLast4'] = card.last4;
+                    updateData['subscription.cardType'] = card.card_type;
+                }
             }
             
             await userRef.update(updateData);
+
+            // Log Transaction for History
+            await adminDb.collection('transactions').add({
+                userId,
+                planId,
+                amount: (payment.amount as any).value,
+                currency: (payment.amount as any).currency,
+                paymentId: payment.id,
+                status: 'success',
+                type: 'subscription',
+                createdAt: now
+            });
             
             return { success: true };
         } else {
@@ -170,4 +189,21 @@ export async function scheduleSubscriptionChangeAction(userId: string, newPlanId
     console.error('ScheduleSubscriptionChangeAction Error:', error);
     return { success: false, error: error.message || 'Scheduling failed' };
   }
+}
+
+export async function unbindCardAction(userId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const userRef = adminDb.collection('users').doc(userId);
+        
+        await userRef.update({
+            'subscription.yookassaPaymentMethodId': null,
+            'subscription.cardLast4': null,
+            'subscription.cardType': null
+        });
+        
+        return { success: true };
+    } catch (error: any) {
+        console.error('UnbindCardAction Error:', error);
+        return { success: false, error: error.message || 'Failed to unbind card' };
+    }
 }

@@ -112,11 +112,17 @@ export class PostProjectService {
   /**
    * Mark post as published.
    */
-  static async markPublished(userId: string, postId: string, messageId?: number): Promise<void> {
+  static async markPublished(
+    userId: string, 
+    postId: string, 
+    messageId?: number,
+    channelInfo?: { chatId: string; username?: string; title?: string }
+  ): Promise<void> {
     await this.updateProject(userId, postId, {
       status: 'published',
       publishedAt: Date.now(),
-      publishedMessageId: messageId
+      publishedMessageId: messageId,
+      publishedChannel: channelInfo
     });
   }
 

@@ -62,7 +62,6 @@ export default function ContactsPage() {
                 ИП Ненашев Павел Сергеевич
               </p>
               <p className="text-sm text-slate-500 mt-1 font-medium">ИНН: 745115499703</p>
-              <p className="text-sm text-slate-500 mt-1 font-medium">Адрес: г. Санкт-Петербург, пр-д 1-й Предпортовый, д. 15, стр. 1, 373</p>
             </div>
           </div>
         </div>
