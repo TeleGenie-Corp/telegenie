@@ -1,4 +1,4 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import * as admin from 'firebase-admin';
 
 admin.initializeApp();
@@ -7,7 +7,7 @@ admin.initializeApp();
 export { checkSubscriptionRenewals } from './schedulers/subscription.scheduler';
 
 // Callable function to publish demo post to @AiKanalishe
-export const publishDemoPost = functions.https.onCall(async (data, context) => {
+export const publishDemoPost = functions.https.onCall(async (data: any, context: any) => {
     // 1. Validation
     const { text, url } = data;
     
@@ -20,8 +20,9 @@ export const publishDemoPost = functions.https.onCall(async (data, context) => {
     }
 
     // 2. Configuration
-    const botToken = functions.config().telegram?.bot_token;
-    const channelId = functions.config().telegram?.demo_channel_id || '@AiKanalishe';
+    const config = (functions as any).config();
+    const botToken = config.telegram?.bot_token;
+    const channelId = config.telegram?.demo_channel_id || '@AiKanalishe';
 
     if (!botToken) {
         throw new functions.https.HttpsError('failed-precondition', 'Telegram Bot Token not configured');

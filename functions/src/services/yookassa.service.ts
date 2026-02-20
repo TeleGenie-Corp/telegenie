@@ -1,10 +1,8 @@
-import * as functions from 'firebase-functions';
+import * as functions from 'firebase-functions/v1';
 import { v4 as uuidv4 } from 'uuid';
 
 // Use firebase functions config instead of process.env for Cloud Functions
 // Run: firebase functions:config:set yookassa.shop_id="YOUR_ID" yookassa.secret_key="YOUR_KEY"
-const SHOP_ID = functions.config().yookassa?.shop_id || process.env.YOOKASSA_SHOP_ID;
-const SECRET_KEY = functions.config().yookassa?.secret_key || process.env.YOOKASSA_SECRET_KEY;
 const API_URL = 'https://api.yookassa.ru/v3';
 
 export interface CreatePaymentParams {
@@ -18,12 +16,20 @@ export interface CreatePaymentParams {
 
 export class YooKassaService {
 
+  private static getCredentials() {
+    const config = (functions as any).config();
+    const shopId = config.yookassa?.shop_id || process.env.YOOKASSA_SHOP_ID;
+    const secretKey = config.yookassa?.secret_key || process.env.YOOKASSA_SECRET_KEY;
+    return { shopId, secretKey };
+  }
+
   private static getAuthHeader() {
-    if (!SHOP_ID || !SECRET_KEY) {
+    const { shopId, secretKey } = this.getCredentials();
+    if (!shopId || !secretKey) {
       console.error('YooKassa credentials missing in functions config');
       throw new Error('YooKassa credentials missing');
     }
-    return 'Basic ' + Buffer.from(`${SHOP_ID}:${SECRET_KEY}`).toString('base64');
+    return 'Basic ' + Buffer.from(`${shopId}:${secretKey}`).toString('base64');
   }
 
   static async createRecurringPayment(params: CreatePaymentParams): Promise<any> {
