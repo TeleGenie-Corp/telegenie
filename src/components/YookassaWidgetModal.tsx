@@ -49,15 +49,16 @@ export const YookassaWidgetModal: React.FC<YookassaWidgetModalProps> = ({
           });
 
           checkout.on('success', () => {
-            if (onSuccess) onSuccess();
-            checkout.destroy();
             onClose();
+            if (onSuccess) onSuccess();
+            // Destroy after a tick to avoid postMessage on null error
+            setTimeout(() => { try { checkout.destroy(); } catch (_) {} }, 100);
           });
 
           checkout.on('fail', () => {
-            if (onError) onError(new Error('Payment failed'));
-            checkout.destroy();
             onClose();
+            if (onError) onError(new Error('Payment failed'));
+            setTimeout(() => { try { checkout.destroy(); } catch (_) {} }, 100);
           });
 
           checkout.render('yookassa-widget-container').then(() => {

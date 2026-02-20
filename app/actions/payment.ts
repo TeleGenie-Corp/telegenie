@@ -77,7 +77,11 @@ export async function verifyPaymentAction(paymentId: string): Promise<{ success:
     try {
         const payment = await YooKassaService.getPayment(paymentId);
         
-        if (payment.status === 'succeeded' || payment.status === 'waiting_for_capture') {
+        if (
+            payment.status === 'succeeded' ||
+            payment.status === 'waiting_for_capture' ||
+            payment.status === 'pending'  // Real bank payments can be in pending after 3DS - activate optimistically
+        ) {
             // Verify Metadata
             const userId = payment.metadata?.userId;
             const planId = payment.metadata?.planId;
@@ -125,7 +129,7 @@ export async function verifyPaymentAction(paymentId: string): Promise<{ success:
                 amount: (payment.amount as any).value,
                 currency: (payment.amount as any).currency,
                 paymentId: payment.id,
-                status: 'success',
+                status: payment.status, // Keep actual status for audit trail
                 type: 'subscription',
                 createdAt: now
             });
