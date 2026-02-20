@@ -26,6 +26,16 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
     setError(null);
     try {
       const result = await signInWithPopup(auth, googleProvider);
+      const { AnalyticsService } = await import('../../services/analyticsService');
+      const { getStoredUTM } = await import('./UTMCapture');
+      const utm = getStoredUTM();
+      const isNew = result.user.metadata.creationTime === result.user.metadata.lastSignInTime;
+      if (isNew) {
+        AnalyticsService.trackSignup('google', utm.source);
+      } else {
+        AnalyticsService.trackLogin('google', utm.source);
+      }
+      AnalyticsService.trackSessionStart(!isNew, utm.source);
       onLogin(result.user);
     } catch (err: any) {
       if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
@@ -60,6 +70,11 @@ export const Auth: React.FC<AuthProps> = ({ onLogin }) => {
         setLinkSent(true);
       } else {
         const result = await signInWithEmailAndPassword(auth, email, password);
+        const { AnalyticsService } = await import('../../services/analyticsService');
+        const { getStoredUTM } = await import('./UTMCapture');
+        const utm = getStoredUTM();
+        AnalyticsService.trackLogin('email_password', utm.source);
+        AnalyticsService.trackSessionStart(true, utm.source);
         onLogin(result.user);
       }
     } catch (err: any) {

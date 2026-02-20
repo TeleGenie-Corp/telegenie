@@ -46,6 +46,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     setProcessingPlan(plan.id);
     setLoading(true);
 
+    import('../../services/analyticsService').then(({ AnalyticsService }) => {
+      AnalyticsService.trackBeginCheckout(plan.id, plan.price);
+    });
+
     try {
       const currentPlan = plans.find(p => p.id === currentTier);
       const isUpgrade = currentPlan && plan.price > currentPlan.price;

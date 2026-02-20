@@ -2,8 +2,8 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import CharacterCount from '@tiptap/extension-character-count';
 import { Mark, mergeAttributes } from '@tiptap/core';
-import React, { useEffect } from 'react';
-import { Bold, Italic, Strikethrough, Code, Link as LinkIcon, RotateCcw, X, Underline as UnderlineIcon, Quote, EyeOff } from 'lucide-react';
+import React, { useEffect, useRef, useCallback } from 'react';
+import { Bold, Italic, Strikethrough, Code, Link as LinkIcon, RotateCcw, X, Underline as UnderlineIcon, Quote, EyeOff, Copy } from 'lucide-react';
 
 // Custom Spoiler Mark
 const Spoiler = Mark.create({
@@ -38,6 +38,27 @@ interface TipTapEditorProps {
 }
 
 export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
+  const editCountRef = useRef(0);
+  const editDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const trackManualEdit = useCallback(() => {
+    editCountRef.current += 1;
+    if (editDebounceRef.current) clearTimeout(editDebounceRef.current);
+    editDebounceRef.current = setTimeout(() => {
+      import('../../services/analyticsService').then(({ AnalyticsService }) => {
+        AnalyticsService.trackPostEditedManual(editCountRef.current);
+      });
+    }, 2000);
+  }, []);
+
+  const handleCopyPost = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      const { AnalyticsService } = await import('../../services/analyticsService');
+      AnalyticsService.trackCopyPost(text.length);
+    } catch { /* clipboard denied */ }
+  }, []);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -61,6 +82,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
     },
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
+      trackManualEdit();
     },
   });
 
@@ -246,6 +268,13 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
           title="Reset to Original"
         >
           <RotateCcw size={14} />
+        </button>
+        <button
+          onClick={() => editor && handleCopyPost(editor.getText())}
+          className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
+          title="Copy text"
+        >
+          <Copy size={14} />
         </button>
       </div>
 

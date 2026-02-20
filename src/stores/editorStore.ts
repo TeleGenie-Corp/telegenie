@@ -166,12 +166,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         if (currentStrategy.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(currentStrategy));
       }
 
-      const { AnalyticsService } = await import('../../services/analyticsService');
-      AnalyticsService.log({ name: 'generate_ideas', params: { topic: strategy.channelUrl } });
-
       const { ideas: generated, usage } = await generateIdeasAction(currentStrategy);
       const withUsage = generated.map((i) => ({ ...i, usage }));
       set({ ideas: withUsage });
+
+      const { AnalyticsService } = await import('../../services/analyticsService');
+      AnalyticsService.trackGenerateIdeas(strategy.channelUrl);
+      AnalyticsService.trackIdeaPresented(withUsage.length, strategy.channelUrl);
     } catch (e: any) {
       console.error(e);
       toast.error(e.message || 'Ошибка генерации идей');
@@ -195,10 +196,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const canPost = await BillingService.checkLimit(user.id, 'posts');
     if (!canPost) {
       const { AnalyticsService } = await import('../../services/analyticsService');
-      AnalyticsService.log({ name: 'subscription_click', params: { location: 'limit_posts' } });
+      AnalyticsService.trackPaywallHit('editor_select_idea', 'posts');
       useUIStore.getState().openSubscription();
       return;
     }
+
+    const ideaIndex = get().ideas.indexOf(idea);
+    const { AnalyticsService: AS } = await import('../../services/analyticsService');
+    AS.trackIdeaSelected(ideaIndex, idea.title);
 
     set({
       currentPost: { id: currentProject.id, text: '', generating: true, timestamp: Date.now() },
@@ -256,7 +261,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       await BillingService.incrementUsage(user.id, 'posts', 1);
 
       const { AnalyticsService } = await import('../../services/analyticsService');
-      AnalyticsService.log({ name: 'generate_post', params: { method: 'idea', topic: idea.title } });
+      AnalyticsService.trackGeneratePost('idea', !!(newPost.imageUrl), idea.title);
 
       const { UserService } = await import('../../services/userService');
       const updated = { ...profile, balance: profile.balance - (result.costs?.total || 0), generationHistory: [newPost, ...profile.generationHistory].slice(0, 50) };
@@ -282,6 +287,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ pipelineState: { stage: 'polishing', progress: 50, currentTask: 'Редактирую...' } });
     try {
       const result = await polishContentAction(currentPost.text, instruction, strategy);
+      const { AnalyticsService } = await import('../../services/analyticsService');
+      AnalyticsService.trackPostEditedAI(instruction.length);
       const updatedText = result.text;
 
       set((s) => ({
@@ -375,7 +382,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         });
 
         const { AnalyticsService } = await import('../../services/analyticsService');
-        AnalyticsService.log({ name: 'publish_telegram', params: { channel_id: chatId } });
+        AnalyticsService.trackPublish(chatId, !!(currentPost.imageUrl));
 
         if (user) {
           const channelInfo = {
@@ -407,7 +414,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         toast.error(res.message);
       }
     } catch (e: any) {
-      toast.error(e.message);
+      const errMsg = e.message || 'Ошибка публикации';
+      toast.error(errMsg);
+      import('../../services/analyticsService').then(({ AnalyticsService }) => {
+        AnalyticsService.trackPublishError(errMsg);
+      });
     } finally {
       set({ pipelineState: { stage: 'idle', progress: 0 } });
     }

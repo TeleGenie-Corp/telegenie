@@ -100,10 +100,15 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
     setLoading(true);
     setError(null);
 
+    const { AnalyticsService } = await import('../../services/analyticsService');
+    AnalyticsService.trackChannelConnectStart();
+
     const result = await TelegramService.verifyBotInChannel(username, tokenToUse || '');
 
     if (!result.success || !result.chatId) {
+      const reason = result.error || 'Нет доступа бота';
       setError(result.error || 'Не удалось подключить канал. Проверьте права бота.');
+      AnalyticsService.trackChannelConnectFail(reason);
       setLoading(false);
       return;
     }
@@ -124,6 +129,8 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
         delete channel.botToken;
     }
 
+    const channelType = username.startsWith('-') ? 'private' : 'public';
+    AnalyticsService.trackChannelConnectSuccess(channelType);
     onChannelConnect(channel);
     setUsername('');
     setCustomToken('');

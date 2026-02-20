@@ -3,6 +3,7 @@ import { Manrope, Unbounded } from 'next/font/google';
 import './globals.css';
 import Script from 'next/script';
 import { AuthInitializer } from '@/src/components/AuthInitializer';
+import { UTMCapture } from '@/src/components/UTMCapture';
 
 const manrope = Manrope({
   subsets: ['latin', 'cyrillic'],
@@ -47,6 +48,7 @@ export default function RootLayout({
       <head />
       <body className={`${manrope.variable} ${unbounded.variable} font-sans`}>
         <AuthInitializer />
+        <UTMCapture />
         {children}
         <Script src="https://widget.cloudpayments.ru/bundles/cloudpayments.js" strategy="lazyOnload" />
         <Script src="https://yookassa.ru/checkout-widget/v1/checkout-widget.js" strategy="beforeInteractive" />

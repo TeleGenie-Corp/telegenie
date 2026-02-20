@@ -74,6 +74,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
     const canAdd = await BillingService.checkLimit(userId, 'brands');
     if (!canAdd) {
+      const { AnalyticsService } = await import('../../services/analyticsService');
+      AnalyticsService.trackPaywallHit('create_brand', 'brands');
       useUIStore.getState().openSubscription();
       return;
     }
@@ -164,6 +166,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
 
     const project = await PostProjectService.createProject(userId, brandId, editorStore.strategy.goal);
+
+    const { AnalyticsService } = await import('../../services/analyticsService');
+    AnalyticsService.trackProjectCreated();
+
     await editorStore.selectPost(project);
   },
 

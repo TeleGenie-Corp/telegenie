@@ -64,6 +64,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             const { UserService } = await import('../../services/userService');
             const userProfile = await UserService.syncProfile(firebaseUser.uid, firebaseUser.email || undefined);
             set({ profile: userProfile, isLoading: false });
+
+            // Set GA4 user identity for cohort analysis
+            import('../../services/analyticsService').then(({ AnalyticsService }) => {
+              AnalyticsService.identify(firebaseUser.uid, {
+                plan: userProfile.subscription?.tier || 'free',
+                has_channel: !!(userProfile.linkedChannel),
+                posts_published: userProfile.usage?.postsThisMonth || 0,
+              });
+            });
           } catch (e) {
             console.error('Profile sync error', e);
             set({ isLoading: false });
