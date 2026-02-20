@@ -1,8 +1,8 @@
-import * as functions from 'firebase-functions/v1';
 import { v4 as uuidv4 } from 'uuid';
 
-// Use firebase functions config instead of process.env for Cloud Functions
-// Run: firebase functions:config:set yookassa.shop_id="YOUR_ID" yookassa.secret_key="YOUR_KEY"
+// YooKassa credentials are injected via Secret Manager using runWith({ secrets: [...] })
+// Run: firebase functions:secrets:set YOOKASSA_SHOP_ID
+// Run: firebase functions:secrets:set YOOKASSA_SECRET_KEY
 const API_URL = 'https://api.yookassa.ru/v3';
 
 export interface CreatePaymentParams {
@@ -16,17 +16,11 @@ export interface CreatePaymentParams {
 
 export class YooKassaService {
 
-  private static getCredentials() {
-    const config = (functions as any).config();
-    const shopId = config.yookassa?.shop_id || process.env.YOOKASSA_SHOP_ID;
-    const secretKey = config.yookassa?.secret_key || process.env.YOOKASSA_SECRET_KEY;
-    return { shopId, secretKey };
-  }
-
   private static getAuthHeader() {
-    const { shopId, secretKey } = this.getCredentials();
+    const shopId = process.env.YOOKASSA_SHOP_ID;
+    const secretKey = process.env.YOOKASSA_SECRET_KEY;
     if (!shopId || !secretKey) {
-      console.error('YooKassa credentials missing in functions config');
+      console.error('YooKassa credentials missing. Set YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY secrets.');
       throw new Error('YooKassa credentials missing');
     }
     return 'Basic ' + Buffer.from(`${shopId}:${secretKey}`).toString('base64');
@@ -34,7 +28,7 @@ export class YooKassaService {
 
   static async createRecurringPayment(params: CreatePaymentParams): Promise<any> {
     const idempotenceKey = uuidv4();
-    
+
     const body: any = {
       amount: {
         value: params.amount.toFixed(2),
@@ -44,7 +38,7 @@ export class YooKassaService {
       description: params.description,
       payment_method_id: params.paymentMethodId,
       metadata: params.metadata || {},
-      save_payment_method: true // Keep it saved
+      save_payment_method: true
     };
 
     if (params.email) {

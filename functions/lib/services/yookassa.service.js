@@ -1,23 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.YooKassaService = void 0;
-const functions = require("firebase-functions/v1");
 const uuid_1 = require("uuid");
-// Use firebase functions config instead of process.env for Cloud Functions
-// Run: firebase functions:config:set yookassa.shop_id="YOUR_ID" yookassa.secret_key="YOUR_KEY"
+// YooKassa credentials are injected via Secret Manager using runWith({ secrets: [...] })
+// Run: firebase functions:secrets:set YOOKASSA_SHOP_ID
+// Run: firebase functions:secrets:set YOOKASSA_SECRET_KEY
 const API_URL = 'https://api.yookassa.ru/v3';
 class YooKassaService {
-    static getCredentials() {
-        var _a, _b;
-        const config = functions.config();
-        const shopId = ((_a = config.yookassa) === null || _a === void 0 ? void 0 : _a.shop_id) || process.env.YOOKASSA_SHOP_ID;
-        const secretKey = ((_b = config.yookassa) === null || _b === void 0 ? void 0 : _b.secret_key) || process.env.YOOKASSA_SECRET_KEY;
-        return { shopId, secretKey };
-    }
     static getAuthHeader() {
-        const { shopId, secretKey } = this.getCredentials();
+        const shopId = process.env.YOOKASSA_SHOP_ID;
+        const secretKey = process.env.YOOKASSA_SECRET_KEY;
         if (!shopId || !secretKey) {
-            console.error('YooKassa credentials missing in functions config');
+            console.error('YooKassa credentials missing. Set YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY secrets.');
             throw new Error('YooKassa credentials missing');
         }
         return 'Basic ' + Buffer.from(`${shopId}:${secretKey}`).toString('base64');
@@ -33,7 +27,7 @@ class YooKassaService {
             description: params.description,
             payment_method_id: params.paymentMethodId,
             metadata: params.metadata || {},
-            save_payment_method: true // Keep it saved
+            save_payment_method: true
         };
         if (params.email) {
             body.receipt = {

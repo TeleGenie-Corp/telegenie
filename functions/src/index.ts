@@ -7,25 +7,26 @@ admin.initializeApp();
 export { checkSubscriptionRenewals } from './schedulers/subscription.scheduler';
 
 // Callable function to publish demo post to @AiKanalishe
-export const publishDemoPost = functions.https.onCall(async (data: any, context: any) => {
+export const publishDemoPost = functions
+  .runWith({ secrets: ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_DEMO_CHANNEL_ID'] })
+  .https.onCall(async (data: any, context: any) => {
     // 1. Validation
     const { text, url } = data;
-    
+
     if (!text || typeof text !== 'string') {
-        throw new functions.https.HttpsError('invalid-argument', 'Text is required');
+      throw new functions.https.HttpsError('invalid-argument', 'Text is required');
     }
 
-    if (text.length > 4096) { // Telegram limit
-        throw new functions.https.HttpsError('invalid-argument', 'Text is too long');
+    if (text.length > 4096) {
+      throw new functions.https.HttpsError('invalid-argument', 'Text is too long');
     }
 
-    // 2. Configuration
-    const config = (functions as any).config();
-    const botToken = config.telegram?.bot_token;
-    const channelId = config.telegram?.demo_channel_id || '@AiKanalishe';
+    // 2. Configuration - injected via Firebase Secret Manager
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const channelId = process.env.TELEGRAM_DEMO_CHANNEL_ID || '@AiKanalishe';
 
     if (!botToken) {
-        throw new functions.https.HttpsError('failed-precondition', 'Telegram Bot Token not configured');
+      throw new functions.https.HttpsError('failed-precondition', 'Telegram Bot Token not configured');
     }
 
     // 3. Construct Message
@@ -33,38 +34,35 @@ export const publishDemoPost = functions.https.onCall(async (data: any, context:
     const fullMessage = text + footer;
 
     try {
-        // 4. Send to Telegram
-        // Ensure channelId starts with @ if it's a handle
-        const targetChatId = channelId.startsWith('@') || /^-?\d+$/.test(channelId) 
-            ? channelId 
-            : `@${channelId}`;
+      // 4. Send to Telegram
+      const targetChatId = channelId.startsWith('@') || /^-?\d+$/.test(channelId)
+        ? channelId
+        : `@${channelId}`;
 
-        console.log(`Publishing to Telegram. Bot: ${botToken.substring(0, 10)}..., Chat: ${targetChatId}`);
+      console.log(`Publishing to Telegram. Bot: ${botToken.substring(0, 10)}..., Chat: ${targetChatId}`);
 
-        // Using built-in fetch (Node 18+)
-        const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: targetChatId,
-                text: fullMessage,
-                parse_mode: 'HTML', // HTML is more robust for general text with special chars
-                disable_web_page_preview: true
-            })
-        });
+      const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: targetChatId,
+          text: fullMessage,
+          parse_mode: 'HTML',
+          disable_web_page_preview: true
+        })
+      });
 
-        // Need to cast response.json() result
-        const result = (await response.json()) as { ok: boolean, result?: { message_id: number }, description?: string };
+      const result = (await response.json()) as { ok: boolean; result?: { message_id: number }; description?: string };
 
-        if (!result.ok) {
-            console.error('Telegram API Error:', result);
-            throw new functions.https.HttpsError('internal', `Telegram API Error: ${result.description}`);
-        }
+      if (!result.ok) {
+        console.error('Telegram API Error:', result);
+        throw new functions.https.HttpsError('internal', `Telegram API Error: ${result.description}`);
+      }
 
-        return { success: true, messageId: result.result?.message_id, channelId };
+      return { success: true, messageId: result.result?.message_id, channelId };
 
     } catch (error) {
-        console.error('Publishing failed:', error);
-        throw new functions.https.HttpsError('internal', 'Failed to publish post');
+      console.error('Publishing failed:', error);
+      throw new functions.https.HttpsError('internal', 'Failed to publish post');
     }
-});
+  });

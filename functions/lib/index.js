@@ -8,20 +8,21 @@ admin.initializeApp();
 var subscription_scheduler_1 = require("./schedulers/subscription.scheduler");
 Object.defineProperty(exports, "checkSubscriptionRenewals", { enumerable: true, get: function () { return subscription_scheduler_1.checkSubscriptionRenewals; } });
 // Callable function to publish demo post to @AiKanalishe
-exports.publishDemoPost = functions.https.onCall(async (data, context) => {
-    var _a, _b, _c;
+exports.publishDemoPost = functions
+    .runWith({ secrets: ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_DEMO_CHANNEL_ID'] })
+    .https.onCall(async (data, context) => {
+    var _a;
     // 1. Validation
     const { text, url } = data;
     if (!text || typeof text !== 'string') {
         throw new functions.https.HttpsError('invalid-argument', 'Text is required');
     }
-    if (text.length > 4096) { // Telegram limit
+    if (text.length > 4096) {
         throw new functions.https.HttpsError('invalid-argument', 'Text is too long');
     }
-    // 2. Configuration
-    const config = functions.config();
-    const botToken = (_a = config.telegram) === null || _a === void 0 ? void 0 : _a.bot_token;
-    const channelId = ((_b = config.telegram) === null || _b === void 0 ? void 0 : _b.demo_channel_id) || '@AiKanalishe';
+    // 2. Configuration - injected via Firebase Secret Manager
+    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const channelId = process.env.TELEGRAM_DEMO_CHANNEL_ID || '@AiKanalishe';
     if (!botToken) {
         throw new functions.https.HttpsError('failed-precondition', 'Telegram Bot Token not configured');
     }
@@ -30,12 +31,10 @@ exports.publishDemoPost = functions.https.onCall(async (data, context) => {
     const fullMessage = text + footer;
     try {
         // 4. Send to Telegram
-        // Ensure channelId starts with @ if it's a handle
         const targetChatId = channelId.startsWith('@') || /^-?\d+$/.test(channelId)
             ? channelId
             : `@${channelId}`;
         console.log(`Publishing to Telegram. Bot: ${botToken.substring(0, 10)}..., Chat: ${targetChatId}`);
-        // Using built-in fetch (Node 18+)
         const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -46,13 +45,12 @@ exports.publishDemoPost = functions.https.onCall(async (data, context) => {
                 disable_web_page_preview: true
             })
         });
-        // Need to cast response.json() result
         const result = (await response.json());
         if (!result.ok) {
             console.error('Telegram API Error:', result);
             throw new functions.https.HttpsError('internal', `Telegram API Error: ${result.description}`);
         }
-        return { success: true, messageId: (_c = result.result) === null || _c === void 0 ? void 0 : _c.message_id, channelId };
+        return { success: true, messageId: (_a = result.result) === null || _a === void 0 ? void 0 : _a.message_id, channelId };
     }
     catch (error) {
         console.error('Publishing failed:', error);
