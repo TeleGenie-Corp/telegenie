@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { ChannelStrategy, Idea, PostGoal, PostFormat } from '../../types';
 import { toast } from 'sonner';
-import { analyzeChannelAction, generateIdeasAction, generatePostContentAction } from '../../app/actions/gemini';
+import { analyzeChannelAction, generateIdeasAction, generateDemoPostAction } from '../../app/actions/gemini';
 
 interface IdeaWithGoal extends Idea {
   goal: PostGoal;
@@ -126,7 +126,7 @@ export const useWidgetStore = create<WidgetState>((set, get) => ({
                 }
             };
 
-        const { text } = await generatePostContentAction(idea, strategy);
+        const { text } = await generateDemoPostAction(idea, strategy);
         set({ generatedPost: text });
     } catch (e: any) {
       console.error('Post generation failed:', e);

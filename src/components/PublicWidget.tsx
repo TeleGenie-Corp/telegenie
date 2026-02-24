@@ -215,9 +215,11 @@ export const PublicWidget: React.FC = () => {
                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest animate-pulse">Печатаю...</span>
                              </div>
                           )}
-                          <div className="text-sm leading-relaxed text-slate-900 whitespace-pre-wrap">
-                            {generatedPost}
-                            {isGeneratingPost && generatedPost && <span className="inline-block w-1.5 h-4 bg-violet-600 ml-1 animate-pulse align-middle" />}
+                          <div className="text-sm leading-relaxed text-slate-900 whitespace-pre-wrap relative">
+                             {generatedPost && (
+                               <div dangerouslySetInnerHTML={{ __html: generatedPost }} className="inline" />
+                             )}
+                             {isGeneratingPost && generatedPost && <span className="inline-block w-1.5 h-4 bg-violet-600 ml-1 align-middle animate-pulse" />}
                           </div>
                           <div className="flex justify-end mt-2">
                             <span className="text-[10px] text-slate-400">
@@ -278,25 +280,17 @@ export const PublicWidget: React.FC = () => {
                   transition={{ delay: 0.5, ...spring.soft }}
                   className="pt-4"
                 >
-                  <div className="p-6 rounded-3xl relative overflow-hidden group border transition-all bg-slate-900 border-slate-800 text-white">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-violet-500/20 blur-[40px] rounded-full translate-x-10 -translate-y-10 group-hover:scale-150 transition-transform duration-700" />
-                    
-                    <div className="relative z-10 space-y-4">
-                      <div className="space-y-1">
-                        <h4 className="text-base font-black tracking-tight flex items-center gap-2">
-                          Понравилось? <Sparkles size={16} className="text-violet-400" />
-                        </h4>
-                        <p className="text-xs text-slate-400 leading-relaxed">
-                          ИИ может написать готовые посты, подобрать картинки и сам опубликовать их в ваш канал.
-                        </p>
-                      </div>
-
+                  <div className="p-6 rounded-3xl relative overflow-hidden group border transition-all bg-slate-50 border-slate-100">
+                    <div className="relative z-10 space-y-3">
+                      <p className="text-xs text-slate-600 text-center font-medium leading-relaxed">
+                        Это лишь малая часть возможностей. В полной версии вы сможете сохранять посты, подбирать иллюстрации и настраивать кросспостинг.
+                      </p>
                       <motion.button 
                         {...ui.button}
                         onClick={handleJoin}
-                        className="w-full py-3.5 bg-white text-slate-900 rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+                        className="w-full py-3 bg-slate-900 text-white rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-md"
                       >
-                        Забрать полный доступ
+                        Перейти в полную версию
                         <ArrowRight size={14} />
                       </motion.button>
                     </div>

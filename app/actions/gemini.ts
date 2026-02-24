@@ -35,6 +35,18 @@ export async function generatePostContentAction(idea: Idea, strategy: ChannelStr
   }
 }
 
+export async function generateDemoPostAction(idea: Idea, strategy: ChannelStrategy) {
+  try {
+    const rawResult = await GeminiService.generatePostContent(idea, strategy);
+    const { TextPolishingService } = await import('@/services/textPolishingService');
+    const polishedResult = await TextPolishingService.polishAndFormat(rawResult.text, strategy);
+    return { text: polishedResult.formattedText };
+  } catch (error: any) {
+    console.error('[generateDemoPostAction]', error);
+    throw error;
+  }
+}
+
 export async function polishContentAction(text: string, instruction: string, strategy: ChannelStrategy) {
   try {
     return await GeminiService.polishContent(text, instruction, strategy);
