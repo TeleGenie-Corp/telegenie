@@ -298,7 +298,8 @@ export class GeminiService {
       - Пустая строка между абзацами.
       - Буква «ё» обязательна.
       
-      ВЫДАЙ ТОЛЬКО ТЕКСТ ПОСТА.`;
+      ВЫДАЙ ТОЛЬКО ТЕКСТ ПОСТА В ФОРМАТЕ TELEGRAM HTML (<b>, <i>, <a href="...">, <code>, <s>). 
+      Без маркеров "Here is", без кавычек и без блока кода \`\`\`html.`;
 
       const response = await ai.models.generateContent({
         model,
@@ -342,7 +343,7 @@ export class GeminiService {
     3. Ритм (чередуй длину фраз).
     4. Без воды.
     
-    ВЫДАЙ ТОЛЬКО ТЕКСТ ПОСТА (Markdown).`;
+    ВЫДАЙ ТОЛЬКО ТЕКСТ ПОСТА В ФОРМАТЕ TELEGRAM HTML (<b>, <i>, <a>, <code>, <s>). Без блока кода \`\`\`html.`;
 
     const stream = await ai.models.generateContentStream({
       model,

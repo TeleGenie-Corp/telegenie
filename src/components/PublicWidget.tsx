@@ -34,7 +34,7 @@ export const PublicWidget: React.FC = () => {
   }, []);
 
   const handleJoin = () => {
-    window.location.href = '/';
+    window.open('https://app.telegenie.ru/login', '_blank');
   };
 
   return (
@@ -42,20 +42,22 @@ export const PublicWidget: React.FC = () => {
       <div className="w-full max-w-lg">
         <div className="flex flex-col space-y-8">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-slate-900 text-white transition-transform hover:scale-105">
-                <Zap size={20} className="fill-current" />
+          {!ideas.length && !isAnalyzing && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg bg-slate-900 text-white transition-transform hover:scale-105">
+                  <Zap size={20} className="fill-current" />
+                </div>
+                <div>
+                  <h2 className={typography.heading}>
+                    TeleGenie <span className="text-violet-600">Demo</span>
+                  </h2>
+                  <p className="text-xs font-medium text-slate-500">Бесплатный анализ канала за 10 секунд</p>
+                </div>
               </div>
-              <div>
-                <h2 className={typography.heading}>
-                  TeleGenie <span className="text-violet-600">Demo</span>
-                </h2>
-                <p className="text-xs font-medium text-slate-500">Бесплатный анализ канала за 10 секунд</p>
-              </div>
+              {/* Theme toggle removed - strict light mode */}
             </div>
-            {/* Theme toggle removed - strict light mode */}
-          </div>
+          )}
 
           <div className="space-y-6">
             {/* Input Section */}
@@ -307,7 +309,7 @@ export const PublicWidget: React.FC = () => {
           {/* Footer */}
           <div className="flex items-center justify-center">
               <a 
-                href="https://t.me/AiKanalishe" 
+                href="https://app.telegenie.ru/login" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="text-[10px] font-bold transition-colors flex items-center gap-1.5 tracking-wider uppercase text-slate-400 hover:text-slate-600"
