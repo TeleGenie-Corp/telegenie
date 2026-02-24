@@ -272,44 +272,8 @@ export const PublicWidget: React.FC = () => {
                     </motion.div>
                   )}
                 </AnimatePresence>
-
-                {/* Unlock Full Power CTA */}
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5, ...spring.soft }}
-                  className="pt-4"
-                >
-                  <div className="p-6 rounded-3xl relative overflow-hidden group border transition-all bg-slate-50 border-slate-100">
-                    <div className="relative z-10 space-y-3">
-                      <p className="text-xs text-slate-600 text-center font-medium leading-relaxed">
-                        Это лишь малая часть возможностей. В полной версии вы сможете сохранять черновики, тонко настраивать стиль и создавать посты без лимитов.
-                      </p>
-                      <motion.button 
-                        {...ui.button}
-                        onClick={handleJoin}
-                        className="w-full py-3 bg-slate-900 text-white rounded-xl font-black uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-md"
-                      >
-                        Перейти в полную версию
-                        <ArrowRight size={14} />
-                      </motion.button>
-                    </div>
-                  </div>
-                </motion.div>
               </div>
             )}
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-center">
-              <a 
-                href="https://app.telegenie.ru/login" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-[10px] font-bold transition-colors flex items-center gap-1.5 tracking-wider uppercase text-slate-400 hover:text-slate-600"
-              >
-                Сделано в TeleGenie <ExternalLink size={10} />
-              </a>
           </div>
         </div>
       </div>
