@@ -283,7 +283,7 @@ export const PublicWidget: React.FC = () => {
                   <div className="p-6 rounded-3xl relative overflow-hidden group border transition-all bg-slate-50 border-slate-100">
                     <div className="relative z-10 space-y-3">
                       <p className="text-xs text-slate-600 text-center font-medium leading-relaxed">
-                        Это лишь малая часть возможностей. В полной версии вы сможете сохранять посты, подбирать иллюстрации и настраивать кросспостинг.
+                        Это лишь малая часть возможностей. В полной версии вы сможете сохранять черновики, тонко настраивать стиль и создавать посты без лимитов.
                       </p>
                       <motion.button 
                         {...ui.button}
