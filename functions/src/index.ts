@@ -8,6 +8,7 @@ export { checkSubscriptionRenewals } from './schedulers/subscription.scheduler';
 
 // Callable function to publish demo post to @AiKanalishe
 export const publishDemoPost = functions
+  .region('europe-west1')
   .runWith({ secrets: ['TELEGRAM_BOT_TOKEN', 'TELEGRAM_DEMO_CHANNEL_ID'] })
   .https.onCall(async (data: any, context: any) => {
     // 1. Validation

@@ -308,7 +308,9 @@ export class GeminiService {
       });
 
       const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);
-      return { text: response.text || "", usage };
+      let resultText = response.text || "";
+      resultText = resultText.replace(/^\s*```[a-zA-Z]*\n?/i, '').replace(/\n?```\s*$/i, '');
+      return { text: resultText, usage };
     });
   }
 
@@ -451,7 +453,9 @@ export class GeminiService {
     });
 
     const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);
-    return { text: response.text || text, usage };
+    let resultText = response.text || text;
+    resultText = resultText.replace(/^\s*```[a-zA-Z]*\n?/i, '').replace(/\n?```\s*$/i, '');
+    return { text: resultText, usage };
   }
 
   /**
