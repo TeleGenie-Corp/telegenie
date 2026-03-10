@@ -253,6 +253,13 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
             )}
           </div>
         </div>
+        {/* Footer */}
+        <div className="mt-12 pb-4 text-center">
+          <a href="https://t.me/sphera_spb" target="_blank" rel="noopener noreferrer" className="text-[11px] text-slate-400 hover:text-violet-600 font-medium transition-colors">
+            При поддержке Сферы
+          </a>
+        </div>
+
       </div>
     </div>
   );

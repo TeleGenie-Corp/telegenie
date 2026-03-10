@@ -57,9 +57,15 @@ export const SiteFooter: React.FC = () => {
 
         {/* Bottom Bar: Payments & Copyright */}
         <div className="pt-8 border-t border-slate-50 flex flex-col md:flex-row justify-between items-center gap-6">
-          <p className="text-xs text-slate-400 font-medium">
-            © {new Date().getFullYear()} TeleGenie Studio. Все права защищены.
-          </p>
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+            <p className="text-xs text-slate-400 font-medium">
+              © {new Date().getFullYear()} TeleGenie Studio. Все права защищены.
+            </p>
+            <span className="text-slate-200 hidden sm:inline">·</span>
+            <a href="https://t.me/sphera_spb" target="_blank" rel="noopener noreferrer" className="text-xs text-slate-400 hover:text-violet-600 font-medium transition-colors">
+              При поддержке Сферы
+            </a>
+          </div>
           
           {/* Payment Icons */}
           <div className="flex items-center gap-6 opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
