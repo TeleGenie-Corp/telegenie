@@ -68,6 +68,25 @@ const loadStrategy = (): ChannelStrategy => {
   }
 };
 
+/**
+ * Collect titles of recently published posts for the current brand.
+ * Used as "content memory" so AI doesn't repeat topics.
+ */
+function getRecentPostTitles(): string[] {
+  const { postProjects, currentBrand } = useWorkspaceStore.getState();
+  if (!currentBrand) return [];
+
+  return postProjects
+    .filter((p) => p.brandId === currentBrand.id && p.status === 'published' && p.ideas?.length > 0)
+    .sort((a, b) => (b.publishedAt || 0) - (a.publishedAt || 0))
+    .slice(0, 10)
+    .map((p) => {
+      const selectedIdea = p.ideas.find((i) => i.id === p.selectedIdeaId);
+      return selectedIdea?.title || p.ideas[0]?.title || '';
+    })
+    .filter(Boolean);
+}
+
 export const useEditorStore = create<EditorState>((set, get) => ({
   strategy: loadStrategy(),
   analyzing: false,
@@ -170,7 +189,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         if (currentStrategy.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(currentStrategy));
       }
 
-      const { ideas: generated, usage } = await generateIdeasAction(currentStrategy);
+      // Content memory: collect recent published post titles for the current brand
+      const recentPostTitles = getRecentPostTitles();
+
+      const { ideas: generated, usage } = await generateIdeasAction(currentStrategy, recentPostTitles);
       const withUsage = generated.map((i) => ({ ...i, usage }));
       set({ ideas: withUsage });
 
@@ -193,7 +215,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     set({ loadingIdeas: true });
     try {
-      const { ideas: generated, usage } = await generateIdeasAction(strategy);
+      // Content memory: recent published titles + current idea titles
+      const recentPostTitles = [
+        ...getRecentPostTitles(),
+        ...existing.map((i) => i.title),
+      ];
+      const { ideas: generated, usage } = await generateIdeasAction(strategy, recentPostTitles);
       // Filter out duplicates by title
       const existingTitles = new Set(existing.map((i) => i.title.toLowerCase()));
       const fresh = generated

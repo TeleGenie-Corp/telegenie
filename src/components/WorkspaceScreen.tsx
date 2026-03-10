@@ -116,7 +116,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                       <button 
                         onClick={(e) => { e.stopPropagation(); onDeleteBrand(brand.id); }}
                         className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
-                        title="Delete Brand"
+                        title="Удалить бренд"
                       >
                         <Trash2 size={14} />
                       </button>

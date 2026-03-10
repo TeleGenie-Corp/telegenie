@@ -101,12 +101,15 @@ export class GeminiService {
           type: Type.OBJECT,
           properties: {
             name: { type: Type.STRING },
-            description: { type: Type.STRING },
+            description: { type: Type.STRING, description: "Краткое описание канала (1-2 предложения)" },
             topic: { type: Type.STRING, description: "Глобальная ниша и основные темы канала" },
             context: { type: Type.STRING, description: "Манера речи, любимые обороты, уровень формальности" },
-            lastPosts: { type: Type.ARRAY, items: { type: Type.STRING } }
+            lastPosts: { type: Type.ARRAY, items: { type: Type.STRING } },
+            contentPillars: { type: Type.ARRAY, items: { type: Type.STRING }, description: "3-5 контент-столпов (основные рубрики/категории постов)" },
+            toneOfVoice: { type: Type.STRING, description: "Детальный ToV: уровень формальности, юмор, отношение к аудитории, фирменные приёмы" },
+            forbiddenPhrases: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Фразы и обороты, которые НЕ свойственны этому каналу" }
           },
-          required: ["name", "description", "topic", "context", "lastPosts"]
+          required: ["name", "description", "topic", "context", "lastPosts", "contentPillars", "toneOfVoice", "forbiddenPhrases"]
         }
       };
 
@@ -115,10 +118,18 @@ export class GeminiService {
         Название: ${rawData.title}
         Описание: ${rawData.description}
         Контент: ${rawData.last_posts.join('\n---\n')}
-        
+
         ЗАДАЧА:
-        1. Определи ТОЧНУЮ ТЕМАТИКУ.
-        2. Определи СТИЛЬ АВТОРА.`;
+        1. Определи ТОЧНУЮ ТЕМАТИКУ — глобальную нишу и подтемы.
+        2. Определи СТИЛЬ АВТОРА — как он пишет, какие обороты использует.
+        3. Выдели 3-5 КОНТЕНТ-СТОЛПОВ — основные рубрики или категории постов.
+        4. Опиши ТОНАЛЬНОСТЬ (Tone of Voice) подробно:
+           - Уровень формальности (разговорный / деловой / дерзкий / академический)
+           - Юмор (есть / нет / саркастический / мягкий)
+           - Отношение к аудитории (на «ты» / на «вы» / менторский / дружеский)
+           - Фирменные приёмы (риторические вопросы, списки, провокации, истории)
+        5. Выпиши ЗАПРЕЩЁННЫЕ ФРАЗЫ — обороты, которые автор НИКОГДА не использует
+           (например: «в современном мире», «давайте разберёмся», «стоит отметить»).`;
       } else {
         const previewUrl = `https://t.me/s/${username}`;
         prompt = `ПРОАНАЛИЗИРУЙ ТЕМУ И СТИЛЬ КАНАЛА ЧЕРЕЗ ПОИСК: ${previewUrl}
@@ -158,14 +169,14 @@ export class GeminiService {
   /**
    * Generates content ideas as short, punchy "tweets".
    */
-  static async generateIdeas(strategy: ChannelStrategy): Promise<{ ideas: Idea[], usage: UsageMetadata }> {
+  static async generateIdeas(strategy: ChannelStrategy, recentPostTitles?: string[]): Promise<{ ideas: Idea[], usage: UsageMetadata }> {
     const ai = this.getAI();
     const info = strategy.analyzedChannel;
     const { CostCalculator } = await import('./costCalculator');
-    
+
     return this.callWithFallback(async (model) => {
       // Construct context from Positioning or Analysis
-      const authorContext = strategy.positioning 
+      const authorContext = strategy.positioning
         ? `ПОЗИЦИОНИРОВАНИЕ АВТОРА: ${strategy.positioning}`
         : `СТИЛЬ АВТОРА: ${info?.context || 'Экспертный, уверенный'}`;
 
@@ -174,12 +185,18 @@ export class GeminiService {
         ? `ГЛАВНЫЙ ПОИНТ (Тема поста): "${strategy.point}".\nВСЕ ИДЕИ ДОЛЖНЫ БЫТЬ ПОСВЯЩЕНЫ ЭТОМУ ПОИНТУ, но с разных углов (подходов).`
         : `ТЕМАТИЧЕСКИЙ ФОКУС: ${info?.topic}`;
 
+      // Content memory: avoid repeating recent topics
+      const memoryBlock = recentPostTitles && recentPostTitles.length > 0
+        ? `\n      НЕ ПОВТОРЯЙ ТЕМЫ (уже опубликованные посты):\n${recentPostTitles.map((t, i) => `      ${i + 1}. ${t}`).join('\n')}\n      Придумай НОВЫЕ ракурсы и темы, которых нет в этом списке.`
+        : '';
+
       const prompt = `Сгенерируй 5 идей для постов для канала «${info?.name}».
 
       ВВОДНЫЕ ДАННЫЕ:
       - Цель: ${strategy.goal}
       - ${authorContext}
       - ${topicConstraint}
+${memoryBlock}
 
       ФОРМАТ ВЫВОДА:
       Каждая идея — это «Твит» (тезис, инсайт или провокация) длиной до 140 знаков.
@@ -246,19 +263,24 @@ export class GeminiService {
    */
   private static buildAuthorContext(strategy: ChannelStrategy): string {
     const info = strategy.analyzedChannel;
+    const parts: string[] = ['АВТОР И БРЕНД:'];
 
     if (strategy.positioning) {
-      // Positioning exists — pass it as structured context
-      return `АВТОР И БРЕНД:
-- Позиционирование: ${strategy.positioning}
-- Тональность: ${info?.context || 'Экспертная, уверенная'}
-- Тематика канала: ${info?.topic || 'Не определена'}`;
+      parts.push(`- Позиционирование: ${strategy.positioning}`);
     }
 
-    // No positioning — use whatever analysis we have
-    return `АВТОР И БРЕНД:
-- Тональность: ${info?.context || 'Экспертная, уверенная'}
-- Тематика канала: ${info?.topic || 'Не определена'}`;
+    parts.push(`- Тональность: ${info?.toneOfVoice || info?.context || 'Экспертная, уверенная'}`);
+    parts.push(`- Тематика канала: ${info?.topic || 'Не определена'}`);
+
+    if (info?.contentPillars && info.contentPillars.length > 0) {
+      parts.push(`- Контент-столпы: ${info.contentPillars.join(', ')}`);
+    }
+
+    if (info?.forbiddenPhrases && info.forbiddenPhrases.length > 0) {
+      parts.push(`- ЗАПРЕЩЁННЫЕ ФРАЗЫ (никогда не используй): ${info.forbiddenPhrases.join('; ')}`);
+    }
+
+    return parts.join('\n');
   }
 
   /**

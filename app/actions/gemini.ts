@@ -17,9 +17,9 @@ export async function analyzeChannelAction(url: string) {
   }
 }
 
-export async function generateIdeasAction(strategy: ChannelStrategy) {
+export async function generateIdeasAction(strategy: ChannelStrategy, recentPostTitles?: string[]) {
   try {
-    return await GeminiService.generateIdeas(strategy);
+    return await GeminiService.generateIdeas(strategy, recentPostTitles);
   } catch (error: any) {
     console.error('[generateIdeasAction]', error);
     throw error;
