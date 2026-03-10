@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Loader2, Send, Zap, ArrowRight, ExternalLink, Moon, Sun } from 'lucide-react';
+import { Sparkles, Loader2, Send, Zap, ArrowRight, ExternalLink } from 'lucide-react';
 import { useWidgetStore } from '../stores/widgetStore';
 import { listContainer, listItem, ui, spring } from '../animationTokens';
 import { components, typography, radii, shadows } from '../designTokens';
@@ -16,21 +16,8 @@ export const PublicWidget: React.FC = () => {
   } = useWidgetStore();
 
   React.useEffect(() => {
-    // Ensure we start in a clean state
     useWidgetStore.getState().hydrate();
     useWidgetStore.setState({ isAnalyzing: false });
-
-    // Force light mode isolation for the widget
-    document.documentElement.classList.remove('dark');
-    document.body.classList.remove('dark');
-    document.body.style.backgroundColor = '#ffffff';
-    document.body.style.color = '#0f172a';
-    
-    return () => {
-      // Clean up inline styles on unmount
-      document.body.style.backgroundColor = '';
-      document.body.style.color = '';
-    };
   }, []);
 
   const handleJoin = () => {
@@ -232,15 +219,16 @@ export const PublicWidget: React.FC = () => {
                       {/* Actions: Publish or View */}
                       <div className="flex gap-3">
                         {!publishedUrl ? (
+                          <>
                            <motion.button
                              initial={{ opacity: 0, y: 10 }}
                              animate={{ opacity: 1, y: 0 }}
                              onClick={() => useWidgetStore.getState().publishPost()}
                              disabled={isGeneratingPost || !generatedPost || isPublishing}
-                             className={`flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
-                               isGeneratingPost || !generatedPost 
-                                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                 : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30 active:scale-95'
+                             className={`py-3 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
+                               isGeneratingPost || !generatedPost
+                                 ? 'flex-1 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                 : 'flex-none px-4 bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30 active:scale-95'
                              }`}
                            >
                              {isPublishing ? (
@@ -255,6 +243,18 @@ export const PublicWidget: React.FC = () => {
                                </>
                              )}
                            </motion.button>
+                           {!isGeneratingPost && generatedPost && !isPublishing && (
+                             <motion.button
+                               initial={{ opacity: 0, x: 10 }}
+                               animate={{ opacity: 1, x: 0 }}
+                               onClick={handleJoin}
+                               className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                             >
+                               <Sparkles size={14} />
+                               Хочу для своего канала
+                             </motion.button>
+                           )}
+                          </>
                         ) : (
                           <motion.a
                             href={publishedUrl}
@@ -269,6 +269,31 @@ export const PublicWidget: React.FC = () => {
                           </motion.a>
                         )}
                       </div>
+
+                      {/* CTA: convert after seeing the result */}
+                      {publishedUrl && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.4 }}
+                          className="mt-2 p-4 rounded-2xl bg-gradient-to-br from-violet-50 to-fuchsia-50 border border-violet-100 text-center space-y-3"
+                        >
+                          <p className="text-sm font-bold text-slate-800">
+                            Хотите так для своего канала?
+                          </p>
+                          <p className="text-xs text-slate-500 leading-relaxed">
+                            TeleGenie запомнит стиль, голос и темы вашего канала — и будет генерировать посты прямо в него.
+                          </p>
+                          <button
+                            onClick={handleJoin}
+                            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg"
+                          >
+                            <Sparkles size={14} />
+                            Попробовать бесплатно
+                            <ArrowRight size={14} />
+                          </button>
+                        </motion.div>
+                      )}
                     </motion.div>
                   )}
                 </AnimatePresence>

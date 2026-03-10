@@ -85,17 +85,9 @@ export class PostGenerationService {
         return this.fail(errors, costs, startedAt);
       }
 
-      // === POLISHING STAGE ===
-      emit('polishing', 35, 'Форматирование текста...');
-      const { TextPolishingService } = await import('./textPolishingService');
-      const polishedResult = await TextPolishingService.polishAndFormat(
-        generatedText,
-        input.strategy
-      );
-      costs.polishing = polishedResult.usage?.estimatedCostUsd || 0;
-      
-      // Update with polished text if needed, or keep original as raw
-      // Actually we save generatedText as rawText
+      // Polishing is now integrated into the generation prompt (Ilyakhov rules).
+      // No separate polishing call — saves cost and avoids style conflicts.
+      emit('polishing', 35, 'Финальная проверка...');
 
 
       // === GENERATE IMAGE (optional) ===
@@ -133,13 +125,13 @@ export class PostGenerationService {
       
       const post: Post = {
         id: `post-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-        text: polishedResult.formattedText,
-        rawText: generatedText, // Keep original for editor reset
+        text: generatedText,
+        rawText: generatedText,
         imageUrl,
         generating: false,
         timestamp: Date.now(),
         usage: contentUsage,
-        polishingUsage: polishedResult.usage,
+        polishingUsage: undefined,
         imageUsage,
         analysisUsage: input.strategy.analysisUsage,
         ideasUsage: input.idea.usage

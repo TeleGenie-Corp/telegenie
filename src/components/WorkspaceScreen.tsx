@@ -48,7 +48,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
   const selectedBrand = brands.find(b => b.id === selectedBrandId);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 font-sans">
+    <div className="flex-1 h-full overflow-y-auto bg-slate-50 p-4 sm:p-6 font-sans custom-scrollbar">
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}
@@ -116,7 +116,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                       <button 
                         onClick={(e) => { e.stopPropagation(); onDeleteBrand(brand.id); }}
                         className="p-1.5 hover:bg-rose-50 rounded-lg text-slate-400 hover:text-rose-500 transition-colors"
-                        title="Delete Brand"
+                        title="Удалить бренд"
                       >
                         <Trash2 size={14} />
                       </button>

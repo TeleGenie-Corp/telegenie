@@ -164,6 +164,10 @@ export interface ChannelInfo {
   topic: string;
   context: string;
   lastPosts: string[];
+  // Deep analysis (optional, filled by enhanced analyzeChannel)
+  contentPillars?: string[];     // 3-5 main content categories/themes
+  toneOfVoice?: string;         // Detailed ToV: formality, humor, stance
+  forbiddenPhrases?: string[];  // Phrases that don't match the channel style
 }
 
 export interface ChannelStrategy {

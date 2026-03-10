@@ -71,13 +71,13 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
       }),
       Spoiler,
       CharacterCount.configure({
-        limit: 1024,
+        limit: 4096,
       }),
     ],
     content: value,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm sm:prose-base focus:outline-none min-h-[400px] h-full px-6 py-4 text-slate-900 whitespace-pre-wrap',
+        class: 'prose prose-sm sm:prose-base focus:outline-none min-h-[300px] h-full px-4 py-3 text-slate-900 whitespace-pre-wrap',
       },
     },
     onUpdate: ({ editor }) => {
@@ -135,8 +135,9 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   };
 
-  const percentage = editor.storage.characterCount.characters() / 1024 * 100;
   const chars = editor.storage.characterCount.characters();
+  const CAPTION_LIMIT = 1024;
+  const TEXT_LIMIT = 4096;
 
   return (
     <div className="bg-white overflow-hidden relative z-10 h-full flex flex-col">
@@ -196,85 +197,78 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
       `}</style>
 
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-50/50 border-b border-slate-100 flex-wrap gap-y-2">
-        <div className="flex items-center gap-1">
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleBold().run()} 
-            isActive={editor.isActive('bold')}
-            icon={<Bold size={14} />}
-            tooltip="Bold (Cmd+B)"
-          />
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleItalic().run()} 
-            isActive={editor.isActive('italic')}
-            icon={<Italic size={14} />}
-            tooltip="Italic (Cmd+I)"
-          />
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleUnderline().run()} 
-            isActive={editor.isActive('underline')}
-            icon={<UnderlineIcon size={14} />}
-            tooltip="Underline (Cmd+U)"
-          />
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleStrike().run()} 
-            isActive={editor.isActive('strike')}
-            icon={<Strikethrough size={14} />}
-            tooltip="Strikethrough"
-          />
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleCode().run()} 
-            isActive={editor.isActive('code')}
-            icon={<Code size={14} />}
-            tooltip="Code"
-          />
-          
-          <div className="w-px h-6 bg-slate-200 mx-1" />
-          
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().toggleBlockquote().run()} 
-            isActive={editor.isActive('blockquote')}
-            icon={<Quote size={14} />}
-            tooltip="Quote"
-          />
-           <ToolbarButton 
-            // @ts-ignore
-            onClick={() => editor.chain().focus().toggleSpoiler().run()} 
-            isActive={editor.isActive('spoiler')}
-            icon={<EyeOff size={14} />}
-            tooltip="Spoiler (Hidden Text)"
-          />
-
-          <div className="w-px h-6 bg-slate-200 mx-1" />
-
-          <ToolbarButton 
-            onClick={setLink} 
-            isActive={editor.isActive('link')}
-            icon={<LinkIcon size={14} />}
-            tooltip="Add Link"
-          />
-          <ToolbarButton 
-            onClick={() => editor.chain().focus().unsetAllMarks().run()} 
-            isActive={false}
-            icon={<X size={14} className="text-red-500" />}
-            tooltip="Clear Format"
-          />
-        </div>
-
-        <button 
-          onClick={() => rawText && onChange(rawText)} 
+      <div className="flex items-center px-2 py-1.5 bg-slate-50/50 border-b border-slate-100 gap-0.5 overflow-x-auto">
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          isActive={editor.isActive('bold')}
+          icon={<Bold size={14} />}
+          tooltip="Bold (Cmd+B)"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          isActive={editor.isActive('italic')}
+          icon={<Italic size={14} />}
+          tooltip="Italic (Cmd+I)"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          isActive={editor.isActive('underline')}
+          icon={<UnderlineIcon size={14} />}
+          tooltip="Underline (Cmd+U)"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          isActive={editor.isActive('strike')}
+          icon={<Strikethrough size={14} />}
+          tooltip="Strikethrough"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleCode().run()}
+          isActive={editor.isActive('code')}
+          icon={<Code size={14} />}
+          tooltip="Code"
+        />
+        <div className="w-px h-5 bg-slate-200 mx-0.5 shrink-0" />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          isActive={editor.isActive('blockquote')}
+          icon={<Quote size={14} />}
+          tooltip="Quote"
+        />
+        <ToolbarButton
+          // @ts-ignore
+          onClick={() => editor.chain().focus().toggleSpoiler().run()}
+          isActive={editor.isActive('spoiler')}
+          icon={<EyeOff size={14} />}
+          tooltip="Spoiler"
+        />
+        <ToolbarButton
+          onClick={setLink}
+          isActive={editor.isActive('link')}
+          icon={<LinkIcon size={14} />}
+          tooltip="Link"
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().unsetAllMarks().run()}
+          isActive={false}
+          icon={<X size={14} className="text-red-500" />}
+          tooltip="Clear"
+        />
+        <div className="flex-1" />
+        <button
+          onClick={() => rawText && onChange(rawText)}
           disabled={!rawText}
-          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-          title="Reset to Original"
+          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 shrink-0"
+          title="Сбросить"
         >
-          <RotateCcw size={14} />
+          <RotateCcw size={13} />
         </button>
         <button
           onClick={() => editor && handleCopyPost(editor.getText())}
-          className="p-2 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
-          title="Copy text"
+          className="p-1.5 text-slate-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors shrink-0"
+          title="Копировать"
         >
-          <Copy size={14} />
+          <Copy size={13} />
         </button>
       </div>
 
@@ -284,8 +278,17 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
       </div>
       
       {/* Character Count - Fixed at bottom */}
-      <div className={`absolute bottom-3 right-4 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md border z-10 ${chars > 1024 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-slate-100/80 text-slate-400 border-slate-200'}`}>
-        {chars} / 1024
+      <div className={`absolute bottom-3 right-4 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md border z-10 ${
+        chars > TEXT_LIMIT
+          ? 'bg-red-50 text-red-600 border-red-100'
+          : chars > CAPTION_LIMIT
+            ? 'bg-amber-50 text-amber-600 border-amber-100'
+            : 'bg-slate-100/80 text-slate-400 border-slate-200'
+      }`}>
+        {chars} / {TEXT_LIMIT}
+        {chars > CAPTION_LIMIT && chars <= TEXT_LIMIT && (
+          <span className="ml-1 normal-case tracking-normal font-medium">· caption {CAPTION_LIMIT}</span>
+        )}
       </div>
 
     </div>
@@ -296,9 +299,9 @@ const ToolbarButton = ({ onClick, isActive, icon, tooltip }: any) => (
   <button
     onClick={onClick}
     title={tooltip}
-    className={`p-2 rounded-lg transition-all ${
-      isActive 
-        ? 'bg-violet-600 text-white shadow-sm' 
+    className={`p-1.5 rounded-md transition-all shrink-0 ${
+      isActive
+        ? 'bg-violet-600 text-white shadow-sm'
         : 'text-slate-500 hover:bg-violet-50 hover:text-violet-600'
     }`}
   >

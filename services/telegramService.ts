@@ -33,12 +33,18 @@ export class TelegramService {
       .replace(/&nbsp;/g, ' ')       // &nbsp; -> space
       .trim();
 
-    const safeText = processedText.length > 1024 ? processedText.substring(0, 1021) + "..." : processedText;
+    // Telegram limits: caption = 1024 chars, text message = 4096 chars
+    const CAPTION_LIMIT = 1024;
+    const TEXT_LIMIT = 4096;
 
     try {
       let lastMessageId: number | undefined;
 
       if (mediaUrl) {
+        const captionText = processedText.length > CAPTION_LIMIT
+          ? processedText.substring(0, CAPTION_LIMIT - 3) + "..."
+          : processedText;
+
         const formData = new FormData();
         formData.append('chat_id', normalizedChatId);
 
@@ -46,9 +52,9 @@ export class TelegramService {
         const mediaBlob = await res.blob();
 
         // Detect media type from MIME or URL extension
-        const isVideo = mediaBlob.type.startsWith('video/') || 
+        const isVideo = mediaBlob.type.startsWith('video/') ||
                         mediaUrl.match(/\.(mp4|mov|avi|webm)$/i);
-        const isImage = mediaBlob.type.startsWith('image/') || 
+        const isImage = mediaBlob.type.startsWith('image/') ||
                         mediaUrl.match(/\.(png|jpg|jpeg|gif|webp)$/i);
 
         if (!isImage && !isVideo) {
@@ -57,14 +63,14 @@ export class TelegramService {
 
         const method = isVideo ? 'sendVideo' : 'sendPhoto';
         const filename = isVideo ? 'media.mp4' : 'media.png';
-        
+
         // Explicitly set MIME type to prevent Telegram misinterpretation
-        const typedBlob = new Blob([mediaBlob], { 
-          type: isVideo ? 'video/mp4' : 'image/png' 
+        const typedBlob = new Blob([mediaBlob], {
+          type: isVideo ? 'video/mp4' : 'image/png'
         });
-        
+
         formData.append(isVideo ? 'video' : 'photo', typedBlob, filename);
-        formData.append('caption', safeText);
+        formData.append('caption', captionText);
         formData.append('parse_mode', 'HTML');
 
         const response = await fetch(`${apiUrl}/${method}`, { method: 'POST', body: formData });
@@ -72,10 +78,14 @@ export class TelegramService {
         if (!result.ok) throw new Error(result.description);
         lastMessageId = result.result.message_id;
       } else {
+        const messageText = processedText.length > TEXT_LIMIT
+          ? processedText.substring(0, TEXT_LIMIT - 3) + "..."
+          : processedText;
+
         const response = await fetch(`${apiUrl}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ chat_id: normalizedChatId, text: safeText, parse_mode: 'HTML' })
+          body: JSON.stringify({ chat_id: normalizedChatId, text: messageText, parse_mode: 'HTML' })
         });
         const result = await response.json();
         if (!result.ok) throw new Error(result.description);

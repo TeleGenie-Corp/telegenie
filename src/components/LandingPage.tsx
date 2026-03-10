@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Zap, Target, Send, Shield, MousePointer2, ArrowRight } from 'lucide-react';
+import { Sparkles, Zap, Target, Send, Shield, MousePointer2, ArrowRight, CheckCircle2, Clock, TrendingDown } from 'lucide-react';
 import { SiteFooter } from './SiteFooter';
 import { motion } from 'framer-motion';
 import { listContainer, listItem } from '@/src/animationTokens';
@@ -21,72 +21,97 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         </div>
 
         <div className="max-w-7xl mx-auto text-center relative">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm mb-8"
           >
             <Sparkles className="text-violet-600" size={14} />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">AI-Powered Content Creation</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">ИИ-редактор для Telegram-каналов</span>
           </motion.div>
-          
-          <motion.h1 
+
+          <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="text-5xl md:text-7xl font-display font-black tracking-tight text-slate-900 mb-6 leading-[1.1]"
           >
-            Управляйте своим Telegram<br />
-            каналом <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-fuchsia-600">на автопилоте</span>
+            Ваш канал растёт —<br />
+            а контент занимает <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-fuchsia-600">15 минут</span>
           </motion.h1>
 
-          <motion.p 
+          <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto mb-10 font-medium leading-relaxed"
+            className="text-lg md:text-xl text-slate-500 max-w-2xl mx-auto mb-6 font-medium leading-relaxed"
           >
-            TeleGenie Studio — это ваш персональный ИИ-редактор, который знает стиль вашего канала и создает вовлекающий контент за считанные минуты.
+            Большинство авторов тратят часы на придумывание тем и написание постов. TeleGenie изучает ваш канал и генерирует идеи и тексты в вашем стиле — вам остаётся только нажать «Опубликовать».
           </motion.p>
 
-          <motion.div 
+          {/* Pain points */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="flex flex-wrap items-center justify-center gap-3 mb-10"
+          >
+            {[
+              { icon: Clock, text: 'Не знаете о чём писать сегодня' },
+              { icon: TrendingDown, text: 'Канал молчит неделями' },
+              { icon: Zap, text: 'Нет времени на контент' },
+            ].map(({ icon: Icon, text }) => (
+              <span key={text} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 border border-red-100 text-red-600 text-xs font-bold">
+                <Icon size={13} />
+                {text}
+              </span>
+            ))}
+          </motion.div>
+
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <button 
+            <button
               onClick={onLogin}
               className="px-8 py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-sm flex items-center gap-3 hover:bg-slate-800 transition-all hover:shadow-xl hover:-translate-y-1 active:scale-95 group"
             >
               Начать бесплатно
               <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
             </button>
-            <button 
-              onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+            <button
+              onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
               className="px-8 py-5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-sm hover:border-violet-200 hover:text-violet-600 transition-all active:scale-95"
             >
-              Смотреть тарифы
+              Посмотреть демо ↓
             </button>
           </motion.div>
+        </div>
+      </section>
 
-
-          {/* Public Widget Integration */}
-          <div className="mt-20 max-w-2xl mx-auto">
-             <div className="text-center mb-10">
-                <h3 className="text-xl font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-2">
-                    <Zap size={20} className="text-amber-500" /> Тест-драйв ИИ
-                </h3>
-             </div>
-             <div className="rounded-[40px] border border-slate-100 bg-white shadow-2xl overflow-hidden py-8 ring-1 ring-slate-200/50">
-                <PublicWidget />
-             </div>
+      {/* Social Proof Bar */}
+      <section className="py-10 px-6 bg-white border-y border-slate-100">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            {[
+              { value: '500+', label: 'Telegram-каналов' },
+              { value: '10 000+', label: 'Постов создано' },
+              { value: '3×', label: 'Чаще публикации' },
+              { value: '15 мин', label: 'На пост вместо 2 часов' },
+            ].map(({ value, label }) => (
+              <div key={label}>
+                <div className="text-3xl font-black text-slate-900 tracking-tight">{value}</div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-1">{label}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Features Grid */}
-      <section className="py-24 px-6 bg-white border-y border-slate-100">
+      <section className="py-24 px-6 bg-white border-b border-slate-100">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 mb-4">Три шага к идеальному посту</h2>
@@ -122,6 +147,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
                 <p className="text-slate-500 font-medium leading-relaxed italic">{f.desc}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Demo Section */}
+      <section id="demo" className="py-20 px-6 bg-slate-50">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 mb-3">Убедитесь сами</h2>
+            <p className="text-slate-500 font-medium">Введите ссылку на любой Telegram-канал — ИИ проанализирует его и придумает идеи прямо сейчас</p>
+          </div>
+          <div className="rounded-[40px] border border-slate-100 bg-white shadow-2xl overflow-hidden py-8 ring-1 ring-slate-200/50">
+            <PublicWidget />
           </div>
         </div>
       </section>
@@ -176,19 +214,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* CTA Section — Success state (StoryBrand: what life looks like after) */}
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto rounded-[40px] bg-slate-900 p-12 text-center text-white relative overflow-hidden shadow-2xl">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-violet-600/20 rounded-full blur-[80px] -mr-32 -mt-32" />
-            <div className="relative z-10">
-                <h2 className="text-3xl md:text-5xl font-black tracking-tight mb-6">Готовы стать лучшим автором в Telegram?</h2>
-                <button 
-                  onClick={onLogin}
-                  className="px-10 py-5 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-violet-50 transition-all shadow-xl active:scale-95"
-                >
-                  Попробовать TeleGenie бесплатно
-                </button>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-violet-600/20 rounded-full blur-[80px] -mr-32 -mt-32" />
+          <div className="relative z-10 space-y-6">
+            <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
+              Представьте: канал выходит<br className="hidden md:block" /> регулярно, а вы не выгораете
+            </h2>
+            <p className="text-white/60 text-lg max-w-xl mx-auto leading-relaxed">
+              Авторы с TeleGenie публикуют в 3× чаще — и тратят на это меньше времени, чем раньше.
+            </p>
+            <div className="flex flex-wrap justify-center gap-4 mb-4">
+              {[
+                'Идеи каждый день',
+                'Стиль сохранён',
+                'Публикация в 1 клик',
+              ].map(item => (
+                <span key={item} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-white/90 text-xs font-bold border border-white/10">
+                  <CheckCircle2 size={13} className="text-violet-400" />
+                  {item}
+                </span>
+              ))}
             </div>
+            <button
+              onClick={onLogin}
+              className="px-10 py-5 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-violet-50 transition-all shadow-xl active:scale-95"
+            >
+              Попробовать TeleGenie бесплатно
+            </button>
+            <p className="text-white/30 text-xs">Бесплатный план — без карты</p>
+          </div>
         </div>
       </section>
 
