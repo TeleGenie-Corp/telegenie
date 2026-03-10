@@ -37,10 +37,9 @@ export async function generatePostContentAction(idea: Idea, strategy: ChannelStr
 
 export async function generateDemoPostAction(idea: Idea, strategy: ChannelStrategy) {
   try {
-    const rawResult = await GeminiService.generatePostContent(idea, strategy);
-    const { TextPolishingService } = await import('@/services/textPolishingService');
-    const polishedResult = await TextPolishingService.polishAndFormat(rawResult.text, strategy);
-    return { text: polishedResult.formattedText };
+    // Polishing is now integrated into generatePostContent prompt
+    const result = await GeminiService.generatePostContent(idea, strategy);
+    return { text: result.text };
   } catch (error: any) {
     console.error('[generateDemoPostAction]', error);
     throw error;

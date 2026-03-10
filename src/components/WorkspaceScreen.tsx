@@ -48,7 +48,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
   const selectedBrand = brands.find(b => b.id === selectedBrandId);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6 font-sans">
+    <div className="flex-1 h-full overflow-y-auto bg-slate-50 p-4 sm:p-6 font-sans custom-scrollbar">
       <div className="max-w-6xl mx-auto">
         
         {/* Header */}

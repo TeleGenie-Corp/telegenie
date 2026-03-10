@@ -174,23 +174,37 @@ export class GeminiService {
         ? `ГЛАВНЫЙ ПОИНТ (Тема поста): "${strategy.point}".\nВСЕ ИДЕИ ДОЛЖНЫ БЫТЬ ПОСВЯЩЕНЫ ЭТОМУ ПОИНТУ, но с разных углов (подходов).`
         : `ТЕМАТИЧЕСКИЙ ФОКУС: ${info?.topic}`;
 
-      const prompt = `Сгенерируй 3 идеи для постов для канала «${info?.name}».
-      
+      const prompt = `Сгенерируй 5 идей для постов для канала «${info?.name}».
+
       ВВОДНЫЕ ДАННЫЕ:
       - Цель: ${strategy.goal}
       - ${authorContext}
       - ${topicConstraint}
-      
+
       ФОРМАТ ВЫВОДА:
-      Каждая идея должна быть сформулирована как "Короткий Твит" (тезис, инсайт, провокация) длиной до 140 знаков.
-      
+      Каждая идея — это «Твит» (тезис, инсайт или провокация) длиной до 140 знаков.
+
       ПРИНЦИПЫ:
       1. НИКАКОЙ ВОДЫ. Только суть.
-      2. Дерзко, коротко, без "успешного успеха".
-      3. Если цель "Продать" -> идея должна продавать ПОИНТ (или вести к нему).
-      4. Если цель "Вовлечь" -> провокация вокруг ПОИНТА.
+      2. Дерзко, коротко, без «успешного успеха».
+      3. Если цель «Продать» → идея ведёт к продаже.
+      4. Если цель «Вовлечь» → провокация или вопрос.
+      5. Если цель «Обучить» → конкретный инсайт или совет.
+      6. Если цель «Проинформировать» → факт или наблюдение.
 
-      Верни массив JSON с полями title (сам твит-идея), description (пустое поле), userBenefit (зачем это читать), sources.`;
+      РАЗНООБРАЗИЕ (ОБЯЗАТЕЛЬНО):
+      Каждая из 5 идей должна заходить С РАЗНОГО УГЛА. Например:
+      - Угол 1: личный опыт / история
+      - Угол 2: контринтуитивный тезис / провокация
+      - Угол 3: практический совет / инструкция
+      - Угол 4: аналогия из другой сферы
+      - Угол 5: цифры / исследование / кейс
+
+      Верни массив JSON с полями:
+      - title: сам твит-тезис (до 140 символов)
+      - userBenefit: одно предложение — зачем это читать подписчику (10-15 слов)
+      - description: пустая строка
+      - sources: пустой массив`;
 
       const response = await ai.models.generateContent({
         model,
@@ -226,80 +240,107 @@ export class GeminiService {
     });
   }
 
+  /**
+   * Builds structured author context from positioning or channel analysis.
+   * Decomposes positioning blob into labeled fields for better prompt grounding.
+   */
+  private static buildAuthorContext(strategy: ChannelStrategy): string {
+    const info = strategy.analyzedChannel;
+
+    if (strategy.positioning) {
+      // Positioning exists — pass it as structured context
+      return `АВТОР И БРЕНД:
+- Позиционирование: ${strategy.positioning}
+- Тональность: ${info?.context || 'Экспертная, уверенная'}
+- Тематика канала: ${info?.topic || 'Не определена'}`;
+    }
+
+    // No positioning — use whatever analysis we have
+    return `АВТОР И БРЕНД:
+- Тональность: ${info?.context || 'Экспертная, уверенная'}
+- Тематика канала: ${info?.topic || 'Не определена'}`;
+  }
+
+  /**
+   * Selects a specific framework with reasoning, not a random pick.
+   */
+  private static buildFrameworkInstruction(goal: PostGoal, ideaTitle: string): string {
+    switch (goal) {
+      case PostGoal.SELL:
+        return `ФРЕЙМВОРК (выбери ОДИН исходя из идеи):
+- Если идея про выгоду/результат → AIDA: Внимание → Интерес → Желание → Действие.
+- Если идея про ограничение/срок → ODC: Оффер → Дедлайн → Призыв.
+- Если идея про конкретное решение → PAS: Боль → Усиление боли → Решение.
+- Если идея про сомнения аудитории → Снятие возражений: Возражение → Факт → Доказательство → CTA.
+
+Назови выбранный фреймворк перед текстом в формате: <!-- framework: AIDA --> (это техническая метка, её не увидит читатель).`;
+
+      case PostGoal.ENGAGE:
+        return `ФРЕЙМВОРК (выбери ОДИН исходя из идеи):
+- Если идея про личный опыт → Сторителлинг: Контекст → Конфликт → Развязка → Вывод.
+- Если идея про трансформацию → BAB: Мир ДО → Мир ПОСЛЕ → Мост (как попасть).
+- Если идея про ошибку/провал → Искренний факап: Что случилось → Почему → Чему научился.
+- Если идея про спорную тему → Провокация: Тезис → Антитезис → Вопрос к аудитории.
+
+Назови выбранный фреймворк: <!-- framework: BAB -->`;
+
+      case PostGoal.EDUCATE:
+        return `ФРЕЙМВОРК:
+- Если идея про «как делать» → Пошаговка: Проблема → Шаг 1 → Шаг 2 → Шаг 3 → Результат.
+- Если идея про инсайт → Тезис-Мясо-Вывод: Тезис (жирный) → Аргументы/Примеры → Практический вывод.
+- Если идея про разбор → Кейс: Ситуация → Что сделали → Результат с цифрами.
+
+Назови выбранный фреймворк: <!-- framework: ... -->`;
+
+      case PostGoal.INFORM:
+        return `ФРЕЙМВОРК:
+- Новость/факт → Перевёрнутая пирамида: Главное → Детали → Контекст → «Что это значит для вас».
+- Тренд/наблюдение → Тезис-Мясо-Вывод: Тезис → Факты → Вывод/Рекомендация.
+
+Назови выбранный фреймворк: <!-- framework: ... -->`;
+
+      default:
+        return 'Пиши максимально полезно и сжато.';
+    }
+  }
+
   static async generatePostContent(idea: Idea, strategy: ChannelStrategy): Promise<{ text: string, usage: UsageMetadata }> {
     const ai = this.getAI();
     const info = strategy.analyzedChannel;
     const { CostCalculator } = await import('./costCalculator');
-    
-    return this.callWithFallback(async (model) => {
-      
-      // Select Framework based on Goal
-      let frameworkInstructions = "";
-      switch (strategy.goal) {
-          case PostGoal.SELL:
-              frameworkInstructions = `
-              ИСПОЛЬЗУЙ ОДИН ИЗ ФРЕЙМВОРКОВ (Выбери наиболее подходящий):
-              1. AIDA (Attention -> Interest -> Desire -> Action).
-              2. ODC (Offer -> Deadline -> Call to Action).
-              3. 4U (Useful, Urgent, Unique, Ultra-Specific).
-              4. Снятие возражений.
-              `;
-              break;
-          case PostGoal.ENGAGE:
-              frameworkInstructions = `
-              ИСПОЛЬЗУЙ ОДИН ИЗ ФРЕЙМВОРКОВ:
-              1. Сторителлинг "Путь героя".
-              2. BAB (World Before -> World After -> Bridge).
-              3. "Искренний Факап".
-              `;
-              break;
-          case PostGoal.EDUCATE:
-          case PostGoal.INFORM:
-              frameworkInstructions = `
-              ИСПОЛЬЗУЙ СТРУКТУРУ:
-              1. Тезис.
-              2. Мясо (Контент).
-              3. Вывод/Action.
-              `;
-              break;
-          default:
-              frameworkInstructions = "Пиши максимально полезно и сжато.";
-      }
 
-      // Context construction
-      const authorContext = strategy.positioning 
-        ? `ПОЗИЦИОНИРОВАНИЕ: ${strategy.positioning}`
-        : `СТИЛЬ АВТОРА: ${info?.context}`;
+    return this.callWithFallback(async (model) => {
+      const authorContext = this.buildAuthorContext(strategy);
+      const frameworkInstruction = this.buildFrameworkInstruction(strategy.goal, idea.title);
 
       const pointContext = strategy.point
-        ? `ГЛАВНЫЙ ПОИНТ (СУТЬ ПОСТА): "${strategy.point}" (Все должно крутиться вокруг этого).`
+        ? `ГЛАВНЫЙ ПОИНТ (суть поста): «${strategy.point}». Весь текст должен раскрывать этот поинт.`
         : '';
 
-      const prompt = `НАПИШИ ПОСТ ДЛЯ КАНАЛА «${info?.name}».
-      
-      ВХОДНЫЕ ДАННЫЕ:
-      - Идея (Твит): "${idea.title}"
-      - Цель: ${strategy.goal}
-      - ${authorContext}
-      - ${pointContext}
+      const prompt = `НАПИШИ ПОСТ ДЛЯ КАНАЛА «${info?.name || 'Telegram'}».
 
-      ${frameworkInstructions}
+ИДЕЯ: «${idea.title}»
+ЦЕЛЬ: ${strategy.goal}
+${pointContext}
 
-      ГЛАВНЫЕ ПРАВИЛА (The Algorithm of Power):
-      1. ПОЛЬЗА: Текст должен решать проблему.
-      2. ФАКТЫ ВМЕСТО ОЦЕНОК: Конкретика, цифры, примеры.
-      3. СИЛЬНЫЕ ГЛАГОЛЫ: Активный залог.
-      4. РИТМ: Чередуй длину предложений.
-      5. СУШКА: Без воды и вводных слов.
-      6. ПЕРВЫЙ ЭКРАН: Хук в первой строке.
+${authorContext}
 
-      ТЕХНИЧЕСКИЕ ОГРАНИЧЕНИЯ:
-      - Объем: до 1500 знаков.
-      - Пустая строка между абзацами.
-      - Буква «ё» обязательна.
-      
-      ВЫДАЙ ТОЛЬКО ТЕКСТ ПОСТА В ФОРМАТЕ TELEGRAM HTML (<b>, <i>, <a href="...">, <code>, <s>). 
-      Без маркеров "Here is", без кавычек и без блока кода \`\`\`html.`;
+${frameworkInstruction}
+
+РЕДАКТУРА (метод Ильяхова — применяй сразу, не в отдельном проходе):
+1. ЧИСТОТА: удали вводные («давайте разберёмся», «стоит отметить»), пустые оценки («уникальный», «эффективный»), штампы («индивидуальный подход»).
+2. КОНКРЕТИКА: цифры, примеры, имена вместо абстракций.
+3. СТРУКТУРА: заголовок-хук → мясо → чёткий CTA (что сделать читателю).
+4. ЭМОДЗИ: 1-3 на пост как визуальные якоря (📌, 👉, ✅), не в середине предложений.
+
+TELEGRAM HTML ФОРМАТИРОВАНИЕ:
+- <b>жирный</b> — для ключевой мысли (1-2 раза на пост).
+- <i>курсив</i> — для иронии или термина.
+- <code>моноширинный</code> — для цифр (<code>+30%</code>).
+- Пустая строка между абзацами.
+- Объём: 800-1500 знаков (не считая HTML-тегов).
+
+ВЫДАЙ ТОЛЬКО ГОТОВЫЙ HTML-ТЕКСТ ПОСТА. Без обёрток \`\`\`html, без пояснений.`;
 
       const response = await ai.models.generateContent({
         model,
@@ -309,7 +350,9 @@ export class GeminiService {
 
       const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);
       let resultText = response.text || "";
+      // Strip code fences and framework meta-comments
       resultText = resultText.replace(/^\s*```[a-zA-Z]*\n?/i, '').replace(/\n?```\s*$/i, '');
+      resultText = resultText.replace(/<!--\s*framework:.*?-->\n?/gi, '');
       return { text: resultText, usage };
     });
   }
@@ -323,29 +366,30 @@ export class GeminiService {
     const { CostCalculator } = await import('./costCalculator');
     const model = 'gemini-2.0-flash-lite'; // Use fast model for streaming
 
-    const authorContext = strategy.positioning 
-      ? `ПОЗИЦИОНИРОВАНИЕ: ${strategy.positioning}`
-      : `СТИЛЬ АВТОРА: ${info?.context}`;
+    const authorContext = this.buildAuthorContext(strategy);
+    const frameworkInstruction = this.buildFrameworkInstruction(strategy.goal, idea.title);
 
     const pointContext = strategy.point
-      ? `ГЛАВНЫЙ ПОИНТ (СУТЬ ПОСТА): "${strategy.point}" (Все должно крутиться вокруг этого).`
+      ? `ГЛАВНЫЙ ПОИНТ: «${strategy.point}». Весь текст раскрывает этот поинт.`
       : '';
 
-    const prompt = `НАПИШИ ПОСТ ДЛЯ КАНАЛА «${info?.name}».
-    
-    ВХОДНЫЕ ДАННЫЕ:
-    - Идея: "${idea.title}"
-    - Цель: ${strategy.goal}
-    - ${authorContext}
-    - ${pointContext}
-    
-    ГЛАВНЫЕ ПРАВИЛА:
-    1. Сразу к делу.
-    2. Сильные глаголы.
-    3. Ритм (чередуй длину фраз).
-    4. Без воды.
-    
-    ВЫДАЙ ТОЛЬКО ТЕКСТ ПОСТА В ФОРМАТЕ TELEGRAM HTML (<b>, <i>, <a>, <code>, <s>). Без блока кода \`\`\`html.`;
+    const prompt = `НАПИШИ ПОСТ ДЛЯ КАНАЛА «${info?.name || 'Telegram'}».
+
+ИДЕЯ: «${idea.title}»
+ЦЕЛЬ: ${strategy.goal}
+${pointContext}
+
+${authorContext}
+
+${frameworkInstruction}
+
+РЕДАКТУРА (метод Ильяхова — применяй сразу):
+- Удали вводные и пустые оценки. Конкретика, цифры, примеры.
+- Заголовок-хук → мясо → CTA.
+- Эмодзи: 1-3 как визуальные якоря, не в середине предложений.
+
+TELEGRAM HTML: <b>, <i>, <code>, <a href="...">. Пустая строка между абзацами. 800-1500 знаков.
+ВЫДАЙ ТОЛЬКО HTML-ТЕКСТ ПОСТА.`;
 
     const stream = await ai.models.generateContentStream({
       model,
@@ -416,46 +460,38 @@ export class GeminiService {
   static async polishContent(text: string, instruction: string, strategy: ChannelStrategy): Promise<{ text: string, usage: UsageMetadata }> {
     const ai = this.getAI();
     const { CostCalculator } = await import('./costCalculator');
-    const model = 'gemini-2.0-flash-lite'; // Fast model for text-only edits
-    
-    // Construct context
-    const authorContext = strategy.positioning 
-      ? `ПОЗИЦИОНИРОВАНИЕ АВТОРА: ${strategy.positioning}`
-      : `СТИЛЬ АВТОРА: ${strategy.analyzedChannel?.context || 'Экспертный'}`;
 
-    const pointContext = strategy.point
-      ? `ГЛАВНЫЙ ПОИНТ (СУТЬ): "${strategy.point}"`
-      : `ТЕМАТИКА КАНАЛА: ${strategy.analyzedChannel?.topic || 'Бизнес'}`;
+    const authorContext = this.buildAuthorContext(strategy);
 
-    const prompt = `ОТРЕДАКТИРУЙ ТЕКСТ ПО ИНСТРУКЦИИ.
-    
-    КОНТЕКСТ АВТОРА И ЗАДАЧИ:
-    - ${authorContext}
-    - ${pointContext}
-    - ЦЕЛЬ ПОСТА: ${strategy.goal}
+    const prompt = `ОТРЕДАКТИРУЙ ТЕКСТ ПО ИНСТРУКЦИИ ПОЛЬЗОВАТЕЛЯ.
 
-    ИНСТРУКЦИЯ ПОЛЬЗОВАТЕЛЯ: ${instruction}
+ИНСТРУКЦИЯ: ${instruction}
 
-    ИСХОДНЫЙ ТЕКСТ:
-    ${text}
+${authorContext}
+ЦЕЛЬ ПОСТА: ${strategy.goal}
 
-    ПРАВИЛА:
-    1. Строго следуй инструкции.
-    2. Сохрани авторский стиль (если инструкция не говорит об обратном).
-    3. Не добавляй "отсебятины", работай с исходником.
-    4. Буква «ё» обязательна.
-    5. Возвращай ТОЛЬКО отредактированный текст (Markdown).`;
+ИСХОДНЫЙ ТЕКСТ (Telegram HTML):
+${text}
 
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: { systemInstruction: 'Ты профессиональный редактор. Твоя задача — улучшить текст, сохранив голос автора.' }
+ПРАВИЛА:
+1. Строго следуй инструкции.
+2. Сохрани авторский голос (если инструкция не говорит обратного).
+3. Не добавляй отсебятины — работай с исходником.
+4. ФОРМАТ: возвращай Telegram HTML (<b>, <i>, <code>, <a href="...">, <s>). Пустая строка между абзацами.
+5. Возвращай ТОЛЬКО отредактированный текст. Без обёрток \`\`\`html, без пояснений.`;
+
+    return this.callWithFallback(async (model) => {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: { systemInstruction: SYSTEM_PROMPT_BASE }
+      });
+
+      const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);
+      let resultText = response.text || text;
+      resultText = resultText.replace(/^\s*```[a-zA-Z]*\n?/i, '').replace(/\n?```\s*$/i, '');
+      return { text: resultText, usage };
     });
-
-    const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);
-    let resultText = response.text || text;
-    resultText = resultText.replace(/^\s*```[a-zA-Z]*\n?/i, '').replace(/\n?```\s*$/i, '');
-    return { text: resultText, usage };
   }
 
   /**

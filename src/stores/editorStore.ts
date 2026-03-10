@@ -21,6 +21,7 @@ interface EditorState {
   ideas: Idea[];
   loadingIdeas: boolean;
   currentPost: Post | null;
+  previousPostText: string | null;
   pipelineState: PipelineState;
   editPrompt: string;
   editorTab: 'ideas' | 'editor' | 'preview';
@@ -35,8 +36,10 @@ interface EditorState {
 
   selectPost: (post: PostProject) => Promise<void>;
   generateIdeas: () => Promise<void>;
+  appendIdeas: () => Promise<void>;
   selectIdea: (idea: Idea) => Promise<void>;
   aiEdit: (instruction: string) => Promise<void>;
+  undo: () => void;
   contentChange: (newHtml: string) => void;
   publish: () => Promise<void>;
 }
@@ -71,9 +74,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   ideas: [],
   loadingIdeas: false,
   currentPost: null,
+  previousPostText: null,
   pipelineState: { stage: 'idle', progress: 0 },
   editPrompt: '',
-  editorTab: 'editor',
+  editorTab: 'ideas',
   isSaving: false,
 
   setStrategy: (updater) => set((s) => {
@@ -182,6 +186,31 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
+  // --- APPEND IDEAS (add more without reset) ---
+  appendIdeas: async () => {
+    const { strategy, ideas: existing } = get();
+    if (!strategy.channelUrl) return;
+
+    set({ loadingIdeas: true });
+    try {
+      const { ideas: generated, usage } = await generateIdeasAction(strategy);
+      // Filter out duplicates by title
+      const existingTitles = new Set(existing.map((i) => i.title.toLowerCase()));
+      const fresh = generated
+        .filter((i) => !existingTitles.has(i.title.toLowerCase()))
+        .map((i) => ({ ...i, usage }));
+      set((s) => ({ ideas: [...s.ideas, ...fresh] }));
+
+      const { AnalyticsService } = await import('../../services/analyticsService');
+      AnalyticsService.trackGenerateIdeas(strategy.channelUrl);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || 'Ошибка генерации идей');
+    } finally {
+      set({ loadingIdeas: false });
+    }
+  },
+
   // --- SELECT IDEA (generate post) ---
   selectIdea: async (idea: Idea) => {
     const profile = useAuthStore.getState().profile;
@@ -208,6 +237,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({
       currentPost: { id: currentProject.id, text: '', generating: true, timestamp: Date.now() },
       pipelineState: { stage: 'validating', progress: 5, currentTask: 'Booting...' },
+      editorTab: 'editor',
+      previousPostText: null,
     });
 
     const config: GenerationConfig = { withImage: strategy.withImage || false, withAnalysis: false };
@@ -284,6 +315,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     if (!currentPost || currentPost.generating || !user || !currentProject) return;
 
+    // Save current text for undo before modifying
+    const textBeforeEdit = currentPost.text;
+
     set({ pipelineState: { stage: 'polishing', progress: 50, currentTask: 'Редактирую...' } });
     try {
       const result = await polishContentAction(currentPost.text, instruction, strategy);
@@ -294,6 +328,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       set((s) => ({
         currentPost: s.currentPost ? { ...s.currentPost, text: updatedText } : null,
         editPrompt: '',
+        previousPostText: textBeforeEdit,
       }));
 
       await PostProjectService.updateContent(user.id, currentProject.id, updatedText, currentPost.rawText, currentPost.imageUrl);
@@ -305,6 +340,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       toast.error(e.message || 'Ошибка редактирования');
     } finally {
       set({ pipelineState: { stage: 'idle', progress: 0 } });
+    }
+  },
+
+  // --- UNDO AI EDIT ---
+  undo: () => {
+    const { previousPostText, currentPost } = get();
+    if (!previousPostText || !currentPost) return;
+    set({ currentPost: { ...currentPost, text: previousPostText }, previousPostText: null });
+
+    // Persist undo to Firestore
+    const user = useAuthStore.getState().user;
+    const { currentProject } = useWorkspaceStore.getState();
+    if (user && currentProject) {
+      PostProjectService.updateContent(user.id, currentProject.id, previousPostText, currentPost.rawText, currentPost.imageUrl).catch(console.error);
+      useWorkspaceStore.getState().setPostProjects((prev) =>
+        prev.map((p) => (p.id === currentProject.id ? { ...p, text: previousPostText, updatedAt: Date.now() } : p)),
+      );
     }
   },
 
@@ -344,9 +396,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   // --- PUBLISH ---
   publish: async () => {
-    const TELEGRAM_BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || '';
-    const TELEGRAM_CHAT_ID = process.env.NEXT_PUBLIC_TELEGRAM_CHAT_ID || '';
-
     const { currentPost } = get();
     const profile = useAuthStore.getState().profile;
     const user = useAuthStore.getState().user;
@@ -354,14 +403,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     if (!currentPost || !profile || !currentProject) return;
 
-    const chatId = profile.linkedChannel?.chatId || TELEGRAM_CHAT_ID;
-    const token = profile.linkedChannel?.botToken || TELEGRAM_BOT_TOKEN;
-    if (!chatId) { toast.error('Нет подключенного канала'); return; }
+    const chatId = profile.linkedChannel?.chatId;
+    if (!chatId) { toast.error('Нет подключённого канала'); return; }
 
     set({ pipelineState: { stage: 'publishing', progress: 80, currentTask: 'Публикация...' } });
     try {
-      const { TelegramService } = await import('../../services/telegramService');
-      const res = await TelegramService.publish(currentPost.text, token, chatId, currentPost.imageUrl);
+      const { publishPostAction } = await import('@/app/actions/telegram');
+      const res = await publishPostAction({
+        postHtml: currentPost.text,
+        chatId,
+        customBotToken: profile.linkedChannel?.botToken,
+        imageUrl: currentPost.imageUrl,
+      });
       if (res.success) {
         const messageId = res.messageId;
         const brand = useWorkspaceStore.getState().currentBrand;
@@ -411,7 +464,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         useAuthStore.getState().updateProfile(updatedProfile);
         useWorkspaceStore.getState().backToWorkspace();
       } else {
-        toast.error(res.message);
+        toast.error(res.error || 'Ошибка публикации');
       }
     } catch (e: any) {
       const errMsg = e.message || 'Ошибка публикации';

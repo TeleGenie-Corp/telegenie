@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, lazy } from 'react';
+import React, { Suspense, useEffect, useState, lazy } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Sparkles, Zap, Loader2, Layout, Target,
@@ -38,7 +38,7 @@ const PublishedPostModal = lazy(() => import('@/src/components/PublishedPostModa
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { pageTransitions, listContainer, listItem } from '@/src/animationTokens';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 
 const CHANNEL_URL = process.env.NEXT_PUBLIC_CHANNEL_URL || 'https://t.me/AiKanalishe';
 
@@ -111,10 +111,15 @@ export default function Home() {
   const isSaving = useEditorStore(s => s.isSaving);
   const selectPost = useEditorStore(s => s.selectPost);
   const generateIdeas = useEditorStore(s => s.generateIdeas);
+  const appendIdeas = useEditorStore(s => s.appendIdeas);
   const selectIdea = useEditorStore(s => s.selectIdea);
   const aiEdit = useEditorStore(s => s.aiEdit);
+  const undo = useEditorStore(s => s.undo);
+  const previousPostText = useEditorStore(s => s.previousPostText);
   const contentChange = useEditorStore(s => s.contentChange);
   const publish = useEditorStore(s => s.publish);
+
+  const [confirmPublish, setConfirmPublish] = useState(false);
 
   // --- INIT: Auth listener + Firestore subscriptions ---
   // --- INIT: Auth listener moved to AuthInitializer ---
@@ -148,7 +153,6 @@ export default function Home() {
         if (paymentId) {
              // Dynamically import action to check verification
              import('@/app/actions/payment').then(async ({ verifyPaymentAction }) => {
-                 const { toast } = require('sonner');
                  const result = await verifyPaymentAction(paymentId);
                  
                  if (result.success) {
@@ -240,7 +244,7 @@ export default function Home() {
             key="workspace"
             initial="initial" animate="animate" exit="exit"
             variants={pageTransitions}
-            className="flex-1 flex flex-col overflow-hidden"
+            className="flex-1 flex flex-col min-h-0"
           >
             <ErrorBoundary fallbackTitle="Ошибка в рабочем пространстве">
               <WorkspaceScreen
@@ -342,21 +346,36 @@ export default function Home() {
                   <motion.div className="space-y-2" variants={listContainer} initial="hidden" animate="show">
                     <AnimatePresence>
                     {ideas.map((idea) => (
-                      <motion.div 
+                      <motion.div
                         key={idea.id} variants={listItem} layout
                         onClick={() => selectIdea(idea)}
                         className="group p-3 bg-white hover:bg-violet-50 border border-slate-200 hover:border-violet-300 rounded-xl cursor-pointer active:scale-98 hover:-translate-y-0.5 hover:shadow-md"
                       >
                         <div className="flex gap-2">
                           <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-300 group-hover:bg-violet-600 shrink-0"></div>
-                          <p className="text-xs font-medium text-slate-700 leading-relaxed group-hover:text-slate-900">
-                            {idea.title} 
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-slate-700 leading-relaxed group-hover:text-slate-900">
+                              {idea.title}
+                            </p>
+                            {idea.userBenefit && (
+                              <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                                {idea.userBenefit}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </motion.div>
                     ))}
                     </AnimatePresence>
                   </motion.div>
+                  <button
+                    onClick={appendIdeas}
+                    disabled={loadingIdeas}
+                    className="w-full mt-2 py-2.5 border border-dashed border-slate-300 text-slate-400 hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {loadingIdeas ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                    Ещё идеи
+                  </button>
                 </section>
               )}
             </div>
@@ -409,27 +428,17 @@ export default function Home() {
                         {action.label}
                       </button>
                     ))}
+                    {previousPostText && (
+                      <button
+                        onClick={undo}
+                        disabled={pipelineState.stage !== 'idle'}
+                        className="px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs font-medium text-amber-700 hover:border-amber-400 hover:bg-amber-100 transition-all disabled:opacity-50 shadow-sm flex items-center gap-1"
+                      >
+                        ↩ Отменить
+                      </button>
+                    )}
                   </div>
                   
-                  {/* Quick Actions Grid */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <button 
-                       onClick={() => aiEdit("Упрости текст, сделай его короче и понятнее")}
-                       disabled={pipelineState.stage !== 'idle' && pipelineState.stage !== 'polishing'}
-                       className="p-3 bg-slate-50 hover:bg-violet-50 text-slate-600 hover:text-violet-700 rounded-xl text-xs font-bold transition-all border border-slate-200 hover:border-violet-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Zap size={14} className="text-amber-500" />
-                      Упростить
-                    </button>
-                    <button 
-                       onClick={() => aiEdit("Добавь юмора, энджи и сделай стиль более живым")}
-                       disabled={pipelineState.stage !== 'idle' && pipelineState.stage !== 'polishing'}
-                       className="p-3 bg-slate-50 hover:bg-violet-50 text-slate-600 hover:text-violet-700 rounded-xl text-xs font-bold transition-all border border-slate-200 hover:border-violet-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <Sparkles size={14} className="text-violet-500" />
-                      Веселее
-                    </button>
-                  </div>
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -540,7 +549,7 @@ export default function Home() {
                     />
                     <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
                       <span className={`text-[10px] font-bold uppercase tracking-widest transition-opacity ${isSaving ? 'text-violet-500 opacity-100' : 'text-slate-300 opacity-0'}`}>
-                        {isSaving ? 'Saving...' : 'Saved'}
+                        {isSaving ? 'Сохраняю...' : 'Сохранено'}
                       </span>
                       <div className="text-[10px] text-slate-400">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                     </div>
@@ -570,14 +579,43 @@ export default function Home() {
 
             {/* Publish Button */}
             <div className="p-4 border-t border-slate-200 bg-white space-y-3">
-              <button 
-                onClick={publish}
-                disabled={!currentPost || currentPost.generating || pipelineState.stage === 'publishing'} 
-                className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-300 hover:shadow-violet-400 active:scale-95"
-              >
-                {pipelineState.stage === 'publishing' ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
-                {pipelineState.stage === 'publishing' ? 'Publishing...' : 'Publish to Channel'}
-              </button>
+              {!(profile?.linkedChannel?.chatId) ? (
+                <button
+                  onClick={openSettings}
+                  className="w-full py-4 border-2 border-dashed border-slate-200 hover:border-violet-300 text-slate-400 hover:text-violet-600 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
+                >
+                  <Settings size={16} />
+                  Подключить канал
+                </button>
+              ) : confirmPublish ? (
+                <div className="space-y-2 animate-in fade-in slide-in-from-bottom-1 duration-150">
+                  <p className="text-xs text-center text-slate-500 font-medium">Опубликовать пост в канал?</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setConfirmPublish(false)}
+                      className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl font-bold text-xs uppercase tracking-wide hover:bg-slate-50 transition-all active:scale-95"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={() => { setConfirmPublish(false); publish(); }}
+                      className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-300 active:scale-95"
+                    >
+                      <Send size={14} />
+                      Да, публикую
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmPublish(true)}
+                  disabled={!currentPost || currentPost.generating || pipelineState.stage === 'publishing'}
+                  className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-300 hover:shadow-violet-400 active:scale-95"
+                >
+                  {pipelineState.stage === 'publishing' ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+                  {pipelineState.stage === 'publishing' ? 'Публикую...' : 'Опубликовать в канал'}
+                </button>
+              )}
             </div>
           </aside>
 

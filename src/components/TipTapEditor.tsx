@@ -71,7 +71,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
       }),
       Spoiler,
       CharacterCount.configure({
-        limit: 1024,
+        limit: 4096,
       }),
     ],
     content: value,
@@ -135,8 +135,9 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   };
 
-  const percentage = editor.storage.characterCount.characters() / 1024 * 100;
   const chars = editor.storage.characterCount.characters();
+  const CAPTION_LIMIT = 1024;
+  const TEXT_LIMIT = 4096;
 
   return (
     <div className="bg-white overflow-hidden relative z-10 h-full flex flex-col">
@@ -284,8 +285,17 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
       </div>
       
       {/* Character Count - Fixed at bottom */}
-      <div className={`absolute bottom-3 right-4 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md border z-10 ${chars > 1024 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-slate-100/80 text-slate-400 border-slate-200'}`}>
-        {chars} / 1024
+      <div className={`absolute bottom-3 right-4 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md border z-10 ${
+        chars > TEXT_LIMIT
+          ? 'bg-red-50 text-red-600 border-red-100'
+          : chars > CAPTION_LIMIT
+            ? 'bg-amber-50 text-amber-600 border-amber-100'
+            : 'bg-slate-100/80 text-slate-400 border-slate-200'
+      }`}>
+        {chars} / {TEXT_LIMIT}
+        {chars > CAPTION_LIMIT && chars <= TEXT_LIMIT && (
+          <span className="ml-1 normal-case tracking-normal font-medium">· caption {CAPTION_LIMIT}</span>
+        )}
       </div>
 
     </div>
