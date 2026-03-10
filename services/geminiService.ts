@@ -198,6 +198,13 @@ export class GeminiService {
       - ${topicConstraint}
 ${memoryBlock}
 
+      ПОИСК (ОБЯЗАТЕЛЬНО):
+      Используй Google Search, чтобы найти:
+      - Свежие новости, тренды и события в нише «${info?.topic || 'бизнес'}»
+      - Актуальные цифры, исследования, кейсы
+      - Спорные мнения и дискуссии в отрасли
+      Идеи ДОЛЖНЫ быть основаны на реальных фактах и актуальных событиях, а не выдуманы из головы.
+
       ФОРМАТ ВЫВОДА:
       Каждая идея — это «Твит» (тезис, инсайт или провокация) длиной до 140 знаков.
 
@@ -228,6 +235,7 @@ ${memoryBlock}
         contents: prompt,
         config: {
           systemInstruction: SYSTEM_PROMPT_BASE,
+          tools: [{ googleSearch: {} }],
           responseMimeType: "application/json",
           responseSchema: {
             type: Type.ARRAY,
@@ -245,11 +253,18 @@ ${memoryBlock}
         }
       });
 
-      const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);
+      // Extract grounding sources from Google Search
+      const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+      const searchSources = groundingChunks
+        ?.map((chunk: any) => chunk.web?.uri)
+        .filter(Boolean) || [];
+      const hasGrounding = searchSources.length > 0;
+
+      const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model, hasGrounding);
 
       const ideas = JSON.parse(response.text || "[]").map((item: any, index: number) => ({
         ...item,
-        sources: [],
+        sources: searchSources,
         id: `idea-${index}-${Date.now()}`
       }));
 
@@ -349,6 +364,13 @@ ${authorContext}
 
 ${frameworkInstruction}
 
+ФАКТЫ И ПОИСК:
+Используй Google Search для усиления поста:
+- Найди актуальные цифры, статистику, исследования по теме.
+- Проверь факты — не выдумывай цифры, бери реальные.
+- Если есть свежие кейсы или новости по теме — используй.
+- Не нужно цитировать источники в тексте, просто используй данные.
+
 РЕДАКТУРА (метод Ильяхова — применяй сразу, не в отдельном проходе):
 1. ЧИСТОТА: удали вводные («давайте разберёмся», «стоит отметить»), пустые оценки («уникальный», «эффективный»), штампы («индивидуальный подход»).
 2. КОНКРЕТИКА: цифры, примеры, имена вместо абстракций.
@@ -367,10 +389,17 @@ TELEGRAM HTML ФОРМАТИРОВАНИЕ:
       const response = await ai.models.generateContent({
         model,
         contents: prompt,
-        config: { systemInstruction: SYSTEM_PROMPT_BASE }
+        config: {
+          systemInstruction: SYSTEM_PROMPT_BASE,
+          tools: [{ googleSearch: {} }],
+        }
       });
 
-      const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);
+      // Track grounding for accurate cost calculation
+      const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+      const hasGrounding = (groundingChunks?.length || 0) > 0;
+
+      const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model, hasGrounding);
       let resultText = response.text || "";
       // Strip code fences and framework meta-comments
       resultText = resultText.replace(/^\s*```[a-zA-Z]*\n?/i, '').replace(/\n?```\s*$/i, '');

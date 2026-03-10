@@ -340,9 +340,16 @@ export default function Home() {
               {/* IDEAS — List */}
               {ideas.length > 0 && !loadingIdeas && (
                 <section className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-3">
-                    <Zap size={12} /> Идеи ({ideas.length})
-                  </h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                      <Zap size={12} /> Идеи ({ideas.length})
+                    </h3>
+                    {ideas[0]?.sources && ideas[0].sources.length > 0 && (
+                      <span className="text-[9px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        🔍 {ideas[0].sources.length} ист.
+                      </span>
+                    )}
+                  </div>
                   <motion.div className="space-y-2" variants={listContainer} initial="hidden" animate="show">
                     <AnimatePresence>
                     {ideas.map((idea) => (
