@@ -21,15 +21,15 @@ get_env_value() {
 
 # Extract values
 GEMINI_KEY=$(get_env_value "NEXT_PUBLIC_GEMINI_API_KEY")
-TELEGRAM_TOKEN=$(get_env_value "NEXT_PUBLIC_TELEGRAM_BOT_TOKEN")
+TELEGRAM_TOKEN=$(get_env_value "TELEGRAM_BOT_TOKEN")
 CLOUDPAYMENTS_ID=$(get_env_value "NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID")
 
 # Create secrets
 echo "Creating NEXT_PUBLIC_GEMINI_API_KEY..."
 echo "$GEMINI_KEY" | firebase apphosting:secrets:set NEXT_PUBLIC_GEMINI_API_KEY
 
-echo "Creating NEXT_PUBLIC_TELEGRAM_BOT_TOKEN..."
-echo "$TELEGRAM_TOKEN" | firebase apphosting:secrets:set NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
+echo "Creating TELEGRAM_BOT_TOKEN..."
+echo "$TELEGRAM_TOKEN" | firebase apphosting:secrets:set TELEGRAM_BOT_TOKEN
 
 echo "Creating NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID..."
 echo "$CLOUDPAYMENTS_ID" | firebase apphosting:secrets:set NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID
@@ -41,7 +41,7 @@ echo "Now granting App Hosting backend access..."
 
 # Grant access
 firebase apphosting:secrets:grantaccess NEXT_PUBLIC_GEMINI_API_KEY --backend=telegenie
-firebase apphosting:secrets:grantaccess NEXT_PUBLIC_TELEGRAM_BOT_TOKEN --backend=telegenie
+firebase apphosting:secrets:grantaccess TELEGRAM_BOT_TOKEN --backend=telegenie
 firebase apphosting:secrets:grantaccess NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID --backend=telegenie
 
 echo ""

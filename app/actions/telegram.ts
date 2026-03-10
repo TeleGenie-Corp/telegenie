@@ -6,6 +6,7 @@
  * он читается из process.env.TELEGRAM_BOT_TOKEN (без NEXT_PUBLIC_).
  * Кастомные боты пользователя передаются отдельным параметром.
  */
+import { TelegramService } from '@/services/telegramService';
 
 function htmlToTelegramText(html: string): string {
   return html
@@ -82,8 +83,36 @@ export async function publishPostAction(params: {
 
   // Системный токен никогда не попадает в клиентский бандл
   const token = customBotToken || process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) return { success: false, error: 'Бот не настроен. Проверьте настройки.' };
+  if (!token) return { success: false, error: 'Бот не настроен. Проверьте настройки сервера (env).' };
 
   const text = htmlToTelegramText(postHtml);
   return sendToTelegram(token, chatId, text, imageUrl);
+}
+
+/**
+ * Серверное действие для проверки бота в канале.
+ * Позволяет проверить демо-бота (без передачи токена на клиент)
+ * или кастомного бота пользователя.
+ */
+export async function verifyChannelAction(params: {
+  username: string;
+  customBotToken?: string;
+}): Promise<{ 
+  success: boolean; 
+  chatId?: string; 
+  title?: string; 
+  photoUrl?: string; 
+  memberCount?: number; 
+  error?: string 
+}> {
+  const { username, customBotToken } = params;
+  
+  // Если токен не передан, используем системный
+  const token = customBotToken || process.env.TELEGRAM_BOT_TOKEN;
+  
+  if (!token) {
+    return { success: false, error: 'Бот не настроен на сервере.' };
+  }
+
+  return TelegramService.verifyBotInChannel(username, token);
 }

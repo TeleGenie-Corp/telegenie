@@ -548,9 +548,9 @@ export default function Home() {
                     )}
                     <div 
                       className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none 
-                        prose-p:my-0 prose-p:min-h-[1.25rem] 
-                        [&_p:empty]:h-[1.25rem] [&_p:empty]:block
-                        [&_p>br]:h-[1.25rem]" 
+                        prose-p:my-0 prose-p:min-h-[1.4em] 
+                        [&_p:empty]:h-[1.4em] [&_p:empty]:block
+                        [&_p>br]:h-[1.4em]" 
                       dangerouslySetInnerHTML={{ __html: currentPost.text }} 
                     />
                     <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">

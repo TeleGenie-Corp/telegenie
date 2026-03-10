@@ -186,8 +186,8 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
 
         /* Enforce Paragraph Spacing */
         .prose p {
-            margin-top: 0.5em !important;
-            margin-bottom: 0.5em !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
             line-height: 1.6;
             min-height: 1.6em; /* Ensure empty paragraphs have height */
         }

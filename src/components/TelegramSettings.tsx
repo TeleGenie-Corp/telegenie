@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { TelegramUser, LinkedChannel } from '../../types';
-import { TelegramService } from '../../services/telegramService';
-import { TelegramLogin } from './TelegramLogin';
+import { verifyChannelAction } from '@/app/actions/telegram';
 import { Loader2, AlertCircle, Link2, X, Send, Check, Settings } from 'lucide-react';
 
 interface TelegramSettingsProps {
-  botToken?: string;
   defaultChannelUrl?: string; // New prop for strict demo mode
   linkedChannel?: LinkedChannel;
   onChannelConnect: (channel: LinkedChannel) => void;
@@ -15,7 +13,6 @@ interface TelegramSettingsProps {
 const DEFAULT_BOT_NAME = 'telegenie_beta_bot';
 
 export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
-  botToken: defaultToken,
   defaultChannelUrl,
   linkedChannel,
   onChannelConnect,
@@ -70,7 +67,7 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
     }
 
     // Determine which token to use based on mode
-    let tokenToUse = defaultToken;
+    let customBotToken: string | undefined = undefined;
     let isCustom = false;
 
     if (useCustomBot) {
@@ -78,14 +75,11 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
         setError('Введите токен вашего бота');
         return;
       }
-      tokenToUse = customToken.trim();
+      customBotToken = customToken.trim();
       isCustom = true;
     } else {
-      // Demo mode
-      if (!defaultToken) {
-         setError('Демо-бот недоступен. Используйте своего бота.');
-         return;
-      }
+      // Demo mode - token will be retrieved on the server
+      
       // Strict check for demo channel if provided
       if (defaultChannelUrl) {
           const defaultUser = defaultChannelUrl.replace('https://t.me/', '').replace('@', '').toLowerCase();
@@ -103,7 +97,10 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
     const { AnalyticsService } = await import('../../services/analyticsService');
     AnalyticsService.trackChannelConnectStart();
 
-    const result = await TelegramService.verifyBotInChannel(username, tokenToUse || '');
+    const result = await verifyChannelAction({
+      username,
+      customBotToken: isCustom ? customBotToken : undefined
+    });
 
     if (!result.success || !result.chatId) {
       const reason = result.error || 'Нет доступа бота';
@@ -119,7 +116,7 @@ export const TelegramSettings: React.FC<TelegramSettingsProps> = ({
       title: result.title || username,
       linkedAt: Date.now(),
       verified: true,
-      botToken: isCustom ? tokenToUse : undefined,
+      botToken: isCustom ? customBotToken : undefined,
       photoUrl: result.photoUrl,
       memberCount: result.memberCount
     };

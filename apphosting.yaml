@@ -3,10 +3,10 @@ region: europe-west4
 env:
   - variable: GEMINI_API_KEY
     secret: GEMINI_API_KEY
-  - variable: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
-    secret: NEXT_PUBLIC_TELEGRAM_BOT_TOKEN
-  - variable: NEXT_PUBLIC_TELEGRAM_CHAT_ID
-    secret: NEXT_PUBLIC_TELEGRAM_CHAT_ID
+  - variable: TELEGRAM_BOT_TOKEN
+    secret: TELEGRAM_BOT_TOKEN
+  - variable: TELEGRAM_CHAT_ID
+    secret: TELEGRAM_CHAT_ID
   - variable: NEXT_PUBLIC_CHANNEL_URL
     value: https://t.me/AiKanalishe
   - variable: NEXT_PUBLIC_CLOUDPAYMENTS_PUBLIC_ID

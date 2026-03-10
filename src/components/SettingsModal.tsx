@@ -4,8 +4,6 @@ import { UserProfile, LinkedChannel } from '../../types';
 
 const TelegramSettings = React.lazy(() => import('./TelegramSettings').then(m => ({ default: m.TelegramSettings })));
 
-const TELEGRAM_BOT_TOKEN = process.env.NEXT_PUBLIC_TELEGRAM_BOT_TOKEN || '';
-
 export const SettingsModal: React.FC<{ 
   isOpen: boolean; 
   onClose: () => void; 
@@ -29,7 +27,6 @@ export const SettingsModal: React.FC<{
         <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="animate-spin text-violet-600" size={24} /></div>}>
           {!profile?.linkedChannel ? (
             <TelegramSettings 
-              botToken={TELEGRAM_BOT_TOKEN} 
               defaultChannelUrl={defaultChannelUrl}
               linkedChannel={undefined}
               onChannelConnect={(c) => { onChannelConnect(c); onClose(); }}
