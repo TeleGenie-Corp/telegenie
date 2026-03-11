@@ -85,8 +85,10 @@ export const useWidgetStore = create<WidgetState>((set, get) => ({
 
       const { ideas } = await generateIdeasAction(strategy);
       
+      const demoGoals = [PostGoal.ENGAGE, PostGoal.EDUCATE, PostGoal.INFORM, PostGoal.SELL, PostGoal.ENGAGE];
+      
       set({ 
-        ideas: ideas.map(i => ({ ...i, goal: PostGoal.INFORM })), 
+        ideas: ideas.map((i, index) => ({ ...i, goal: demoGoals[index % demoGoals.length] })), 
         positioning: info.topic,
         analyzedChannel: info
       });

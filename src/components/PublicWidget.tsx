@@ -258,7 +258,7 @@ export const PublicWidget: React.FC = () => {
                       </div>
 
                       {/* Telegram Post Preview */}
-                      <div className="bg-[#879bb1] bg-[url('https://web.telegram.org/img/bg_0.png')] p-4 rounded-2xl min-h-[150px] relative overflow-hidden">
+                      <div className="bg-[#879bb1] bg-[url('https://web.telegram.org/img/bg_0.png')] p-4 rounded-2xl min-h-[150px] max-h-[350px] overflow-y-auto scroll-smooth relative">
                         <div className="bg-white rounded-xl p-3 shadow-lg shadow-black/5 animate-in fade-in slide-in-from-bottom-2 duration-500 relative">
                           {isGeneratingPost && !generatedPost && (
                              <div className="flex items-center gap-2 py-2">
