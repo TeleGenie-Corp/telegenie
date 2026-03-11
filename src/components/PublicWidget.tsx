@@ -24,10 +24,74 @@ export const PublicWidget: React.FC = () => {
     window.open('https://app.telegenie.ru/login', '_blank');
   };
 
+  const currentStep = isPublishing || publishedUrl ? 4 :
+                      generatedPost || isGeneratingPost || selectedIdea ? 4 :
+                      ideas.length > 0 || isAnalyzing ? 3 :
+                      point.length > 0 ? 2 : 1;
+
   return (
-    <div id="widget-root" className="w-full flex justify-center p-4 font-sans text-slate-900 selection:bg-violet-100 selection:text-violet-900">
-      <div className="w-full max-w-lg">
-        <div className="flex flex-col space-y-8">
+    <div id="widget-root" className="w-full flex justify-center p-6 lg:p-12 font-sans text-slate-900 selection:bg-violet-100 selection:text-violet-900 min-h-full">
+      <div className="w-full max-w-6xl flex flex-col lg:flex-row gap-12 lg:gap-20 items-start">
+        
+        {/* Steps Column */}
+        <div className="w-full lg:w-5/12 flex flex-col justify-center lg:sticky lg:top-12">
+          <div className="flex flex-col">
+            {/* Step 1 */}
+            <div className="flex gap-6 relative">
+              <div className="flex flex-col items-center">
+                <div className={`w-4 h-4 rounded-full border-2 z-10 ${currentStep >= 1 ? 'bg-white border-violet-500' : 'bg-white border-slate-200'} transition-colors duration-500`} />
+                <div className={`w-0.5 h-full ${currentStep >= 2 ? 'bg-violet-500' : 'bg-slate-100'} -mt-1 -mb-1 transition-colors duration-500`} />
+              </div>
+              <div className="pb-10">
+                <span className={`text-[10px] font-bold uppercase tracking-widest ${currentStep >= 1 ? 'text-violet-500' : 'text-slate-400'} mb-2 block transition-colors duration-500`}>Шаг 1</span>
+                <h3 className="font-display text-[1.125rem] leading-[1.2] font-bold uppercase text-slate-900 mb-2">Анализ канала</h3>
+                <p className="text-[0.875rem] font-medium text-slate-500 leading-[1.7]">Вставь ссылку на свой Telegram-канал. TeleGenie проанализирует тематику и стиль вашего контента</p>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="flex gap-6 relative">
+              <div className="flex flex-col items-center">
+                <div className={`w-4 h-4 rounded-full border-2 z-10 ${currentStep >= 2 ? 'bg-white border-violet-500' : 'bg-white border-slate-200'} transition-colors duration-500`} />
+                <div className={`w-0.5 h-full ${currentStep >= 3 ? 'bg-violet-500' : 'bg-slate-100'} -mt-1 -mb-1 transition-colors duration-500`} />
+              </div>
+              <div className="pb-10">
+                <span className={`text-[10px] font-bold uppercase tracking-widest ${currentStep >= 2 ? 'text-violet-500' : 'text-slate-400'} mb-2 block transition-colors duration-500`}>Шаг 2</span>
+                <h3 className="font-display text-[1.125rem] leading-[1.2] font-bold uppercase text-slate-900 mb-2">Пожелания</h3>
+                <p className="text-[0.875rem] font-medium text-slate-500 leading-[1.7]">Напиши, о чём хочешь пост, в каком стиле (можно пропустить этот шаг)</p>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="flex gap-6 relative">
+              <div className="flex flex-col items-center">
+                <div className={`w-4 h-4 rounded-full border-2 z-10 ${currentStep >= 3 ? 'bg-white border-violet-500' : 'bg-white border-slate-200'} transition-colors duration-500`} />
+                <div className={`w-0.5 h-full ${currentStep >= 4 ? 'bg-violet-500' : 'bg-slate-100'} -mt-1 -mb-1 transition-colors duration-500`} />
+              </div>
+              <div className="pb-10">
+                <span className={`text-[10px] font-bold uppercase tracking-widest ${currentStep >= 3 ? 'text-violet-500' : 'text-slate-400'} mb-2 block transition-colors duration-500`}>Шаг 3</span>
+                <h3 className="font-display text-[1.125rem] leading-[1.2] font-bold uppercase text-slate-900 mb-2">Генерация</h3>
+                <p className="text-[0.875rem] font-medium text-slate-500 leading-[1.7]">Нажми «сгенерировать идеи», выбери лучшую идею и сгенерируй пост</p>
+              </div>
+            </div>
+
+            {/* Step 4 */}
+            <div className="flex gap-6 relative">
+              <div className="flex flex-col items-center">
+                <div className={`w-4 h-4 rounded-full border-2 z-10 ${currentStep >= 4 ? 'bg-white border-violet-500' : 'bg-white border-slate-200'} transition-colors duration-500`} />
+              </div>
+              <div className="pb-2">
+                <span className={`text-[10px] font-bold uppercase tracking-widest ${currentStep >= 4 ? 'text-violet-500' : 'text-slate-400'} mb-2 block transition-colors duration-500`}>Шаг 4</span>
+                <h3 className="font-display text-[1.125rem] leading-[1.2] font-bold uppercase text-slate-900 mb-2">Публикация</h3>
+                <p className="text-[0.875rem] font-medium text-slate-500 leading-[1.7]">Опубликуй! Один клик — и готовый пост уже в твоём канале</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Widget Column */}
+        <div className="w-full lg:w-7/12 max-w-lg mx-auto lg:mx-0 shrink-0">
+          <div className="flex flex-col space-y-8">
           {/* Header */}
           {!ideas.length && !isAnalyzing && (
             <div className="flex items-center justify-between">
@@ -303,6 +367,7 @@ export const PublicWidget: React.FC = () => {
         </div>
       </div>
     </div>
+  </div>
   );
 };
 
