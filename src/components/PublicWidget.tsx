@@ -315,7 +315,7 @@ export const PublicWidget: React.FC = () => {
                                className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
                              >
                                <Sparkles size={14} />
-                               Хочу для своего канала
+                               Хочу к себе
                              </motion.button>
                            )}
                           </>
