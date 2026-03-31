@@ -2,10 +2,10 @@
 
 import React, { Suspense, useEffect, useState, lazy } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
+import {
   Sparkles, Zap, Loader2, Layout, Target,
   MessageCircle, Send, Wand2, Settings,
-  MessageSquareQuote
+  MessageSquareQuote, ChevronDown
 } from 'lucide-react';
 import { PostGoal } from '@/types';
 
@@ -120,6 +120,7 @@ export default function Home() {
   const publish = useEditorStore(s => s.publish);
 
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState(true);
 
   // --- INIT: Auth listener + Firestore subscriptions ---
   // --- INIT: Auth listener moved to AuthInitializer ---
@@ -319,7 +320,8 @@ export default function Home() {
               {loadingIdeas && (
                 <section className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-3">
-                    <Zap size={12} className="animate-pulse" /> Генерация идей...
+                    <Zap size={12} className="animate-pulse" />
+                    {analyzing ? 'Читаю ваш канал...' : 'Генерирую идеи...'}
                   </h3>
                   <div className="space-y-2">
                     {[1, 2, 3].map((i) => (
@@ -350,6 +352,55 @@ export default function Home() {
                       </span>
                     )}
                   </div>
+                  {/* CHANNEL INSIGHTS — Aha-moment card */}
+                  {strategy.analyzedChannel && (
+                    (strategy.analyzedChannel.contentPillars?.length || strategy.analyzedChannel.toneOfVoice || strategy.analyzedChannel.forbiddenPhrases?.length)
+                  ) && (
+                    <div className="mb-3">
+                      <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50/50 border border-violet-100 rounded-2xl overflow-hidden">
+                        <button
+                          onClick={() => setInsightsOpen(v => !v)}
+                          className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black uppercase tracking-widest text-violet-600 hover:bg-violet-50/80 transition-colors"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Target size={10} /> Что ИИ узнал о канале
+                          </span>
+                          <ChevronDown size={11} className={`transition-transform duration-200 ${insightsOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {insightsOpen && (
+                          <div className="px-3 pb-3 space-y-2.5">
+                            {(strategy.analyzedChannel.contentPillars?.length ?? 0) > 0 && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-violet-400 mb-1.5">Столпы контента</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {strategy.analyzedChannel.contentPillars!.map(p => (
+                                    <span key={p} className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">{p}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {strategy.analyzedChannel.toneOfVoice && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-fuchsia-400 mb-1">Тональность</div>
+                                <p className="text-[10px] text-slate-600 leading-relaxed font-medium">{strategy.analyzedChannel.toneOfVoice}</p>
+                              </div>
+                            )}
+                            {(strategy.analyzedChannel.forbiddenPhrases?.length ?? 0) > 0 && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-rose-400 mb-1.5">Избегать</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {strategy.analyzedChannel.forbiddenPhrases!.map(p => (
+                                    <span key={p} className="text-[10px] bg-rose-50 text-rose-400 px-2 py-0.5 rounded-full font-medium">{p}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <motion.div className="space-y-2" variants={listContainer} initial="hidden" animate="show">
                     <AnimatePresence>
                     {ideas.map((idea) => (
@@ -656,7 +707,7 @@ export default function Home() {
       <Toaster position="top-right" richColors closeButton />
 
       {/* POSITIONING MODAL */}
-      <PositioningModal 
+      <PositioningModal
         isOpen={showPositioningModal}
         onClose={closePositioning}
         onSave={(pos) => {
@@ -668,6 +719,7 @@ export default function Home() {
         }}
         channelUrl={strategy.channelUrl}
         currentPositioning={strategy.positioning}
+        channelInfo={strategy.analyzedChannel}
       />
 
       {/* SUBSCRIPTION MODAL */}

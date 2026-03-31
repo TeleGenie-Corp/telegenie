@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Sparkles, Wand2, Check, ArrowRight, Loader2, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Sparkles, Wand2, Check, ArrowRight, Loader2, Target } from 'lucide-react';
 import { analyzePositioningAction, generatePositioningFormulaAction } from '@/app/actions/gemini';
 import { ChannelInfo } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,16 +23,15 @@ const QUESTIONS = [
   { id: 'phrase', label: '7. Как сказать одной фразой?', placeholder: 'Понятной человеку с улицы...' },
 ];
 
-export const PositioningModal: React.FC<PositioningModalProps> = ({ 
-  isOpen, onClose, onSave, channelInfo, currentPositioning, channelUrl 
+export const PositioningModal: React.FC<PositioningModalProps> = ({
+  isOpen, onClose, onSave, channelInfo, currentPositioning, channelUrl
 }) => {
   const [step, setStep] = useState<'questions' | 'formula'>('questions');
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [generatedFormula, setGeneratedFormula] = useState(currentPositioning || '');
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-
-  // if (!isOpen) return null; // Removed for AnimatePresence
+  const autoAnalyzedRef = useRef(false);
 
   const handleAutoFill = async () => {
     if (!channelUrl) return;
@@ -40,7 +39,7 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
     try {
       const result = await analyzePositioningAction(channelUrl);
       if (result) {
-          setAnswers(result);
+        setAnswers(result);
       }
     } catch (e) {
       console.error(e);
@@ -48,6 +47,17 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
       setAnalyzing(false);
     }
   };
+
+  // Auto-trigger analysis when modal opens with a channel URL
+  useEffect(() => {
+    if (isOpen && channelUrl && !autoAnalyzedRef.current) {
+      autoAnalyzedRef.current = true;
+      handleAutoFill();
+    }
+    if (!isOpen) {
+      autoAnalyzedRef.current = false;
+    }
+  }, [isOpen, channelUrl]);
 
   const handleGenerateFormula = async () => {
     setLoading(true);
@@ -100,20 +110,68 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
                         exit={{ opacity: 0, x: -20 }}
                         className="space-y-6"
                     >
-                        {/* Actions */}
-                        <div className="bg-violet-50 dark:bg-violet-900/20 p-4 rounded-xl flex items-center justify-between border border-violet-100 dark:border-violet-900/30">
-                            <div className="text-xs text-violet-800 dark:text-violet-300 font-medium">
-                                {analyzing ? 'Анализирую канал...' : 'Нет идей? Пусть ИИ заполнит черновик.'}
-                            </div>
-                            <button 
+                        {/* Channel Insights card — shows what AI found */}
+                        {channelInfo && (channelInfo.contentPillars?.length || channelInfo.toneOfVoice || channelInfo.forbiddenPhrases?.length) ? (
+                          <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50/50 border border-violet-100 rounded-2xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-violet-600">
+                                <Target size={11} /> Что ИИ нашёл в вашем канале
+                              </div>
+                              <button
                                 onClick={handleAutoFill}
                                 disabled={analyzing || !channelUrl}
-                                className="bg-white dark:bg-violet-800 text-violet-700 dark:text-violet-100 hover:bg-violet-100 dark:hover:bg-violet-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                                className="flex items-center gap-1.5 text-[10px] font-bold text-violet-500 hover:text-violet-700 disabled:opacity-40 transition-colors"
+                              >
+                                {analyzing ? <Loader2 className="animate-spin" size={11} /> : <Wand2 size={11} />}
+                                {analyzing ? 'Читаю...' : 'Обновить'}
+                              </button>
+                            </div>
+                            {(channelInfo.contentPillars?.length ?? 0) > 0 && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-violet-400 mb-1.5">Столпы контента</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {channelInfo.contentPillars!.map(p => (
+                                    <span key={p} className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">{p}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {channelInfo.toneOfVoice && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-fuchsia-400 mb-1">Тональность</div>
+                                <p className="text-[10px] text-slate-600 leading-relaxed font-medium">{channelInfo.toneOfVoice}</p>
+                              </div>
+                            )}
+                            {(channelInfo.forbiddenPhrases?.length ?? 0) > 0 && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-rose-400 mb-1.5">Избегать</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {channelInfo.forbiddenPhrases!.map(p => (
+                                    <span key={p} className="text-[10px] bg-rose-50 text-rose-400 px-2 py-0.5 rounded-full font-medium">{p}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            <p className="text-[10px] text-violet-500/70 font-medium pt-1">
+                              На основе этого анализа заполнены вопросы ниже — проверь и скорректируй.
+                            </p>
+                          </div>
+                        ) : (
+                          /* Fallback: manual fill button */
+                          <div className="bg-violet-50 dark:bg-violet-900/20 p-4 rounded-xl flex items-center justify-between border border-violet-100 dark:border-violet-900/30">
+                            <div className="text-xs text-violet-800 dark:text-violet-300 font-medium">
+                              {analyzing ? 'Читаю ваш канал...' : 'Заполняем вопросы по вашему каналу...'}
+                            </div>
+                            <button
+                              onClick={handleAutoFill}
+                              disabled={analyzing || !channelUrl}
+                              className="bg-white dark:bg-violet-800 text-violet-700 dark:text-violet-100 hover:bg-violet-100 dark:hover:bg-violet-700 px-4 py-2 rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
                             >
-                                {analyzing ? <Loader2 className="animate-spin" size={14} /> : <Wand2 size={14} />}
-                                {analyzing ? 'Думаю...' : 'Заполнить по каналу'}
+                              {analyzing ? <Loader2 className="animate-spin" size={14} /> : <Wand2 size={14} />}
+                              {analyzing ? 'Думаю...' : 'Заполнить по каналу'}
                             </button>
-                        </div>
+                          </div>
+                        )}
 
                         <div className="space-y-4">
                             {QUESTIONS.map((q) => (
