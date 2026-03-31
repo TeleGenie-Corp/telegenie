@@ -3,6 +3,7 @@ import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, PipelineState, Gener
 import { PostGenerationService } from '../../services/postGenerationService';
 import { analyzeChannelAction, generateIdeasAction, polishContentAction } from '@/app/actions/gemini';
 import { BillingService } from '../../services/billingService';
+import { BrandService } from '../../services/brandService';
 import { PostProjectService } from '../../services/postProjectService';
 import { toast } from 'sonner';
 import { useAuthStore } from './authStore';
@@ -187,6 +188,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         set({ strategy: currentStrategy, analyzing: false });
         lastAnalyzedUrl = strategy.channelUrl;
         if (currentStrategy.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(currentStrategy));
+
+        // Persist analysis to brand in Firestore so insights survive sessions
+        const user = useAuthStore.getState().user;
+        const { currentBrand } = useWorkspaceStore.getState();
+        if (user && currentBrand && info) {
+          BrandService.cacheAnalysis(user.id, currentBrand.id, info).catch(() => {});
+        }
       }
 
       // Content memory: collect recent published post titles for the current brand
