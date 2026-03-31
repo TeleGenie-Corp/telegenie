@@ -38,6 +38,7 @@ interface EditorState {
   selectPost: (post: PostProject) => Promise<void>;
   generateIdeas: () => Promise<void>;
   appendIdeas: () => Promise<void>;
+  generateDirect: () => Promise<void>;
   selectIdea: (idea: Idea) => Promise<void>;
   aiEdit: (instruction: string) => Promise<void>;
   undo: () => void;
@@ -241,6 +242,58 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     } catch (e: any) {
       console.error(e);
       toast.error(e.message || 'Ошибка генерации идей');
+    } finally {
+      set({ loadingIdeas: false });
+    }
+  },
+
+  // --- GENERATE DIRECT: goal+point → post immediately + alternatives ---
+  generateDirect: async () => {
+    const { strategy } = get();
+    if (!strategy.channelUrl) return;
+
+    // Step 1: Ensure channel is analyzed (same logic as generateIdeas)
+    let currentStrategy = strategy;
+    if (!strategy.analyzedChannel || strategy.channelUrl !== lastAnalyzedUrl) {
+      set({ analyzing: true });
+      try {
+        const { info, usage } = await analyzeChannelAction(strategy.channelUrl);
+        currentStrategy = { ...strategy, analyzedChannel: info, analysisUsage: usage };
+        set({ strategy: currentStrategy, analyzing: false });
+        lastAnalyzedUrl = strategy.channelUrl;
+        if (currentStrategy.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(currentStrategy));
+        const user = useAuthStore.getState().user;
+        const { currentBrand } = useWorkspaceStore.getState();
+        if (user && currentBrand && info) {
+          BrandService.cacheAnalysis(user.id, currentBrand.id, info).catch(() => {});
+        }
+      } catch (e) {
+        set({ analyzing: false });
+        throw e;
+      }
+    }
+
+    // Step 2: Synthetic idea from point or goal description
+    const syntheticIdea: Idea = {
+      id: `direct-${Date.now()}`,
+      title: currentStrategy.point || `Пост: ${currentStrategy.goal}`,
+      description: currentStrategy.point || '',
+      userBenefit: '',
+      sources: [],
+    };
+
+    // Step 3: Generate post (reuses all billing/progress logic from selectIdea)
+    await get().selectIdea(syntheticIdea);
+
+    // Step 4: Generate alternative angles in background (non-blocking)
+    const titleForAlternatives = syntheticIdea.title;
+    set({ loadingIdeas: true });
+    try {
+      const recentTitles = [...getRecentPostTitles(), titleForAlternatives];
+      const { ideas: alternatives } = await generateIdeasAction(currentStrategy, recentTitles);
+      set({ ideas: alternatives });
+    } catch (e) {
+      console.error('[generateDirect] alternatives failed:', e);
     } finally {
       set({ loadingIdeas: false });
     }

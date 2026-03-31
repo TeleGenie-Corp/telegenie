@@ -110,7 +110,7 @@ export default function Home() {
   const setEditorTab = useEditorStore(s => s.setEditorTab);
   const isSaving = useEditorStore(s => s.isSaving);
   const selectPost = useEditorStore(s => s.selectPost);
-  const generateIdeas = useEditorStore(s => s.generateIdeas);
+  const generateDirect = useEditorStore(s => s.generateDirect);
   const appendIdeas = useEditorStore(s => s.appendIdeas);
   const selectIdea = useEditorStore(s => s.selectIdea);
   const aiEdit = useEditorStore(s => s.aiEdit);
@@ -306,22 +306,27 @@ export default function Home() {
                   />
                 </div>
 
-                <button 
-                  onClick={generateIdeas}
-                  disabled={loadingIdeas || !strategy.channelUrl}
-                  className="w-full py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-violet-700 transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-violet-200 hover:shadow-violet-300"
+                {/* PRIMARY CTA */}
+                <button
+                  onClick={generateDirect}
+                  disabled={analyzing || !strategy.channelUrl || !!(currentPost?.generating)}
+                  className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-violet-700 transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-slate-200 hover:shadow-violet-200"
                 >
-                  {loadingIdeas ? <Loader2 className="animate-spin" size={14} /> : <Sparkles size={14} />}
-                  {loadingIdeas ? 'Анализирую...' : (strategy.point ? 'Развить Поинт' : 'Придумать Идеи')}
+                  {analyzing ? (
+                    <><Loader2 className="animate-spin" size={14} /> Изучаю канал...</>
+                  ) : currentPost?.generating ? (
+                    <><Loader2 className="animate-spin" size={14} /> Пишу пост...</>
+                  ) : (
+                    <><Send size={14} /> Написать пост</>
+                  )}
                 </button>
                </section>
 
-              {/* IDEAS — Loading */}
-              {loadingIdeas && (
+              {/* ALTERNATIVES — loading skeletons (only when no ideas yet) */}
+              {loadingIdeas && ideas.length === 0 && (
                 <section className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-3">
-                    <Zap size={12} className="animate-pulse" />
-                    {analyzing ? 'Читаю ваш канал...' : 'Генерирую идеи...'}
+                    <Sparkles size={12} className="animate-pulse" /> Подбираю варианты...
                   </h3>
                   <div className="space-y-2">
                     {[1, 2, 3].map((i) => (
@@ -339,18 +344,14 @@ export default function Home() {
                 </section>
               )}
 
-              {/* IDEAS — List */}
-              {ideas.length > 0 && !loadingIdeas && (
+              {/* ALTERNATIVES — list, visible even while loading more */}
+              {ideas.length > 0 && (
                 <section className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                      <Zap size={12} /> Идеи ({ideas.length})
+                      <Sparkles size={12} /> Варианты ({ideas.length})
                     </h3>
-                    {ideas[0]?.sources && ideas[0].sources.length > 0 && (
-                      <span className="text-[9px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        🔍 {ideas[0].sources.length} ист.
-                      </span>
-                    )}
+                    {loadingIdeas && <Loader2 size={11} className="animate-spin text-violet-400" />}
                   </div>
                   {/* CHANNEL INSIGHTS — Aha-moment card */}
                   {strategy.analyzedChannel && (
@@ -432,7 +433,7 @@ export default function Home() {
                     className="w-full mt-2 py-2.5 border border-dashed border-slate-300 text-slate-400 hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
                   >
                     {loadingIdeas ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                    Ещё идеи
+                    Другие варианты
                   </button>
                 </section>
               )}

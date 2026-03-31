@@ -174,102 +174,64 @@ export class GeminiService {
     const info = strategy.analyzedChannel;
     const { CostCalculator } = await import('./costCalculator');
 
-    return this.callWithFallback(async (model) => {
-      // Construct context from Positioning or Analysis
-      const authorContext = strategy.positioning
-        ? `ПОЗИЦИОНИРОВАНИЕ АВТОРА: ${strategy.positioning}`
-        : `СТИЛЬ АВТОРА: ${info?.context || 'Экспертный, уверенный'}`;
+    // Fast path: use Flash Lite directly, no search grounding
+    const model = 'gemini-2.0-flash-lite';
 
-      // Construct Topic/Point constraint
-      const topicConstraint = strategy.point
-        ? `ГЛАВНЫЙ ПОИНТ (Тема поста): "${strategy.point}".\nВСЕ ИДЕИ ДОЛЖНЫ БЫТЬ ПОСВЯЩЕНЫ ЭТОМУ ПОИНТУ, но с разных углов (подходов).`
-        : `ТЕМАТИЧЕСКИЙ ФОКУС: ${info?.topic}`;
+    const authorContext = strategy.positioning
+      ? `ПОЗИЦИОНИРОВАНИЕ АВТОРА: ${strategy.positioning}`
+      : `СТИЛЬ АВТОРА: ${info?.context || 'Экспертный, уверенный'}`;
 
-      // Content memory: avoid repeating recent topics
-      const memoryBlock = recentPostTitles && recentPostTitles.length > 0
-        ? `\n      НЕ ПОВТОРЯЙ ТЕМЫ (уже опубликованные посты):\n${recentPostTitles.map((t, i) => `      ${i + 1}. ${t}`).join('\n')}\n      Придумай НОВЫЕ ракурсы и темы, которых нет в этом списке.`
-        : '';
+    const topicConstraint = strategy.point
+      ? `ГЛАВНЫЙ ПОИНТ: "${strategy.point}". Все идеи — разные углы на этот поинт.`
+      : `ТЕМАТИКА: ${info?.topic || 'нет данных'}`;
 
-      const prompt = `Сгенерируй 5 идей для постов для канала «${info?.name}».
+    const memoryBlock = recentPostTitles && recentPostTitles.length > 0
+      ? `\nНЕ ПОВТОРЯЙ (уже опубликовано):\n${recentPostTitles.map((t, i) => `${i + 1}. ${t}`).join('\n')}`
+      : '';
 
-      ВВОДНЫЕ ДАННЫЕ:
-      - Цель: ${strategy.goal}
-      - ${authorContext}
-      - ${topicConstraint}
+    const prompt = `Придумай 3 идеи для постов в канал «${info?.name || 'Telegram'}».
+
+Цель: ${strategy.goal}
+${authorContext}
+${topicConstraint}
 ${memoryBlock}
 
-      ПОИСК (ОБЯЗАТЕЛЬНО):
-      Используй Google Search, чтобы найти:
-      - Свежие новости, тренды и события в нише «${info?.topic || 'бизнес'}»
-      - Актуальные цифры, исследования, кейсы
-      - Спорные мнения и дискуссии в отрасли
-      Идеи ДОЛЖНЫ быть основаны на реальных фактах и актуальных событиях, а не выдуманы из головы.
+Каждая идея — твит-тезис до 140 знаков, С РАЗНОГО УГЛА:
+- Угол A: личный опыт / история
+- Угол B: контринтуитивный тезис / провокация
+- Угол C: практический совет / факт / цифра
 
-      ФОРМАТ ВЫВОДА:
-      Каждая идея — это «Твит» (тезис, инсайт или провокация) длиной до 140 знаков.
+Верни JSON-массив. Поля: title (тезис ≤140 зн.), userBenefit (зачем читать, 10-15 слов), description (""), sources ([]).`;
 
-      ПРИНЦИПЫ:
-      1. НИКАКОЙ ВОДЫ. Только суть.
-      2. Дерзко, коротко, без «успешного успеха».
-      3. Если цель «Продать» → идея ведёт к продаже.
-      4. Если цель «Вовлечь» → провокация или вопрос.
-      5. Если цель «Обучить» → конкретный инсайт или совет.
-      6. Если цель «Проинформировать» → факт или наблюдение.
-
-      РАЗНООБРАЗИЕ (ОБЯЗАТЕЛЬНО):
-      Каждая из 5 идей должна заходить С РАЗНОГО УГЛА. Например:
-      - Угол 1: личный опыт / история
-      - Угол 2: контринтуитивный тезис / провокация
-      - Угол 3: практический совет / инструкция
-      - Угол 4: аналогия из другой сферы
-      - Угол 5: цифры / исследование / кейс
-
-      Верни массив JSON с полями:
-      - title: сам твит-тезис (до 140 символов)
-      - userBenefit: одно предложение — зачем это читать подписчику (10-15 слов)
-      - description: пустая строка
-      - sources: пустой массив`;
-
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          systemInstruction: SYSTEM_PROMPT_BASE,
-          tools: [{ googleSearch: {} }],
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING, description: "Короткий твит-тезис (до 140 символов)" },
-                description: { type: Type.STRING },
-                userBenefit: { type: Type.STRING },
-                sources: { type: Type.ARRAY, items: { type: Type.STRING } }
-              },
-              required: ["title", "description", "userBenefit", "sources"]
-            }
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        systemInstruction: SYSTEM_PROMPT_BASE,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              description: { type: Type.STRING },
+              userBenefit: { type: Type.STRING },
+              sources: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ["title", "description", "userBenefit", "sources"]
           }
         }
-      });
-
-      // Extract grounding sources from Google Search
-      const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-      const searchSources = groundingChunks
-        ?.map((chunk: any) => chunk.web?.uri)
-        .filter(Boolean) || [];
-      const hasGrounding = searchSources.length > 0;
-
-      const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model, hasGrounding);
-
-      const ideas = JSON.parse(response.text || "[]").map((item: any, index: number) => ({
-        ...item,
-        sources: searchSources,
-        id: `idea-${index}-${Date.now()}`
-      }));
-
-      return { ideas, usage };
+      }
     });
+
+    const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);
+    const ideas = JSON.parse(response.text || "[]").map((item: any, index: number) => ({
+      ...item,
+      id: `idea-${index}-${Date.now()}`
+    }));
+
+    return { ideas, usage };
   }
 
   /**
@@ -531,8 +493,8 @@ ${text}
 - Сохраняй все HTML-теги исходника, если инструкция не просит их изменить.
 
 ФОРМАТ ОТВЕТА:
-- Telegram HTML: <b>, <i>, <code>, <a href="...">, <s>, <tg-spoiler>.
-- Пустая строка между абзацами.
+- Сохраняй ТОЧНО ТОТ ЖЕ HTML-формат, что в исходном тексте. Не конвертируй между форматами.
+- Если в исходнике <p><strong>...</strong></p> — используй <p><strong>. Если <b>...\n\n</b> — используй <b>.
 - Возвращай ТОЛЬКО текст. Без \`\`\`html, без комментариев, без пояснений «я изменил…».
 
 АНТИПАТТЕРНЫ (никогда не делай):
