@@ -164,12 +164,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
       {/* Demo Section */}
       <section id="demo" className="py-20 px-6 bg-slate-50">
-        <div className="max-w-2xl mx-auto">
-          <div className="text-center mb-10">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 mb-3">Убедитесь сами</h2>
             <p className="text-slate-500 font-medium">Введите ссылку на любой Telegram-канал — ИИ проанализирует его и придумает идеи прямо сейчас</p>
           </div>
-          <div className="rounded-[40px] bg-white shadow-2xl overflow-hidden py-8">
+          <div className="bg-white rounded-3xl overflow-hidden">
             <PublicWidget />
           </div>
         </div>
