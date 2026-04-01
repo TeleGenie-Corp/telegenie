@@ -158,10 +158,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const editorStore = useEditorStore.getState();
 
     if (brand) {
+      set({ currentBrand: brand });
       editorStore.setStrategy((s: ChannelStrategy) => ({
         ...s,
         channelUrl: brand.channelUrl,
         positioning: brand.positioning,
+        analyzedChannel: brand.analyzedChannel || s.analyzedChannel,
       }));
     }
 
@@ -170,7 +172,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const { AnalyticsService } = await import('../../services/analyticsService');
     AnalyticsService.trackProjectCreated();
 
-    await editorStore.selectPost(project);
+    // Set project but NOT currentPost — let the goal+point form show first
+    set({ currentProject: project, viewMode: 'editor' });
+    editorStore.setCurrentPost(null);
+    editorStore.setEditorTab('editor');
   },
 
   backToWorkspace: () => {
