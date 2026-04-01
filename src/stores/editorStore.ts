@@ -11,7 +11,6 @@ import { useWorkspaceStore } from './workspaceStore';
 import { useUIStore } from './uiStore';
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-let lastAnalyzedUrl = '';
 
 interface EditorState {
   // --- Strategy ---
@@ -108,6 +107,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   setStrategy: (updater) => set((s) => {
     const next = typeof updater === 'function' ? updater(s.strategy) : updater;
+    // Clear cached analysis when channel URL changes
+    if (next.channelUrl !== s.strategy.channelUrl) {
+      next.analyzedChannel = undefined;
+    }
     if (next.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(next));
     return { strategy: next };
   }),
@@ -187,12 +190,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ ideas: [], loadingIdeas: true });
     try {
       let currentStrategy = strategy;
-      if (!strategy.analyzedChannel || strategy.channelUrl !== lastAnalyzedUrl) {
+      if (!strategy.analyzedChannel) {
         set({ analyzing: true });
         const { info, usage } = await analyzeChannelAction(strategy.channelUrl);
         currentStrategy = { ...strategy, analyzedChannel: info, analysisUsage: usage };
         set({ strategy: currentStrategy, analyzing: false });
-        lastAnalyzedUrl = strategy.channelUrl;
         if (currentStrategy.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(currentStrategy));
 
         // Persist analysis to brand in Firestore so insights survive sessions
@@ -259,13 +261,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // Step 1: Ensure channel is analyzed (same logic as generateIdeas)
     let currentStrategy = strategy;
-    if (!strategy.analyzedChannel || strategy.channelUrl !== lastAnalyzedUrl) {
+    if (!strategy.analyzedChannel) {
       set({ analyzing: true });
       try {
         const { info, usage } = await analyzeChannelAction(strategy.channelUrl);
         currentStrategy = { ...strategy, analyzedChannel: info, analysisUsage: usage };
         set({ strategy: currentStrategy, analyzing: false });
-        lastAnalyzedUrl = strategy.channelUrl;
         if (currentStrategy.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(currentStrategy));
         const user = useAuthStore.getState().user;
         const { currentBrand } = useWorkspaceStore.getState();
