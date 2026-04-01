@@ -284,7 +284,7 @@ export default function Home() {
                       <button 
                         key={g}
                         onClick={() => setStrategy(s => ({...s, goal: g}))}
-                        className={`py-2 px-2 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${strategy.goal === g ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                        className={`py-2 px-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${strategy.goal === g ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
                       >
                         {g}
                       </button>
@@ -302,7 +302,7 @@ export default function Home() {
                     onChange={(e) => setStrategy(s => ({...s, point: e.target.value}))}
                     placeholder="О чем конкретно пост?"
                     rows={2}
-                    className="w-full bg-slate-50 border border-slate-200 text-xs font-medium rounded-xl p-2.5 outline-none focus:border-violet-300 focus:bg-white transition-all placeholder:text-slate-300 resize-none"
+                    className="w-full bg-slate-50 text-xs font-medium rounded-xl p-2.5 outline-none focus:bg-white focus:ring-4 focus:ring-violet-500/10 transition-all placeholder:text-slate-300 resize-none shadow-sm"
                   />
                 </div>
 
@@ -330,7 +330,7 @@ export default function Home() {
                   </h3>
                   <div className="space-y-2">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="p-3 bg-slate-50 border border-slate-100 rounded-xl animate-pulse">
+                      <div key={i} className="p-3 bg-slate-50 rounded-xl animate-pulse shadow-sm">
                         <div className="flex gap-2">
                           <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-200 shrink-0"></div>
                           <div className="flex-1 space-y-2">
@@ -408,7 +408,7 @@ export default function Home() {
                       <motion.div
                         key={idea.id} variants={listItem} layout
                         onClick={() => selectIdea(idea)}
-                        className="group p-3 bg-white hover:bg-violet-50 border border-slate-200 hover:border-violet-300 rounded-xl cursor-pointer active:scale-98 hover:-translate-y-0.5 hover:shadow-md"
+                        className="group p-3 bg-white hover:bg-violet-50 rounded-xl cursor-pointer active:scale-98 hover:-translate-y-0.5 shadow-sm hover:shadow-md"
                       >
                         <div className="flex gap-2">
                           <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-300 group-hover:bg-violet-600 shrink-0"></div>
@@ -482,7 +482,7 @@ export default function Home() {
                         key={action.label}
                         onClick={() => aiEdit(action.prompt)}
                         disabled={pipelineState.stage !== 'idle'}
-                        className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-all disabled:opacity-50"
+                        className="px-2.5 py-1 bg-slate-100 rounded-lg text-[11px] font-medium text-slate-600 hover:text-violet-700 hover:bg-violet-100 transition-all disabled:opacity-50"
                       >
                         {action.label}
                       </button>
@@ -491,7 +491,7 @@ export default function Home() {
                       <button
                         onClick={undo}
                         disabled={pipelineState.stage !== 'idle'}
-                        className="px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-medium text-amber-700 hover:border-amber-400 hover:bg-amber-100 transition-all disabled:opacity-50 flex items-center gap-1"
+                        className="px-2.5 py-1 bg-amber-100 rounded-lg text-[11px] font-medium text-amber-700 hover:bg-amber-200 transition-all disabled:opacity-50 flex items-center gap-1"
                       >
                         ↩ Отменить
                       </button>
@@ -505,7 +505,7 @@ export default function Home() {
                       onChange={(e) => setEditPrompt(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && editPrompt && aiEdit(editPrompt)}
                       placeholder="Напиши что изменить..."
-                      className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 transition-all placeholder:text-slate-400"
+                      className="flex-1 bg-slate-100 rounded-lg px-3 py-2 text-sm outline-none focus:bg-white focus:ring-4 focus:ring-violet-500/10 transition-all placeholder:text-slate-400"
                     />
                     <button
                       onClick={() => editPrompt && aiEdit(editPrompt)}
@@ -592,7 +592,7 @@ export default function Home() {
               
               <div className="flex-1 p-4 overflow-y-auto custom-scrollbar min-h-0">
                 {currentPost && !currentPost.generating && (currentPost.text || currentPost.imageUrl) ? (
-                  <div className="bg-white rounded-2xl p-3 shadow-xl shadow-black/10 animate-in fade-in slide-in-from-bottom-3 duration-500 ring-1 ring-black/5">
+                  <div className="bg-white rounded-2xl p-3 shadow-xl shadow-black/10 animate-in fade-in slide-in-from-bottom-3 duration-500">
                     {currentPost.imageUrl && (
                       <div className="rounded-xl overflow-hidden mb-3">
                         <img src={currentPost.imageUrl} alt="Post" className="w-full h-auto object-cover" />

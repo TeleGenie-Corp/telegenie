@@ -112,7 +112,7 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
                     >
                         {/* Channel Insights card — shows what AI found */}
                         {channelInfo && (channelInfo.contentPillars?.length || channelInfo.toneOfVoice || channelInfo.forbiddenPhrases?.length) ? (
-                          <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50/50 border border-violet-100 rounded-2xl p-4 space-y-3">
+                          <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50/50 rounded-2xl p-4 space-y-3 shadow-sm">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-violet-600">
                                 <Target size={11} /> Что ИИ нашёл в вашем канале
@@ -158,7 +158,7 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
                           </div>
                         ) : (
                           /* Fallback: manual fill button */
-                          <div className="bg-violet-50 dark:bg-violet-900/20 p-4 rounded-xl flex items-center justify-between border border-violet-100 dark:border-violet-900/30">
+                          <div className="bg-violet-50 dark:bg-violet-900/20 p-4 rounded-xl flex items-center justify-between shadow-sm">
                             <div className="text-xs text-violet-800 dark:text-violet-300 font-medium">
                               {analyzing ? 'Читаю ваш канал...' : 'Заполняем вопросы по вашему каналу...'}
                             </div>
@@ -184,7 +184,7 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
                                         onChange={(e) => setAnswers({...answers, [q.id]: e.target.value})}
                                         placeholder={q.placeholder}
                                         rows={2}
-                                        className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 text-sm focus:border-violet-300 focus:bg-white dark:focus:bg-slate-800 dark:text-white focus:ring-4 focus:ring-violet-500/10 transition-all outline-none resize-none placeholder:text-slate-400 dark:placeholder:text-slate-600"
+                                        className="w-full bg-slate-50 dark:bg-slate-800 rounded-xl p-3 text-sm focus:bg-white dark:focus:bg-slate-800 dark:text-white focus:ring-4 focus:ring-violet-500/10 transition-all outline-none resize-none placeholder:text-slate-400 dark:placeholder:text-slate-600 shadow-sm"
                                     />
                                 </div>
                             ))}
@@ -196,7 +196,7 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
                         animate={{ opacity: 1, x: 0 }}
                         className="space-y-6"
                     >
-                        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30 p-6 rounded-2xl">
+                        <div className="bg-emerald-50 dark:bg-emerald-900/20 p-6 rounded-2xl shadow-sm">
                             <h3 className="text-emerald-900 dark:text-emerald-300 font-bold mb-4 flex items-center gap-2">
                                 <Check size={18} /> Твоя формула позиционирования
                             </h3>
@@ -204,7 +204,7 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
                                 value={generatedFormula}
                                 onChange={(e) => setGeneratedFormula(e.target.value)}
                                 rows={6}
-                                className="w-full bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-900/50 rounded-xl p-4 text-base font-medium text-slate-800 dark:text-slate-200 leading-relaxed shadow-sm focus:ring-4 focus:ring-emerald-500/10 outline-none"
+                                className="w-full bg-white dark:bg-slate-800 rounded-xl p-4 text-base font-medium text-slate-800 dark:text-slate-200 leading-relaxed shadow-sm focus:ring-4 focus:ring-emerald-500/10 outline-none"
                             />
                              <p className="mt-3 text-xs text-emerald-700/70 dark:text-emerald-400/70 italic">
                                 Теперь эта формула будет использоваться нейросетью при написании каждого поста.

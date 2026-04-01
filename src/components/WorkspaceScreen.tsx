@@ -78,10 +78,10 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                 <div
                   key={brand.id}
                   onClick={() => setSelectedBrandId(brand.id)}
-                  className={`p-4 rounded-2xl border cursor-pointer transition-all group active:scale-98 ${
+                  className={`p-4 rounded-2xl cursor-pointer transition-all group active:scale-98 ${
                     selectedBrandId === brand.id
-                      ? 'bg-white border-violet-300 ring-4 ring-violet-50 shadow-xl shadow-violet-100/50'
-                      : 'bg-white border-slate-200 hover:border-violet-200 hover:shadow-lg hover:shadow-violet-50 hover:-translate-y-0.5'
+                      ? 'bg-white ring-4 ring-violet-50 shadow-xl shadow-violet-100/50'
+                      : 'bg-white shadow-sm hover:shadow-lg hover:shadow-violet-50 hover:-translate-y-0.5'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -95,12 +95,12 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                       <div className="text-[10px] text-slate-500 truncate">{brand.channelUrl}</div>
                       <div className="flex items-center gap-2 mt-1">
                         {brand.positioning && (
-                          <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium border border-emerald-100">
+                          <span className="text-[9px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded-full font-medium">
                             Позиционирование ✓
                           </span>
                         )}
                         {brand.linkedChannel && (
-                          <span className="text-[9px] bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded-full font-medium border border-sky-100">
+                          <span className="text-[9px] bg-sky-50 text-sky-700 px-1.5 py-0.5 rounded-full font-medium">
                             Подключён
                           </span>
                         )}
@@ -143,10 +143,10 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
             
             {/* BRAND POSITIONING CARD */}
             {selectedBrand && (
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm group hover:border-violet-200 transition-colors">
+                <div className="bg-white rounded-2xl p-6 shadow-sm group transition-shadow hover:shadow-md">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                             <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center border border-violet-100">
+                             <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
                                  <UserCircle size={20} />
                              </div>
                              <div>
@@ -154,9 +154,9 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                                  <p className="text-[10px] text-slate-500">Главные смыслы и ToV</p>
                              </div>
                         </div>
-                        <button 
+                        <button
                             onClick={() => onOpenPositioning(selectedBrand)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-violet-50 text-slate-600 hover:text-violet-600 rounded-lg text-xs font-bold transition-all border border-slate-100 hover:border-violet-100"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-violet-50 text-slate-600 hover:text-violet-600 rounded-lg text-xs font-bold transition-all"
                         >
                             <Wand2 size={14} />
                             Настроить
@@ -164,12 +164,12 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                     </div>
                     
                     {selectedBrand.positioning ? (
-                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-xs text-slate-700 leading-relaxed font-medium relative overflow-hidden">
+                        <div className="p-4 bg-slate-50 rounded-xl text-xs text-slate-700 leading-relaxed font-medium relative overflow-hidden">
                            <div className="absolute top-0 left-0 w-1 h-full bg-violet-500"></div>
                            {selectedBrand.positioning}
                         </div>
                     ) : (
-                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 border-dashed text-center">
+                        <div className="p-4 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 text-center">
                             <p className="text-xs text-slate-500 mb-2">Стратегия еще не сформулирована</p>
                             <button 
                                 onClick={() => onOpenPositioning(selectedBrand)}
@@ -198,7 +198,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
             </div>
 
             {!selectedBrandId && brands.length > 0 ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center">
+              <div className="bg-white shadow-sm rounded-2xl p-8 text-center">
                 <ChevronRight size={32} className="mx-auto text-slate-300 mb-3 rotate-180" />
                 <div className="text-sm font-medium text-slate-500">Выбери бренд слева</div>
                 <div className="text-xs text-slate-400 mt-1">чтобы увидеть посты</div>
@@ -224,7 +224,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                     <div
                       key={post.id}
                       onClick={() => onSelectPost(post)}
-                      className="bg-white border border-slate-200 rounded-2xl p-4 hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100 cursor-pointer transition-all group"
+                      className="bg-white shadow-sm rounded-2xl p-4 hover:shadow-lg hover:shadow-violet-100 cursor-pointer transition-all group hover:-translate-y-0.5"
                     >
                       <div className="flex items-start gap-3">
                         <div className={`w-8 h-8 rounded-lg ${status.bg} ${status.color} flex items-center justify-center shrink-0`}>
