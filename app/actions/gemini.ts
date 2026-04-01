@@ -82,3 +82,13 @@ export async function generatePostAction(input: any) {
     throw error;
   }
 }
+
+export async function generatePostSuggestionsAction(postText: string, strategy: ChannelStrategy): Promise<string[]> {
+  try {
+    const { ClaudeService } = await import('@/services/claudeService');
+    return await ClaudeService.generatePostSuggestions(postText, strategy);
+  } catch (error: any) {
+    console.error('[generatePostSuggestionsAction]', error);
+    return [];
+  }
+}

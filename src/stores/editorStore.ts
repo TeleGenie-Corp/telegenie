@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, PipelineState, GenerationConfig, PostProject } from '../../types';
 import { PostGenerationService } from '../../services/postGenerationService';
-import { analyzeChannelAction, generateIdeasAction, polishContentAction } from '@/app/actions/gemini';
+import { analyzeChannelAction, generateIdeasAction, polishContentAction, generatePostSuggestionsAction } from '@/app/actions/gemini';
 import { BillingService } from '../../services/billingService';
 import { BrandService } from '../../services/brandService';
 import { PostProjectService } from '../../services/postProjectService';
@@ -21,6 +21,8 @@ interface EditorState {
   analyzing: boolean;
   ideas: Idea[];
   loadingIdeas: boolean;
+  postSuggestions: string[];
+  loadingSuggestions: boolean;
   currentPost: Post | null;
   previousPostText: string | null;
   pipelineState: PipelineState;
@@ -40,6 +42,7 @@ interface EditorState {
   appendIdeas: () => Promise<void>;
   generateDirect: () => Promise<void>;
   selectIdea: (idea: Idea) => Promise<void>;
+  generateSuggestions: () => Promise<void>;
   aiEdit: (instruction: string) => Promise<void>;
   undo: () => void;
   contentChange: (newHtml: string) => void;
@@ -94,6 +97,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   analyzing: false,
   ideas: [],
   loadingIdeas: false,
+  postSuggestions: [],
+  loadingSuggestions: false,
   currentPost: null,
   previousPostText: null,
   pipelineState: { stage: 'idle', progress: 0 },
@@ -284,19 +289,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // Step 3: Generate post (reuses all billing/progress logic from selectIdea)
     await get().selectIdea(syntheticIdea);
-
-    // Step 4: Generate alternative angles in background (non-blocking)
-    const titleForAlternatives = syntheticIdea.title;
-    set({ loadingIdeas: true });
-    try {
-      const recentTitles = [...getRecentPostTitles(), titleForAlternatives];
-      const { ideas: alternatives } = await generateIdeasAction(currentStrategy, recentTitles);
-      set({ ideas: alternatives });
-    } catch (e) {
-      console.error('[generateDirect] alternatives failed:', e);
-    } finally {
-      set({ loadingIdeas: false });
-    }
   },
 
   // --- SELECT IDEA (generate post) ---
@@ -365,10 +357,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       const newPost = result.post;
       newPost.id = currentProject.id;
-      set({ 
+      set({
         currentPost: newPost,
-        pipelineState: { stage: 'idle', progress: 0 } 
+        pipelineState: { stage: 'idle', progress: 0 },
+        postSuggestions: [],
       });
+
+      // Generate contextual improvement suggestions in background
+      get().generateSuggestions().catch(() => {});
 
       // SAVE TO FIRESTORE
       await PostProjectService.updateIdeas(user.id, currentProject.id, ideas, idea.id);
@@ -395,6 +391,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
+  // --- GENERATE POST SUGGESTIONS ---
+  generateSuggestions: async () => {
+    const { currentPost, strategy } = get();
+    if (!currentPost?.text) return;
+    set({ loadingSuggestions: true });
+    try {
+      const suggestions = await generatePostSuggestionsAction(currentPost.text, strategy);
+      set({ postSuggestions: suggestions });
+    } catch (e) {
+      console.error('[generateSuggestions]', e);
+    } finally {
+      set({ loadingSuggestions: false });
+    }
+  },
+
   // --- AI EDIT ---
   aiEdit: async (instruction: string) => {
     const { currentPost, strategy } = get();
@@ -417,7 +428,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         currentPost: s.currentPost ? { ...s.currentPost, text: updatedText } : null,
         editPrompt: '',
         previousPostText: textBeforeEdit,
+        postSuggestions: [],
       }));
+
+      // Refresh suggestions for the updated post
+      get().generateSuggestions().catch(() => {});
 
       await PostProjectService.updateContent(user.id, currentProject.id, updatedText, currentPost.rawText, currentPost.imageUrl);
       useWorkspaceStore.getState().setPostProjects((prev) =>

@@ -149,6 +149,49 @@ TELEGRAM HTML ФОРМАТИРОВАНИЕ:
   }
 
   /**
+   * Analyzes the generated post and returns 4 short, contextual improvement suggestions.
+   * Each suggestion is a concrete action phrase (< 10 words).
+   */
+  static async generatePostSuggestions(
+    postText: string,
+    strategy: ChannelStrategy
+  ): Promise<string[]> {
+    const client = this.getClient();
+    const plainText = postText.replace(/<[^>]+>/g, '').trim();
+
+    const prompt = `Прочитай этот Telegram-пост и предложи 4 КОНКРЕТНЫХ точечных улучшения.
+
+ПОСТ:
+${plainText}
+
+ПРАВИЛА:
+- Каждое предложение — одно конкретное действие (не "улучши", а что именно)
+- Максимум 8-10 слов на предложение
+- Разные аспекты: структура, стиль, конкретика, вовлечение
+- Примеры формата: "Добавь цифру в заголовок", "Замени второй абзац на личный пример", "Сократи список до 3 пунктов", "Добавь вопрос к аудитории в конце"
+
+Верни ТОЛЬКО JSON-массив из 4 строк, без пояснений.`;
+
+    const message = await client.messages.create({
+      model: MODEL,
+      max_tokens: 300,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const content = message.content[0];
+    const raw = content.type === 'text' ? content.text : '[]';
+
+    try {
+      const clean = raw.replace(/```json\n?|\n?```/gi, '').trim();
+      const parsed = JSON.parse(clean);
+      return Array.isArray(parsed) ? parsed.slice(0, 4) : [];
+    } catch {
+      const matches = raw.match(/"([^"]{5,80})"/g);
+      return matches ? matches.slice(0, 4).map((s: string) => s.replace(/"/g, '')) : [];
+    }
+  }
+
+  /**
    * Surgically edits existing post content following the user's instruction.
    * Claude Sonnet is exceptionally good at minimal, precise edits.
    */
