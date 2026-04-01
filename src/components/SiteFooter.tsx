@@ -40,6 +40,12 @@ export const SiteFooter: React.FC = () => {
             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900">Продукт</h4>
             <ul className="space-y-3 text-sm text-slate-500 font-medium">
               <li><Link href="/" className="hover:text-violet-600 transition-colors">Главная</Link></li>
+              <li>
+                <Link href="/changelog" className="hover:text-violet-600 transition-colors flex items-center gap-2">
+                  Что нового
+                  <span className="text-[9px] font-black bg-violet-100 text-violet-600 px-1.5 py-0.5 rounded-full uppercase tracking-widest">new</span>
+                </Link>
+              </li>
               <li><Link href="/contacts" className="hover:text-violet-600 transition-colors">Контакты</Link></li>
               <li><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="hover:text-violet-600 transition-colors">Тарифы</button></li>
             </ul>

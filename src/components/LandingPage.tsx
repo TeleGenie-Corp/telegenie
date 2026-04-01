@@ -1,5 +1,7 @@
 import React from 'react';
+import Link from 'next/link';
 import { Sparkles, Zap, Target, Send, Shield, MousePointer2, ArrowRight, CheckCircle2, Clock, TrendingDown } from 'lucide-react';
+import { changelog } from '@/src/data/changelog';
 import { SiteFooter } from './SiteFooter';
 import { motion } from 'framer-motion';
 import { listContainer, listItem } from '@/src/animationTokens';
@@ -24,10 +26,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-md mb-8"
+            className="flex flex-wrap items-center justify-center gap-3 mb-8"
           >
-            <Sparkles className="text-violet-600" size={14} />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">ИИ-редактор для Telegram-каналов</span>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-md">
+              <Sparkles className="text-violet-600" size={14} />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">ИИ-редактор для Telegram-каналов</span>
+            </div>
+            <Link
+              href="/changelog"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 transition-all text-[10px] font-black uppercase tracking-widest"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse" />
+              Что нового в v{changelog[0].version}
+            </Link>
           </motion.div>
 
           <motion.h1
