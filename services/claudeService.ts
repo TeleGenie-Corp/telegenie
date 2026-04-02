@@ -124,6 +124,53 @@ TELEGRAM HTML ФОРМАТИРОВАНИЕ:
     return { text, usage };
   }
 
+  static async generatePostSuggestions(
+    text: string,
+    strategy: ChannelStrategy
+  ): Promise<string[]> {
+    const authorContext = this.buildAuthorContext(strategy);
+
+    const prompt = `Ты — редактор Telegram-постов. Прочитай пост и предложи ровно 4 конкретных улучшения.
+
+${authorContext}
+
+ПОСТ:
+${text}
+
+ТРЕБОВАНИЯ К ОТВЕТУ:
+- Ровно 4 пункта, каждый на отдельной строке, без нумерации и маркеров.
+- Каждый пункт — конкретное действие: «Замени X на Y», «Добавь цифру в первый абзац», «Сократи последний блок до 2 предложений».
+- Не общие советы («улучши стиль»), а точечные правки именно для этого текста.
+- Длина каждого пункта: 5–12 слов.
+- Только русский язык.
+
+Выведи только 4 строки, без пояснений.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 512,
+        system: SYSTEM_PROMPT_BASE,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Claude API ${response.status}: ${err}`);
+    }
+
+    const data = await response.json();
+    const raw: string = data.content?.[0]?.text || '';
+    return raw
+      .split('\n')
+      .map((l: string) => l.trim())
+      .filter((l: string) => l.length > 0)
+      .slice(0, 4);
+  }
+
   static async polishContent(
     text: string,
     instruction: string,

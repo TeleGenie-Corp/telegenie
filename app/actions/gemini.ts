@@ -79,6 +79,16 @@ export async function generatePositioningFormulaAction(answers: Record<string, s
   }
 }
 
+export async function generatePostSuggestionsAction(text: string, strategy: ChannelStrategy) {
+  try {
+    const { ClaudeService } = await import('@/services/claudeService');
+    return await ClaudeService.generatePostSuggestions(text, strategy);
+  } catch (error: any) {
+    console.error('[generatePostSuggestionsAction]', error);
+    throw error;
+  }
+}
+
 export async function generatePostAction(input: any) {
   try {
     const { PostGenerationService } = await import('@/services/postGenerationService');
