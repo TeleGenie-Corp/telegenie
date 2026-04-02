@@ -115,6 +115,8 @@ export default function Home() {
   const previousPostText = useEditorStore(s => s.previousPostText);
   const contentChange = useEditorStore(s => s.contentChange);
   const publish = useEditorStore(s => s.publish);
+  const postSuggestions = useEditorStore(s => s.postSuggestions);
+  const loadingSuggestions = useEditorStore(s => s.loadingSuggestions);
 
   const [confirmPublish, setConfirmPublish] = useState(false);
   const [insightsOpen, setInsightsOpen] = useState(true);
@@ -280,7 +282,7 @@ export default function Home() {
           <ErrorBoundary fallbackTitle="Ошибка в редакторе">
 
           {/* LEFT SIDEBAR: CHANNEL CONTEXT */}
-          <aside className={`${editorTab === 'ideas' ? 'flex' : 'hidden'} lg:flex lg:col-span-3 bg-white border-r border-slate-200 flex-col overflow-hidden flex-1 lg:flex-none min-h-0`}>
+          <aside className={`${editorTab === 'ideas' ? 'flex' : 'hidden'} lg:flex lg:col-span-3 bg-white border-r border-slate-100 flex-col overflow-hidden flex-1 lg:flex-none min-h-0`}>
             <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-4">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                 <Target size={12} /> Контекст канала
@@ -370,24 +372,24 @@ export default function Home() {
                 </div>
 
                 {/* AI Editing Panel */}
-                <div className="border-t border-slate-100 bg-slate-50/50 px-3 py-2.5 space-y-2">
+                <div className="px-3 py-2.5 space-y-2">
                   <div className="flex flex-wrap gap-1.5">
-                    {[
-                      { label: '✨ Упростить', prompt: 'Упрости текст, сделай проще и понятнее' },
-                      { label: '🎯 Строже', prompt: 'Сделай текст более строгим и деловым' },
-                      { label: '🎉 Веселее', prompt: 'Добавь юмора и легкости' },
-                      { label: '🔥 Короче', prompt: 'Сократи текст вдвое, оставь только суть' },
-                      { label: '💡 CTA', prompt: 'Добавь призыв к действию в конце' },
-                    ].map((action) => (
-                      <button
-                        key={action.label}
-                        onClick={() => aiEdit(action.prompt)}
-                        disabled={pipelineState.stage !== 'idle'}
-                        className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-all disabled:opacity-50"
-                      >
-                        {action.label}
-                      </button>
-                    ))}
+                    {loadingSuggestions ? (
+                      Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="h-6 rounded-lg bg-slate-100 animate-pulse" style={{ width: `${72 + i * 16}px` }} />
+                      ))
+                    ) : postSuggestions.length > 0 ? (
+                      postSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          onClick={() => aiEdit(suggestion)}
+                          disabled={pipelineState.stage !== 'idle'}
+                          className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-all disabled:opacity-50 text-left"
+                        >
+                          {suggestion}
+                        </button>
+                      ))
+                    ) : null}
                     {previousPostText && (
                       <button
                         onClick={undo}
@@ -475,11 +477,7 @@ export default function Home() {
           </main>
 
           {/* RIGHT: PREVIEW & ACTIONS */}
-          <aside className={`${editorTab === 'preview' ? 'flex' : 'hidden'} lg:flex lg:col-span-3 bg-white flex-col border-l border-slate-200 flex-1 lg:flex-none min-h-0 overflow-hidden`}>
-            <div className="p-4 border-b border-slate-100">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Превью</h3>
-            </div>
-            
+          <aside className={`${editorTab === 'preview' ? 'flex' : 'hidden'} lg:flex lg:col-span-3 bg-white flex-col flex-1 lg:flex-none min-h-0 overflow-hidden`}>
             {/* Telegram Preview */}
             <div className="flex-1 bg-[#879bb1] bg-[url('https://web.telegram.org/img/bg_0.png')] flex flex-col min-h-0">
               <div className="bg-white/95 backdrop-blur-sm p-3 border-b border-black/5 flex items-center gap-3">
@@ -540,7 +538,7 @@ export default function Home() {
                         [&_a]:text-violet-600 [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-violet-800"
                       dangerouslySetInnerHTML={{ __html: currentPost.text }}
                     />
-                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
+                    <div className="flex justify-between items-center mt-2 pt-2">
                       <span className={`text-[10px] font-bold uppercase tracking-widest transition-opacity ${isSaving ? 'text-violet-500 opacity-100' : 'text-slate-300 opacity-0'}`}>
                         {isSaving ? 'Сохраняю...' : 'Сохранено'}
                       </span>
@@ -571,7 +569,7 @@ export default function Home() {
             </div>
 
             {/* Publish Button */}
-            <div className="p-4 border-t border-slate-200 bg-white space-y-3">
+            <div className="p-4 border-t border-slate-100 bg-white space-y-3">
               {!(profile?.linkedChannel?.chatId) ? (
                 <button
                   onClick={openSettings}
@@ -615,7 +613,7 @@ export default function Home() {
           </ErrorBoundary>
 
           {/* MOBILE BOTTOM TAB BAR */}
-          <div className="lg:hidden flex items-center bg-white border-t border-slate-200 px-2 py-2 gap-1 shrink-0 safe-area-inset-bottom">
+          <div className="lg:hidden flex items-center bg-white shadow-[0_-1px_0_0_#f1f5f9] px-2 py-2 gap-1 shrink-0 safe-area-inset-bottom">
             {[
               { id: 'ideas' as const, label: 'Контекст', icon: Target },
               { id: 'editor' as const, label: 'Редактор', icon: Layout },

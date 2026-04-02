@@ -202,7 +202,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
       `}</style>
 
       {/* Toolbar */}
-      <div className="flex items-center px-2 py-1.5 bg-slate-50/50 border-b border-slate-100 gap-0.5 overflow-x-auto">
+      <div className="flex items-center px-2 py-1.5 gap-0.5 overflow-x-auto border-b border-slate-100/80">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           isActive={editor.isActive('bold')}
