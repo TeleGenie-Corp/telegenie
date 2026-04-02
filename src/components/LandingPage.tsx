@@ -1,7 +1,5 @@
 import React from 'react';
-import Link from 'next/link';
 import { Sparkles, Zap, Target, Send, Shield, MousePointer2, ArrowRight, CheckCircle2, Clock, TrendingDown } from 'lucide-react';
-import { changelog } from '@/src/data/changelog';
 import { SiteFooter } from './SiteFooter';
 import { motion } from 'framer-motion';
 import { listContainer, listItem } from '@/src/animationTokens';
@@ -26,19 +24,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-wrap items-center justify-center gap-3 mb-8"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm mb-8"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white shadow-md">
-              <Sparkles className="text-violet-600" size={14} />
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">ИИ-редактор для Telegram-каналов</span>
-            </div>
-            <Link
-              href="/changelog"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-600 text-white shadow-md shadow-violet-200 hover:bg-violet-700 transition-all text-[10px] font-black uppercase tracking-widest"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse" />
-              Что нового в v{changelog[0].version}
-            </Link>
+            <Sparkles className="text-violet-600" size={14} />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Редактор для Telegram-каналов</span>
           </motion.div>
 
           <motion.h1
@@ -72,7 +61,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               { icon: TrendingDown, text: 'Канал молчит неделями' },
               { icon: Zap, text: 'Нет времени на контент' },
             ].map(({ icon: Icon, text }) => (
-              <span key={text} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 text-red-600 text-xs font-bold">
+              <span key={text} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-red-50 border border-red-100 text-red-600 text-xs font-bold">
                 <Icon size={13} />
                 {text}
               </span>
@@ -94,7 +83,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             </button>
             <button
               onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-8 py-5 bg-white shadow-sm text-slate-600 rounded-2xl font-black uppercase tracking-widest text-sm hover:shadow-md hover:text-violet-600 transition-all active:scale-95"
+              className="px-8 py-5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-sm hover:border-violet-200 hover:text-violet-600 transition-all active:scale-95"
             >
               Посмотреть демо ↓
             </button>
@@ -103,7 +92,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       </section>
 
       {/* Social Proof Bar */}
-      <section className="py-10 px-6 bg-white shadow-sm">
+      <section className="py-10 px-6 bg-white border-y border-slate-100">
         <div className="max-w-4xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
@@ -122,7 +111,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       </section>
 
       {/* Features Grid */}
-      <section className="py-24 px-6 bg-white">
+      <section className="py-24 px-6 bg-white border-b border-slate-100">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-5xl font-black tracking-tight text-slate-900 mb-4">Три шага к идеальному посту</h2>
@@ -134,7 +123,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               { 
                 icon: Target, 
                 title: 'Анализ бренда', 
-                desc: 'ИИ изучает ваш канал, чтобы уловить уникальный Tone of Voice и интересы вашей аудитории.',
+                desc: 'Изучаем ваш канал, чтобы уловить уникальный Tone of Voice и интересы вашей аудитории.',
                 color: 'bg-violet-100 text-violet-600'
               },
               { 
@@ -146,11 +135,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
               { 
                 icon: Send, 
                 title: 'Публикация в клик', 
-                desc: 'Редактируйте текст с помощью ИИ и отправляйте готовый пост прямо в Telegram из нашей панели.',
+                desc: 'Редактируйте текст и отправляйте готовый пост прямо в Telegram из нашей панели.',
                 color: 'bg-blue-100 text-blue-600'
               },
             ].map((f, i) => (
-              <div key={i} className="p-8 rounded-3xl bg-white shadow-sm hover:shadow-xl transition-all group">
+              <div key={i} className="p-8 rounded-3xl border border-slate-100 hover:border-violet-200 hover:shadow-xl transition-all group">
                 <div className={`w-14 h-14 rounded-2xl ${f.color} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform`}>
                   <f.icon size={28} />
                 </div>
@@ -164,12 +153,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
       {/* Demo Section */}
       <section id="demo" className="py-20 px-6 bg-slate-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
+        <div className="max-w-2xl mx-auto">
+          <div className="text-center mb-10">
             <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 mb-3">Убедитесь сами</h2>
-            <p className="text-slate-500 font-medium">Введите ссылку на любой Telegram-канал — ИИ проанализирует его и придумает идеи прямо сейчас</p>
+            <p className="text-slate-500 font-medium">Введите ссылку на любой Telegram-канал — проанализируем его и придумаем идеи прямо сейчас</p>
           </div>
-          <div className="bg-white rounded-3xl overflow-hidden">
+          <div className="rounded-[40px] border border-slate-100 bg-white shadow-2xl overflow-hidden py-8 ring-1 ring-slate-200/50">
             <PublicWidget />
           </div>
         </div>
@@ -185,7 +174,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {PLANS.map((plan) => (
-              <div key={plan.id} className={`p-8 rounded-3xl flex flex-col h-full bg-white transition-all hover:shadow-2xl ${plan.id === 'expert' ? 'shadow-2xl shadow-violet-100 ring-2 ring-violet-600 scale-105 z-10' : 'shadow-sm'}`}>
+              <div key={plan.id} className={`p-8 rounded-3xl border-2 flex flex-col h-full bg-white transition-all hover:shadow-2xl ${plan.id === 'expert' ? 'border-violet-600 shadow-xl scale-105 z-10' : 'border-slate-100'}`}>
                 {plan.id === 'expert' && <span className="bg-violet-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full self-start mb-4">Рекомендуем</span>}
                 <h3 className="text-xl font-bold text-slate-900 mb-2">{plan.name}</h3>
                 <div className="flex items-baseline gap-1 mb-8">
