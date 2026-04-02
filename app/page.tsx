@@ -3,9 +3,9 @@
 import React, { Suspense, useEffect, useState, lazy } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Loader2, Layout, Target,
+  Sparkles, Zap, Loader2, Layout, Target,
   MessageCircle, Send, Wand2, Settings,
-  MessageSquareQuote
+  MessageSquareQuote, ChevronDown
 } from 'lucide-react';
 import { PostGoal } from '@/types';
 
@@ -17,6 +17,7 @@ import { useEditorStore } from '@/src/stores/editorStore';
 
 // --- Services ---
 import { BillingService } from '@/services/billingService';
+import { BrandService } from '@/services/brandService';
 
 // --- Components ---
 // import { AuthPage } from '@/src/components/AuthPage'; // Removed
@@ -94,6 +95,7 @@ export default function Home() {
   const editPositioning = useWorkspaceStore(s => s.editPositioning);
   const updateBrandPositioning = useWorkspaceStore(s => s.updateBrandPositioning);
   const deleteBrand = useWorkspaceStore(s => s.deleteBrand);
+  const deletePost = useWorkspaceStore(s => s.deletePost);
   const createPost = useWorkspaceStore(s => s.createPost);
   const backToWorkspace = useWorkspaceStore(s => s.backToWorkspace);
 
@@ -110,10 +112,9 @@ export default function Home() {
   const setEditorTab = useEditorStore(s => s.setEditorTab);
   const isSaving = useEditorStore(s => s.isSaving);
   const selectPost = useEditorStore(s => s.selectPost);
-  const generateDirect = useEditorStore(s => s.generateDirect);
+  const generateIdeas = useEditorStore(s => s.generateIdeas);
+  const appendIdeas = useEditorStore(s => s.appendIdeas);
   const selectIdea = useEditorStore(s => s.selectIdea);
-  const postSuggestions = useEditorStore(s => s.postSuggestions);
-  const loadingSuggestions = useEditorStore(s => s.loadingSuggestions);
   const aiEdit = useEditorStore(s => s.aiEdit);
   const undo = useEditorStore(s => s.undo);
   const previousPostText = useEditorStore(s => s.previousPostText);
@@ -121,6 +122,7 @@ export default function Home() {
   const publish = useEditorStore(s => s.publish);
 
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [insightsOpen, setInsightsOpen] = useState(true);
 
   // --- INIT: Auth listener + Firestore subscriptions ---
   // --- INIT: Auth listener moved to AuthInitializer ---
@@ -214,6 +216,13 @@ export default function Home() {
         isOpen={showCreateBrandModal}
         onClose={closeCreateBrand}
         onSave={createBrand}
+        onAnalysisDone={async (channelUrl, analysis) => {
+          const brand = useWorkspaceStore.getState().currentBrand;
+          const uid = user?.id;
+          if (brand && uid) {
+            await BrandService.cacheAnalysis(uid, brand.id, analysis);
+          }
+        }}
       />
       
       <PublishedPostModal
@@ -256,7 +265,12 @@ export default function Home() {
                 onCreateBrand={openCreateBrand}
                 onEditBrand={(brand) => { setCurrentBrand(brand); openSettings(); }}
                 onDeleteBrand={deleteBrand}
+                onDeletePost={deletePost}
                 onOpenPositioning={editPositioning}
+                onAnalysisDone={async (brand, analysis) => {
+                  const uid = user?.id;
+                  if (uid) await BrandService.cacheAnalysis(uid, brand.id, analysis);
+                }}
                 loading={loadingWorkspace}
               />
             </ErrorBoundary>
@@ -270,78 +284,171 @@ export default function Home() {
           >
           <ErrorBoundary fallbackTitle="Ошибка в редакторе">
 
-          {/* LEFT SIDEBAR: BRAND INFO */}
+          {/* LEFT SIDEBAR: STRATEGY + IDEAS */}
           <aside className={`${editorTab === 'ideas' ? 'flex' : 'hidden'} lg:flex lg:col-span-3 bg-white border-r border-slate-200 flex-col overflow-hidden flex-1 lg:flex-none min-h-0`}>
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-5">
-
-              {/* Brand header */}
-              {currentBrand && (
-                <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
-                  <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center font-black text-sm shrink-0">
-                    {currentBrand.name[0]}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold text-slate-900 truncate">{currentBrand.name}</div>
-                    <div className="text-[10px] text-slate-400 truncate">{currentBrand.channelUrl}</div>
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* STRATEGY */}
+              <section className="p-4 space-y-4 shrink-0 overflow-y-auto max-h-[50vh] custom-scrollbar border-b border-slate-100">
+                <div>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2">
+                    <Target size={12} /> Цель поста
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.values(PostGoal).map(g => (
+                      <button 
+                        key={g}
+                        onClick={() => setStrategy(s => ({...s, goal: g}))}
+                        className={`py-2 px-2 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${strategy.goal === g ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                      >
+                        {g}
+                      </button>
+                    ))}
                   </div>
                 </div>
+
+                {/* Point */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
+                    <MessageSquareQuote size={10} /> Поинт (Опционально)
+                  </label>
+                  <textarea
+                    value={strategy.point || ''}
+                    onChange={(e) => setStrategy(s => ({...s, point: e.target.value}))}
+                    placeholder="О чем конкретно пост?"
+                    rows={2}
+                    className="w-full bg-slate-50 border border-slate-200 text-xs font-medium rounded-xl p-2.5 outline-none focus:border-violet-300 focus:bg-white transition-all placeholder:text-slate-300 resize-none"
+                  />
+                </div>
+
+                <button 
+                  onClick={generateIdeas}
+                  disabled={loadingIdeas || !strategy.channelUrl}
+                  className="w-full py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-violet-700 transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-violet-200 hover:shadow-violet-300"
+                >
+                  {loadingIdeas ? <Loader2 className="animate-spin" size={14} /> : <Sparkles size={14} />}
+                  {loadingIdeas ? 'Анализирую...' : (strategy.point ? 'Развить Поинт' : 'Придумать Идеи')}
+                </button>
+               </section>
+
+              {/* IDEAS — Loading */}
+              {loadingIdeas && (
+                <section className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-3">
+                    <Zap size={12} className="animate-pulse" />
+                    {analyzing ? 'Читаю ваш канал...' : 'Генерирую идеи...'}
+                  </h3>
+                  <div className="space-y-2">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-3 bg-slate-50 border border-slate-100 rounded-xl animate-pulse">
+                        <div className="flex gap-2">
+                          <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-200 shrink-0"></div>
+                          <div className="flex-1 space-y-2">
+                            <div className="h-3 bg-slate-200 rounded w-3/4"></div>
+                            <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
               )}
 
-              {strategy.analyzedChannel ? (
-                <>
-                  {/* Content Pillars */}
-                  {(strategy.analyzedChannel.contentPillars?.length ?? 0) > 0 && (
-                    <div>
-                      <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Контент-столпы</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {strategy.analyzedChannel.contentPillars!.map(p => (
-                          <span key={p} className="text-[10px] bg-violet-50 text-violet-700 px-2 py-1 rounded-lg font-medium">{p}</span>
-                        ))}
+              {/* IDEAS — List */}
+              {ideas.length > 0 && !loadingIdeas && (
+                <section className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                      <Zap size={12} /> Идеи ({ideas.length})
+                    </h3>
+                    {ideas[0]?.sources && ideas[0].sources.length > 0 && (
+                      <span className="text-[9px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+                        🔍 {ideas[0].sources.length} ист.
+                      </span>
+                    )}
+                  </div>
+                  {/* CHANNEL INSIGHTS — Aha-moment card */}
+                  {strategy.analyzedChannel && (
+                    (strategy.analyzedChannel.contentPillars?.length || strategy.analyzedChannel.toneOfVoice || strategy.analyzedChannel.forbiddenPhrases?.length)
+                  ) && (
+                    <div className="mb-3">
+                      <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50/50 border border-violet-100 rounded-2xl overflow-hidden">
+                        <button
+                          onClick={() => setInsightsOpen(v => !v)}
+                          className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black uppercase tracking-widest text-violet-600 hover:bg-violet-50/80 transition-colors"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Target size={10} /> Что ИИ узнал о канале
+                          </span>
+                          <ChevronDown size={11} className={`transition-transform duration-200 ${insightsOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {insightsOpen && (
+                          <div className="px-3 pb-3 space-y-2.5">
+                            {(strategy.analyzedChannel.contentPillars?.length ?? 0) > 0 && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-violet-400 mb-1.5">Столпы контента</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {strategy.analyzedChannel.contentPillars!.map(p => (
+                                    <span key={p} className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">{p}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {strategy.analyzedChannel.toneOfVoice && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-fuchsia-400 mb-1">Тональность</div>
+                                <p className="text-[10px] text-slate-600 leading-relaxed font-medium">{strategy.analyzedChannel.toneOfVoice}</p>
+                              </div>
+                            )}
+                            {(strategy.analyzedChannel.forbiddenPhrases?.length ?? 0) > 0 && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-widest text-rose-400 mb-1.5">Избегать</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {strategy.analyzedChannel.forbiddenPhrases!.map(p => (
+                                    <span key={p} className="text-[10px] bg-rose-50 text-rose-400 px-2 py-0.5 rounded-full font-medium">{p}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* Tone of Voice */}
-                  {strategy.analyzedChannel.toneOfVoice && (
-                    <div>
-                      <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Тональность</div>
-                      <p className="text-[10px] text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl shadow-sm">{strategy.analyzedChannel.toneOfVoice}</p>
-                    </div>
-                  )}
-
-                  {/* Forbidden phrases */}
-                  {(strategy.analyzedChannel.forbiddenPhrases?.length ?? 0) > 0 && (
-                    <div>
-                      <div className="text-[9px] font-black uppercase tracking-widest text-rose-400 mb-2">Избегать</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {strategy.analyzedChannel.forbiddenPhrases!.map(p => (
-                          <span key={p} className="text-[10px] bg-rose-50 text-rose-500 px-2 py-1 rounded-lg font-medium">{p}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Positioning */}
-                  {strategy.positioning && (
-                    <div>
-                      <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Позиционирование</div>
-                      <p className="text-[10px] text-slate-700 leading-relaxed bg-violet-50 p-3 rounded-xl relative overflow-hidden">
-                        <span className="absolute top-0 left-0 w-0.5 h-full bg-violet-500" />
-                        <span className="pl-2 block">{strategy.positioning}</span>
-                      </p>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center text-center py-12 gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center">
-                    <Target size={20} className="text-slate-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-600">Канал ещё не проанализирован</p>
-                    <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">Напиши первый пост —<br />ИИ изучит стиль канала</p>
-                  </div>
-                </div>
+                  <motion.div className="space-y-2" variants={listContainer} initial="hidden" animate="show">
+                    <AnimatePresence>
+                    {ideas.map((idea) => (
+                      <motion.div
+                        key={idea.id} variants={listItem} layout
+                        onClick={() => selectIdea(idea)}
+                        className="group p-3 bg-white hover:bg-violet-50 border border-slate-200 hover:border-violet-300 rounded-xl cursor-pointer active:scale-98 hover:-translate-y-0.5 hover:shadow-md"
+                      >
+                        <div className="flex gap-2">
+                          <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-300 group-hover:bg-violet-600 shrink-0"></div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-slate-700 leading-relaxed group-hover:text-slate-900">
+                              {idea.title}
+                            </p>
+                            {idea.userBenefit && (
+                              <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                                {idea.userBenefit}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                    </AnimatePresence>
+                  </motion.div>
+                  <button
+                    onClick={appendIdeas}
+                    disabled={loadingIdeas}
+                    className="w-full mt-2 py-2.5 border border-dashed border-slate-300 text-slate-400 hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {loadingIdeas ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                    Ещё идеи
+                  </button>
+                </section>
               )}
             </div>
           </aside>
@@ -375,48 +482,43 @@ export default function Home() {
                 </div>
 
                 {/* AI Editing Panel */}
-                <div className="border-t border-slate-100 bg-slate-50/50 px-3 py-3 space-y-2.5">
-                  {/* Contextual suggestions */}
-                  {loadingSuggestions && postSuggestions.length === 0 && (
-                    <div className="flex gap-2 overflow-x-auto pb-0.5">
-                      {[120, 100, 140, 90].map((w, i) => (
-                        <div key={i} className="shrink-0 h-7 rounded-lg bg-slate-200 animate-pulse" style={{ width: w }} />
-                      ))}
-                    </div>
-                  )}
-                  {postSuggestions.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {postSuggestions.map((s, i) => (
-                        <button
-                          key={i}
-                          onClick={() => aiEdit(s)}
-                          disabled={pipelineState.stage !== 'idle'}
-                          className="px-2.5 py-1.5 bg-white shadow-sm rounded-lg text-[11px] font-medium text-slate-700 hover:text-violet-700 hover:bg-violet-50 transition-all disabled:opacity-50 text-left leading-tight"
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Custom prompt + undo */}
-                  <div className="flex gap-2">
+                <div className="border-t border-slate-100 bg-slate-50/50 px-3 py-2.5 space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: '✨ Упростить', prompt: 'Упрости текст, сделай проще и понятнее' },
+                      { label: '🎯 Строже', prompt: 'Сделай текст более строгим и деловым' },
+                      { label: '🎉 Веселее', prompt: 'Добавь юмора и легкости' },
+                      { label: '🔥 Короче', prompt: 'Сократи текст вдвое, оставь только суть' },
+                      { label: '💡 CTA', prompt: 'Добавь призыв к действию в конце' },
+                    ].map((action) => (
+                      <button
+                        key={action.label}
+                        onClick={() => aiEdit(action.prompt)}
+                        disabled={pipelineState.stage !== 'idle'}
+                        className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-all disabled:opacity-50"
+                      >
+                        {action.label}
+                      </button>
+                    ))}
                     {previousPostText && (
                       <button
                         onClick={undo}
                         disabled={pipelineState.stage !== 'idle'}
-                        className="px-2.5 py-2 bg-amber-100 rounded-lg text-[11px] font-medium text-amber-700 hover:bg-amber-200 transition-all disabled:opacity-50 flex items-center gap-1 shrink-0"
+                        className="px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-medium text-amber-700 hover:border-amber-400 hover:bg-amber-100 transition-all disabled:opacity-50 flex items-center gap-1"
                       >
-                        ↩
+                        ↩ Отменить
                       </button>
                     )}
+                  </div>
+
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       value={editPrompt}
                       onChange={(e) => setEditPrompt(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && editPrompt && aiEdit(editPrompt)}
-                      placeholder="Или напиши своё пожелание..."
-                      className="flex-1 bg-slate-100 rounded-lg px-3 py-2 text-sm outline-none focus:bg-white focus:ring-4 focus:ring-violet-500/10 transition-all placeholder:text-slate-400"
+                      placeholder="Напиши что изменить..."
+                      className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10 transition-all placeholder:text-slate-400"
                     />
                     <button
                       onClick={() => editPrompt && aiEdit(editPrompt)}
@@ -429,62 +531,24 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              /* IDLE STATE — goal + point selector */
-              <div className="flex-1 flex flex-col items-center justify-center p-8">
-                <div className="w-full max-w-sm space-y-5">
-                  <div>
-                    <h2 className="text-2xl font-black text-slate-900 tracking-tight">Что пишем?</h2>
-                    <p className="text-sm text-slate-500 mt-1">Выбери цель и укажи поинт — ИИ напишет пост в стиле канала</p>
+              /* IDLE STATE */
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full blur-2xl opacity-20 animate-pulse scale-150"></div>
+                  <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-violet-200">
+                    <Sparkles size={36} className="text-white" />
                   </div>
-
-                  {/* Goal selector */}
-                  <div>
-                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2">Цель поста</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.values(PostGoal).map(g => (
-                        <button
-                          key={g}
-                          onClick={() => setStrategy(s => ({...s, goal: g}))}
-                          className={`py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
-                            strategy.goal === g
-                              ? 'bg-slate-900 text-white shadow-md'
-                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                          }`}
-                        >
-                          {g}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Point */}
-                  <div>
-                    <div className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
-                      <MessageSquareQuote size={9} /> О чём пост
-                      <span className="normal-case tracking-normal font-normal text-slate-300">— необязательно</span>
-                    </div>
-                    <textarea
-                      value={strategy.point || ''}
-                      onChange={(e) => setStrategy(s => ({...s, point: e.target.value}))}
-                      placeholder="Оставь пустым — ИИ сам выберет тему для канала"
-                      rows={3}
-                      className="w-full bg-slate-50 text-sm rounded-xl p-3 outline-none focus:bg-white focus:ring-4 focus:ring-violet-500/10 transition-all placeholder:text-slate-300 resize-none shadow-sm"
-                    />
-                  </div>
-
-                  {/* CTA */}
-                  <button
-                    onClick={generateDirect}
-                    disabled={analyzing || !strategy.channelUrl}
-                    className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-violet-700 transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-slate-200 hover:shadow-violet-200"
-                  >
-                    {analyzing ? (
-                      <><Loader2 className="animate-spin" size={15} /> Изучаю канал...</>
-                    ) : (
-                      <><Send size={15} /> Написать пост</>
-                    )}
-                  </button>
                 </div>
+                <h3 className="text-xl font-black text-slate-900 tracking-tight">Выбери идею</h3>
+                <p className="text-sm text-slate-500 max-w-xs mt-2 leading-relaxed">
+                  Кликни на идею слева, чтобы ИИ превратил её в готовый пост
+                </p>
+                <div className="flex items-center gap-2 mt-6 text-xs text-slate-400">
+                  <div className="w-8 h-0.5 bg-gradient-to-r from-transparent to-slate-200"></div>
+                  <span className="uppercase tracking-widest font-bold">или</span>
+                  <div className="w-8 h-0.5 bg-gradient-to-l from-transparent to-slate-200"></div>
+                </div>
+                <p className="text-xs text-slate-400 mt-4">Сгенерируй новые идеи в панели слева</p>
               </div>
             )}
           </main>
@@ -541,18 +605,19 @@ export default function Home() {
               
               <div className="flex-1 p-4 overflow-y-auto custom-scrollbar min-h-0">
                 {currentPost && !currentPost.generating && (currentPost.text || currentPost.imageUrl) ? (
-                  <div className="bg-white rounded-2xl p-3 shadow-xl shadow-black/10 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                  <div className="bg-white rounded-2xl p-3 shadow-xl shadow-black/10 animate-in fade-in slide-in-from-bottom-3 duration-500 ring-1 ring-black/5">
                     {currentPost.imageUrl && (
                       <div className="rounded-xl overflow-hidden mb-3">
                         <img src={currentPost.imageUrl} alt="Post" className="w-full h-auto object-cover" />
                       </div>
                     )}
-                    <div 
-                      className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none 
-                        prose-p:my-0 prose-p:min-h-[1.4em] 
-                        [&_p:empty]:h-[1.4em] [&_p:empty]:block
-                        [&_p>br]:h-[1.4em]" 
-                      dangerouslySetInnerHTML={{ __html: currentPost.text }} 
+                    <div
+                      className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none
+                        prose-p:my-0 prose-p:min-h-[1.25rem]
+                        [&_p:empty]:h-[1.25rem] [&_p:empty]:block
+                        [&_p>br]:h-[1.25rem]
+                        [&_a]:text-violet-600 [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-violet-800"
+                      dangerouslySetInnerHTML={{ __html: currentPost.text }}
                     />
                     <div className="flex justify-between items-center mt-2 pt-2 border-t border-slate-100">
                       <span className={`text-[10px] font-bold uppercase tracking-widest transition-opacity ${isSaving ? 'text-violet-500 opacity-100' : 'text-slate-300 opacity-0'}`}>
@@ -631,7 +696,7 @@ export default function Home() {
           {/* MOBILE BOTTOM TAB BAR */}
           <div className="lg:hidden flex items-center bg-white border-t border-slate-200 px-2 py-2 gap-1 shrink-0 safe-area-inset-bottom">
             {[
-              { id: 'ideas' as const, label: 'Бренд', icon: Target },
+              { id: 'ideas' as const, label: 'Идеи', icon: Zap },
               { id: 'editor' as const, label: 'Редактор', icon: Layout },
               { id: 'preview' as const, label: 'Публикация', icon: MessageCircle },
             ].map(tab => (
@@ -670,6 +735,14 @@ export default function Home() {
         channelUrl={strategy.channelUrl}
         currentPositioning={strategy.positioning}
         channelInfo={strategy.analyzedChannel}
+        onAnalysisUpdate={async (analysis) => {
+          setStrategy(s => ({ ...s, analyzedChannel: analysis }));
+          const brand = useWorkspaceStore.getState().currentBrand;
+          const uid = user?.id;
+          if (brand && uid) {
+            await BrandService.cacheAnalysis(uid, brand.id, analysis);
+          }
+        }}
       />
 
       {/* SUBSCRIPTION MODAL */}

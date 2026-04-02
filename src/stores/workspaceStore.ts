@@ -25,6 +25,7 @@ interface WorkspaceState {
   editPositioning: (brand: Brand) => void;
   updateBrandPositioning: (pos: string) => Promise<void>;
   deleteBrand: (brandId: string) => Promise<void>;
+  deletePost: (postId: string) => Promise<void>;
   createPost: (brandId: string) => Promise<void>;
   backToWorkspace: () => void;
 }
@@ -93,7 +94,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
       channelUrl: brand.channelUrl,
       positioning: brand.positioning,
     }));
-    useUIStore.getState().openPositioning();
+    // Analysis and onboarding is now handled in CreateBrandModal after save returns
   },
 
   editPositioning: (brand) => {
@@ -148,6 +149,47 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     }
   },
 
+  deletePost: async (postId: string) => {
+    const userId = useAuthStore.getState().user?.id;
+    if (!userId) return;
+    const { postProjects, currentProject } = get();
+    const postToDelete = postProjects.find((p) => p.id === postId);
+    if (!postToDelete) return;
+
+    // Optimistic remove from list
+    set((s) => ({ postProjects: s.postProjects.filter((p) => p.id !== postId) }));
+
+    // If this was the active post, go back to workspace
+    if (currentProject?.id === postId) {
+      set({ currentProject: null, viewMode: 'workspace' });
+    }
+
+    try {
+      await PostProjectService.deleteProject(userId, postId);
+      toast.success('Пост удалён', {
+        action: {
+          label: 'Отменить',
+          onClick: async () => {
+            // Restore optimistically to list and re-create in Firestore
+            set((s) => ({ postProjects: [...s.postProjects, postToDelete] }));
+            try {
+              await PostProjectService.restoreProject(userId, postToDelete);
+            } catch {
+              // If restore fails, remove again silently
+              set((s) => ({ postProjects: s.postProjects.filter((p) => p.id !== postId) }));
+              toast.error('Не удалось восстановить');
+            }
+          },
+        },
+        duration: 5000,
+      });
+    } catch (e: any) {
+      // Rollback on failure
+      set((s) => ({ postProjects: [...s.postProjects, postToDelete] }));
+      toast.error('Не удалось удалить пост');
+    }
+  },
+
   createPost: async (brandId: string) => {
     const userId = useAuthStore.getState().user?.id;
     if (!userId) return;
@@ -158,12 +200,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const editorStore = useEditorStore.getState();
 
     if (brand) {
-      set({ currentBrand: brand });
       editorStore.setStrategy((s: ChannelStrategy) => ({
         ...s,
         channelUrl: brand.channelUrl,
         positioning: brand.positioning,
-        analyzedChannel: brand.analyzedChannel || s.analyzedChannel,
       }));
     }
 
@@ -172,10 +212,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     const { AnalyticsService } = await import('../../services/analyticsService');
     AnalyticsService.trackProjectCreated();
 
-    // Set project but NOT currentPost — let the goal+point form show first
-    set({ currentProject: project, viewMode: 'editor' });
-    editorStore.setCurrentPost(null);
-    editorStore.setEditorTab('editor');
+    await editorStore.selectPost(project);
   },
 
   backToWorkspace: () => {

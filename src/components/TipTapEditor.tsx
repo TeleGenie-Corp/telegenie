@@ -37,6 +37,18 @@ interface TipTapEditorProps {
   onChange: (text: string) => void;
 }
 
+/**
+ * Converts Telegram HTML (newline-separated) to TipTap HTML (paragraph-wrapped).
+ * Only transforms if no <p> tags are present — avoids double-conversion.
+ */
+function telegramToTiptap(html: string): string {
+  if (!html || html.includes('<p>')) return html;
+  const lines = html.split('\n');
+  return lines
+    .map(line => (line.trim().length === 0 ? '<p></p>' : `<p>${line}</p>`))
+    .join('');
+}
+
 export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
   const editCountRef = useRef(0);
   const editDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -74,7 +86,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
         limit: 4096,
       }),
     ],
-    content: value,
+    content: telegramToTiptap(value),
     editorProps: {
       attributes: {
         class: 'prose prose-sm sm:prose-base focus:outline-none min-h-[300px] h-full px-4 py-3 text-slate-900 whitespace-pre-wrap',
@@ -86,31 +98,14 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
     },
   });
 
-  // Sync external value changes (e.g. from Polishing agent)
+  // Sync external value changes (e.g. from AI edit / undo)
   useEffect(() => {
-    if (editor && !editor.isFocused && typeof value === 'string' && value !== editor.getHTML()) {
-      // Check if value needs newline conversion (Telegram HTML -> Web HTML)
-      // If value contains newlines but no paragraphs/breaks, it's likely raw text/Telegram HTML
-      let content = value;
-      if (value.includes('\n') && !value.includes('<p>') && !value.includes('<br')) {
-         // Convert to paragraphs for better block control (Quote, Lists)
-         // Split by single newline to create distinct blocks, preserving empty lines
-         const paragraphs = value.split('\n');
-         content = paragraphs.map(p => {
-             // TipTap/ProseMirror will handle the break for empty paragraphs automatically
-             return p.trim().length === 0 ? '<p></p>' : `<p>${p}</p>`;
-         }).join('');
-      }
-
-      // Brute force check to prevent infinite loops, but allow external updates
-      if (editor.getHTML() !== content) {
-          // Only update if difference is significant or it's a fresh load (empty editor)
-          const currentLength = editor.getText().length;
-          const newLength = content.length; // Approximate
-          
-          if (currentLength === 0 || Math.abs(currentLength - newLength) > 5) {
-             editor.commands.setContent(content);
-          }
+    if (!editor || editor.isFocused || typeof value !== 'string') return;
+    const content = telegramToTiptap(value);
+    if (editor.getHTML() !== content) {
+      const currentLength = editor.getText().length;
+      if (currentLength === 0 || Math.abs(currentLength - editor.getText().length) > 5) {
+        editor.commands.setContent(content);
       }
     }
   }, [value, editor]);
@@ -184,10 +179,20 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
             content: none !important;
         }
 
+        /* Links */
+        .prose a {
+            color: #7c3aed !important;
+            text-decoration: underline !important;
+            text-underline-offset: 2px;
+        }
+        .prose a:hover {
+            color: #6d28d9 !important;
+        }
+
         /* Enforce Paragraph Spacing */
         .prose p {
-            margin-top: 0 !important;
-            margin-bottom: 0 !important;
+            margin-top: 0.5em !important;
+            margin-bottom: 0.5em !important;
             line-height: 1.6;
             min-height: 1.6em; /* Ensure empty paragraphs have height */
         }

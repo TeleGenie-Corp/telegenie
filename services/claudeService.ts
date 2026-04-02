@@ -1,209 +1,137 @@
-import Anthropic from '@anthropic-ai/sdk';
-import { ChannelStrategy, Idea, PostGoal, UsageMetadata } from "../types";
-import { SYSTEM_PROMPT_BASE } from "../constants";
-
-// claude-sonnet-4-5 — best balance of quality and speed
-const MODEL = 'claude-sonnet-4-5';
-
-// Pricing per 1M tokens (USD) — update if Anthropic changes pricing
-const COST_PER_1M_INPUT  = 3.0;
-const COST_PER_1M_OUTPUT = 15.0;
+import { ChannelStrategy, Idea, PostGoal, UsageMetadata } from '../types';
+import { SYSTEM_PROMPT_BASE } from '../constants';
 
 export class ClaudeService {
-  private static getClient() {
+  private static getHeaders() {
     const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      console.error('[ClaudeService] ANTHROPIC_API_KEY is missing');
-      throw new Error('ANTHROPIC_API_KEY_MISSING');
-    }
-    return new Anthropic({ apiKey });
-  }
-
-  private static buildUsage(usage: Anthropic.Usage): UsageMetadata {
-    const input  = usage.input_tokens  ?? 0;
-    const output = usage.output_tokens ?? 0;
-    const cost   = (input / 1_000_000) * COST_PER_1M_INPUT
-                 + (output / 1_000_000) * COST_PER_1M_OUTPUT;
+    if (!apiKey) throw new Error('ANTHROPIC_API_KEY missing');
     return {
-      promptTokens:     input,
-      candidatesTokens: output,
-      totalTokens:      input + output,
-      estimatedCostUsd: cost,
-      modelName:        MODEL,
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
     };
   }
 
   private static buildAuthorContext(strategy: ChannelStrategy): string {
     const info = strategy.analyzedChannel;
     const parts: string[] = ['АВТОР И БРЕНД:'];
-
-    if (strategy.positioning) {
-      parts.push(`- Позиционирование: ${strategy.positioning}`);
-    }
+    if (strategy.positioning) parts.push(`- Позиционирование: ${strategy.positioning}`);
     parts.push(`- Тональность: ${info?.toneOfVoice || info?.context || 'Экспертная, уверенная'}`);
     parts.push(`- Тематика канала: ${info?.topic || 'Не определена'}`);
-
-    if (info?.contentPillars?.length) {
-      parts.push(`- Контент-столпы: ${info.contentPillars.join(', ')}`);
-    }
-    if (info?.forbiddenPhrases?.length) {
-      parts.push(`- ЗАПРЕЩЁННЫЕ ФРАЗЫ (никогда не используй): ${info.forbiddenPhrases.join('; ')}`);
-    }
-
+    if (info?.contentPillars?.length) parts.push(`- Контент-столпы: ${info.contentPillars.join(', ')}`);
+    if (info?.forbiddenPhrases?.length) parts.push(`- ЗАПРЕЩЁННЫЕ ФРАЗЫ (никогда не используй): ${info.forbiddenPhrases.join('; ')}`);
     return parts.join('\n');
   }
 
-  private static buildFrameworkInstruction(goal: PostGoal): string {
+  private static buildFrameworkInstruction(goal: PostGoal, ideaTitle: string): string {
     switch (goal) {
       case PostGoal.SELL:
-        return `ФРЕЙМВОРК (выбери ОДИН, исходя из идеи):
-- Идея про выгоду/результат → AIDA: Внимание → Интерес → Желание → Действие.
-- Идея про ограничение/срок → ODC: Оффер → Дедлайн → Призыв.
-- Идея про конкретное решение → PAS: Боль → Усиление → Решение.
-- Идея про сомнения → Снятие возражений: Возражение → Факт → Доказательство → CTA.`;
-
+        return `ФРЕЙМВОРК (выбери ОДИН исходя из идеи):
+- Если идея про выгоду/результат → AIDA: Внимание → Интерес → Желание → Действие.
+- Если идея про ограничение/срок → ODC: Оффер → Дедлайн → Призыв.
+- Если идея про конкретное решение → PAS: Боль → Усиление боли → Решение.
+- Если идея про сомнения аудитории → Снятие возражений: Возражение → Факт → Доказательство → CTA.
+Назови выбранный фреймворк: <!-- framework: AIDA --> (техническая метка, читатель её не видит).`;
       case PostGoal.ENGAGE:
-        return `ФРЕЙМВОРК (выбери ОДИН):
+        return `ФРЕЙМВОРК (выбери ОДИН исходя из идеи):
 - Личный опыт → Сторителлинг: Контекст → Конфликт → Развязка → Вывод.
 - Трансформация → BAB: Мир ДО → Мир ПОСЛЕ → Мост.
 - Ошибка/провал → Искренний факап: Что случилось → Почему → Чему научился.
-- Спорная тема → Провокация: Тезис → Антитезис → Вопрос к аудитории.`;
-
+- Спорная тема → Провокация: Тезис → Антитезис → Вопрос к аудитории.
+Назови выбранный фреймворк: <!-- framework: BAB -->`;
       case PostGoal.EDUCATE:
-        return `ФРЕЙМВОРК (выбери ОДИН):
-- «Как делать» → Пошаговка: Проблема → Шаги → Результат.
-- Инсайт → Тезис-Мясо-Вывод: Тезис → Аргументы/Примеры → Практический вывод.
-- Разбор → Кейс: Ситуация → Что сделали → Результат с цифрами.`;
-
+        return `ФРЕЙМВОРК:
+- «Как делать» → Пошаговка: Проблема → Шаг 1 → Шаг 2 → Шаг 3 → Результат.
+- Инсайт → Тезис-Мясо-Вывод: Тезис (жирный) → Аргументы/Примеры → Практический вывод.
+- Разбор → Кейс: Ситуация → Что сделали → Результат с цифрами.
+Назови выбранный фреймворк: <!-- framework: ... -->`;
       case PostGoal.INFORM:
-        return `ФРЕЙМВОРК (выбери ОДИН):
+        return `ФРЕЙМВОРК:
 - Новость/факт → Перевёрнутая пирамида: Главное → Детали → Контекст → «Что это значит для вас».
-- Тренд → Тезис-Мясо-Вывод: Тезис → Факты → Вывод.`;
-
+- Тренд/наблюдение → Тезис-Мясо-Вывод: Тезис → Факты → Вывод/Рекомендация.
+Назови выбранный фреймворк: <!-- framework: ... -->`;
       default:
         return 'Пиши максимально полезно и сжато.';
     }
   }
 
-  /**
-   * Generates a full post in Telegram HTML format using Claude Sonnet.
-   */
   static async generatePostContent(
     idea: Idea,
     strategy: ChannelStrategy
   ): Promise<{ text: string; usage: UsageMetadata }> {
-    const client = this.getClient();
-    const info   = strategy.analyzedChannel;
-
-    const authorContext       = this.buildAuthorContext(strategy);
-    const frameworkInstruction = this.buildFrameworkInstruction(strategy.goal);
-
+    const info = strategy.analyzedChannel;
+    const authorContext = this.buildAuthorContext(strategy);
+    const frameworkInstruction = this.buildFrameworkInstruction(strategy.goal, idea.title);
     const pointContext = strategy.point
       ? `ГЛАВНЫЙ ПОИНТ (суть поста): «${strategy.point}». Весь текст должен раскрывать этот поинт.`
       : '';
 
-    const lastPostsBlock = info?.lastPosts?.length
-      ? `\nПОСЛЕДНИЕ ПОСТЫ КАНАЛА (для эталона стиля):\n${info.lastPosts.slice(0, 3).join('\n---\n')}`
-      : '';
-
-    const prompt = `НАПИШИ ПОСТ ДЛЯ TELEGRAM-КАНАЛА «${info?.name || 'Telegram'}».
+    const prompt = `НАПИШИ ПОСТ ДЛЯ КАНАЛА «${info?.name || 'Telegram'}».
 
 ИДЕЯ: «${idea.title}»
 ЦЕЛЬ: ${strategy.goal}
 ${pointContext}
 
 ${authorContext}
-${lastPostsBlock}
 
 ${frameworkInstruction}
 
 РЕДАКТУРА (метод Ильяхова — применяй сразу, не в отдельном проходе):
-1. ЧИСТОТА: никаких вводных («давайте разберёмся», «стоит отметить»), пустых оценок («уникальный», «эффективный»), штампов.
-2. КОНКРЕТИКА: цифры, примеры, имена — вместо абстракций. Если нет точных данных — не выдумывай, пиши обобщённо.
+1. ЧИСТОТА: удали вводные («давайте разберёмся», «стоит отметить»), пустые оценки («уникальный», «эффективный»), штампы.
+2. КОНКРЕТИКА: цифры, примеры, имена вместо абстракций.
 3. СТРУКТУРА: заголовок-хук → мясо → чёткий CTA (что сделать читателю).
-4. ЭМОДЗИ: 1-3 на пост как визуальные якоря (📌 👉 ✅), не в середине предложений.
+4. ЭМОДЗИ: 1–3 на пост как визуальные якоря (📌, 👉, ✅), не в середине предложений.
 
 TELEGRAM HTML ФОРМАТИРОВАНИЕ:
-- <b>жирный</b> — ключевая мысль (1-2 раза на пост).
-- <i>курсив</i> — ирония или термин.
-- <code>моноширинный</code> — цифры и данные (<code>+30%</code>).
-- Пустая строка между абзацами (двойной перенос строки).
-- Объём: 800-1500 знаков (не считая HTML-тегов).
+- <b>жирный</b> — для ключевой мысли (1–2 раза на пост).
+- <i>курсив</i> — для иронии или термина.
+- <code>моноширинный</code> — для цифр (<code>+30%</code>).
+- Абзацы разделяй пустой строкой (\\n\\n).
+- Объём: 800–1500 знаков (не считая HTML-тегов).
 
-ВЫДАЙ ТОЛЬКО ГОТОВЫЙ HTML-ТЕКСТ ПОСТА. Без обёрток \`\`\`html, без комментариев, без пояснений.`;
+ВЫДАЙ ТОЛЬКО ГОТОВЫЙ HTML-ТЕКСТ ПОСТА. Без обёрток \`\`\`html, без пояснений.`;
 
-    const message = await client.messages.create({
-      model: MODEL,
-      max_tokens: 2048,
-      system: SYSTEM_PROMPT_BASE,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 2048,
+        system: SYSTEM_PROMPT_BASE,
+        messages: [{ role: 'user', content: prompt }],
+      }),
     });
 
-    const content = message.content[0];
-    let text = content.type === 'text' ? content.text : '';
-
-    // Strip accidental code fences
-    text = text.replace(/^\s*```[a-zA-Z]*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-
-    return { text, usage: this.buildUsage(message.usage) };
-  }
-
-  /**
-   * Analyzes the generated post and returns 4 short, contextual improvement suggestions.
-   * Each suggestion is a concrete action phrase (< 10 words).
-   */
-  static async generatePostSuggestions(
-    postText: string,
-    strategy: ChannelStrategy
-  ): Promise<string[]> {
-    const client = this.getClient();
-    const plainText = postText.replace(/<[^>]+>/g, '').trim();
-
-    const prompt = `Прочитай этот Telegram-пост и предложи 4 КОНКРЕТНЫХ точечных улучшения.
-
-ПОСТ:
-${plainText}
-
-ПРАВИЛА:
-- Каждое предложение — одно конкретное действие (не "улучши", а что именно)
-- Максимум 8-10 слов на предложение
-- Разные аспекты: структура, стиль, конкретика, вовлечение
-- Примеры формата: "Добавь цифру в заголовок", "Замени второй абзац на личный пример", "Сократи список до 3 пунктов", "Добавь вопрос к аудитории в конце"
-
-Верни ТОЛЬКО JSON-массив из 4 строк, без пояснений.`;
-
-    const message = await client.messages.create({
-      model: MODEL,
-      max_tokens: 300,
-      messages: [{ role: 'user', content: prompt }],
-    });
-
-    const content = message.content[0];
-    const raw = content.type === 'text' ? content.text : '[]';
-
-    try {
-      const clean = raw.replace(/```json\n?|\n?```/gi, '').trim();
-      const parsed = JSON.parse(clean);
-      return Array.isArray(parsed) ? parsed.slice(0, 4) : [];
-    } catch {
-      const matches = raw.match(/"([^"]{5,80})"/g);
-      return matches ? matches.slice(0, 4).map((s: string) => s.replace(/"/g, '')) : [];
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Claude API ${response.status}: ${err}`);
     }
+
+    const data = await response.json();
+    let text: string = data.content?.[0]?.text || '';
+    text = text.replace(/^\s*```[a-zA-Z]*\n?/i, '').replace(/\n?```\s*$/i, '');
+    text = text.replace(/<!--\s*framework:.*?-->\n?/gi, '');
+
+    const usage: UsageMetadata = {
+      promptTokens: data.usage?.input_tokens ?? 0,
+      candidatesTokens: data.usage?.output_tokens ?? 0,
+      totalTokens: (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0),
+      estimatedCostUsd:
+        ((data.usage?.input_tokens ?? 0) * 3 + (data.usage?.output_tokens ?? 0) * 15) / 1_000_000,
+      modelName: 'claude-sonnet-4-5',
+    };
+
+    return { text, usage };
   }
 
-  /**
-   * Surgically edits existing post content following the user's instruction.
-   * Claude Sonnet is exceptionally good at minimal, precise edits.
-   */
   static async polishContent(
     text: string,
     instruction: string,
     strategy: ChannelStrategy
   ): Promise<{ text: string; usage: UsageMetadata }> {
-    const client = this.getClient();
     const authorContext = this.buildAuthorContext(strategy);
 
-    const prompt = `Ты — хирургический редактор. Внеси МИНИМАЛЬНЫЕ точечные изменения в текст по инструкции.
+    const prompt = `Ты — хирургический редактор. Внеси МИНИМАЛЬНЫЕ точечные изменения по инструкции.
 
 ИНСТРУКЦИЯ: «${instruction}»
 
@@ -212,32 +140,42 @@ ${authorContext}
 ИСХОДНЫЙ ТЕКСТ (Telegram HTML):
 ${text}
 
-ПРИНЦИП МИНИМАЛЬНОСТИ (КРИТИЧЕСКИ ВАЖНО):
-- Меняй ТОЛЬКО то, что напрямую относится к инструкции.
-- Каждое предложение, которое НЕ затронуто инструкцией — оставь ДОСЛОВНО.
-- Не переписывай, не перефразируй, не «улучшай» то, о чём не просили.
-- Не меняй порядок абзацев, не добавляй новые абзацы без прямой необходимости.
+ПРАВИЛА:
+- Сохраняй все HTML-теги Telegram: <b>, <i>, <code>, <a href="...">, <u>, <s>, <tg-spoiler>.
+- Не добавляй теги, которых не было в исходнике, если инструкция этого не требует.
+- Меняй только то, о чём просит инструкция. Остальное — не трогай.
+- НЕ добавляй вводных фраз типа «Вот улучшенный текст:».
 
-ФОРМАТ ОТВЕТА:
-- Сохраняй ТОЧНО ТОТ ЖЕ HTML-формат, что в исходном тексте. Не конвертируй между форматами.
-- Возвращай ТОЛЬКО текст. Без \`\`\`html, без комментариев, без пояснений.
+ВЫДАЙ ТОЛЬКО ИТОГОВЫЙ HTML-ТЕКСТ. Без пояснений.`;
 
-АНТИПАТТЕРНЫ (никогда):
-- ❌ «Заодно подправлю стиль» — меняй только по инструкции.
-- ❌ Добавлять эмодзи, если не просили.
-- ❌ Менять тональность всего текста, если просили изменить одно предложение.`;
-
-    const message = await client.messages.create({
-      model: MODEL,
-      max_tokens: 2048,
-      system: SYSTEM_PROMPT_BASE,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 2048,
+        system: SYSTEM_PROMPT_BASE,
+        messages: [{ role: 'user', content: prompt }],
+      }),
     });
 
-    const content = message.content[0];
-    let resultText = content.type === 'text' ? content.text : text;
-    resultText = resultText.replace(/^\s*```[a-zA-Z]*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Claude API ${response.status}: ${err}`);
+    }
 
-    return { text: resultText, usage: this.buildUsage(message.usage) };
+    const data = await response.json();
+    const resultText: string = data.content?.[0]?.text || text;
+
+    const usage: UsageMetadata = {
+      promptTokens: data.usage?.input_tokens ?? 0,
+      candidatesTokens: data.usage?.output_tokens ?? 0,
+      totalTokens: (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0),
+      estimatedCostUsd:
+        ((data.usage?.input_tokens ?? 0) * 3 + (data.usage?.output_tokens ?? 0) * 15) / 1_000_000,
+      modelName: 'claude-sonnet-4-5',
+    };
+
+    return { text: resultText, usage };
   }
 }

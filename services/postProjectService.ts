@@ -141,6 +141,14 @@ export class PostProjectService {
   }
 
   /**
+   * Restore a previously deleted post project (undo delete).
+   */
+  static async restoreProject(userId: string, post: PostProject): Promise<void> {
+    const { id, ...data } = post;
+    await setDoc(this.getPostDoc(userId, id), data);
+  }
+
+  /**
    * Update ideas list.
    */
   static async updateIdeas(userId: string, postId: string, ideas: Idea[], selectedIdeaId?: string): Promise<void> {

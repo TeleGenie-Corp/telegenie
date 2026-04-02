@@ -1,12 +1,13 @@
-import { 
-  GenerationInput, 
-  GenerationResult, 
+import {
+  GenerationInput,
+  GenerationResult,
   GenerationCosts,
   PipelineState,
   Post,
   UsageMetadata
 } from '../types';
 import { GeminiService } from './geminiService';
+import { ClaudeService } from './claudeService';
 
 type ProgressCallback = (state: PipelineState) => void;
 
@@ -59,23 +60,17 @@ export class PostGenerationService {
       let generatedText = '';
       let contentUsage: UsageMetadata | undefined;
 
-      // Use streaming if available
+      // Generate with Claude Sonnet
       try {
-        const stream = GeminiService.generatePostContentStream(input.idea, input.strategy);
-        for await (const chunk of stream) {
-          generatedText = chunk.text;
-          // Emit usage if available in chunk, otherwise keep undefined for now
-          if (chunk.usage) contentUsage = chunk.usage; 
-          
-          if (onPartialText) {
-             onPartialText(generatedText);
-          }
-        }
+        const result = await ClaudeService.generatePostContent(input.idea, input.strategy);
+        generatedText = result.text;
+        contentUsage = result.usage;
+        if (onPartialText) onPartialText(generatedText);
       } catch (e) {
-          console.warn("Streaming failed, falling back to blocking", e);
-          const fallback = await GeminiService.generatePostContent(input.idea, input.strategy);
-          generatedText = fallback.text;
-          contentUsage = fallback.usage;
+        console.warn('Claude generation failed, falling back to Gemini', e);
+        const fallback = await GeminiService.generatePostContent(input.idea, input.strategy);
+        generatedText = fallback.text;
+        contentUsage = fallback.usage;
       }
       
       costs.content = contentUsage?.estimatedCostUsd || 0;

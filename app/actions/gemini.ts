@@ -48,10 +48,16 @@ export async function generateDemoPostAction(idea: Idea, strategy: ChannelStrate
 
 export async function polishContentAction(text: string, instruction: string, strategy: ChannelStrategy) {
   try {
-    return await GeminiService.polishContent(text, instruction, strategy);
+    const { ClaudeService } = await import('@/services/claudeService');
+    return await ClaudeService.polishContent(text, instruction, strategy);
   } catch (error: any) {
-    console.error('[polishContentAction]', error);
-    throw error;
+    console.error('[polishContentAction] Claude failed, trying Gemini fallback', error);
+    try {
+      return await GeminiService.polishContent(text, instruction, strategy);
+    } catch (e2: any) {
+      console.error('[polishContentAction] Gemini fallback also failed', e2);
+      throw error;
+    }
   }
 }
 
@@ -80,15 +86,5 @@ export async function generatePostAction(input: any) {
   } catch (error: any) {
     console.error('[generatePostAction]', error);
     throw error;
-  }
-}
-
-export async function generatePostSuggestionsAction(postText: string, strategy: ChannelStrategy): Promise<string[]> {
-  try {
-    const { ClaudeService } = await import('@/services/claudeService');
-    return await ClaudeService.generatePostSuggestions(postText, strategy);
-  } catch (error: any) {
-    console.error('[generatePostSuggestionsAction]', error);
-    return [];
   }
 }
