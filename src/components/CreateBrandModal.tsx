@@ -99,7 +99,7 @@ export const CreateBrandModal: React.FC<CreateBrandModalProps> = ({
                   Новый источник
                 </h2>
                 <p className="text-slate-500 text-sm mb-6">
-                  ИИ изучит канал и адаптирует контент под его стиль.
+                  Проанализируем канал и адаптируем контент под его стиль.
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -157,7 +157,7 @@ export const CreateBrandModal: React.FC<CreateBrandModalProps> = ({
                   Изучаю канал
                 </h2>
                 <p className="text-slate-500 text-sm max-w-xs mx-auto">
-                  ИИ читает посты, определяет тематику, стиль и голос автора...
+                  Читаю посты, определяю тематику, стиль и голос автора...
                 </p>
                 <div className="mt-6 space-y-2">
                   {['Читаю последние публикации', 'Определяю темы и тон', 'Формирую профиль канала'].map((step, i) => (

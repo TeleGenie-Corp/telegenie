@@ -344,7 +344,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                 >
                   <Radio size={24} className="mx-auto text-slate-300 mb-2" />
                   <div className="text-sm font-medium text-slate-500">Добавь первый канал</div>
-                  <div className="text-xs text-slate-400 mt-1">ИИ изучит стиль и тематику</div>
+                  <div className="text-xs text-slate-400 mt-1">Проанализируем стиль и тематику</div>
                 </button>
               )}
             </div>

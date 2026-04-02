@@ -3,7 +3,7 @@
 import React, { Suspense, useEffect, useState, lazy } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Sparkles, Zap, Loader2, Layout, Target,
+  Sparkles, Loader2, Layout, Target,
   MessageCircle, Send, Wand2, Settings,
   MessageSquareQuote, ChevronDown
 } from 'lucide-react';
@@ -38,7 +38,7 @@ const CreateBrandModal = lazy(() => import('@/src/components/CreateBrandModal').
 const PublishedPostModal = lazy(() => import('@/src/components/PublishedPostModal').then(m => ({ default: m.PublishedPostModal })));
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { pageTransitions, listContainer, listItem } from '@/src/animationTokens';
+import { pageTransitions } from '@/src/animationTokens';
 import { Toaster, toast } from 'sonner';
 
 const CHANNEL_URL = process.env.NEXT_PUBLIC_CHANNEL_URL || 'https://t.me/AiKanalishe';
@@ -101,9 +101,6 @@ export default function Home() {
 
   const strategy = useEditorStore(s => s.strategy);
   const setStrategy = useEditorStore(s => s.setStrategy);
-  const analyzing = useEditorStore(s => s.analyzing);
-  const ideas = useEditorStore(s => s.ideas);
-  const loadingIdeas = useEditorStore(s => s.loadingIdeas);
   const currentPost = useEditorStore(s => s.currentPost);
   const pipelineState = useEditorStore(s => s.pipelineState);
   const editPrompt = useEditorStore(s => s.editPrompt);
@@ -112,9 +109,7 @@ export default function Home() {
   const setEditorTab = useEditorStore(s => s.setEditorTab);
   const isSaving = useEditorStore(s => s.isSaving);
   const selectPost = useEditorStore(s => s.selectPost);
-  const generateIdeas = useEditorStore(s => s.generateIdeas);
-  const appendIdeas = useEditorStore(s => s.appendIdeas);
-  const selectIdea = useEditorStore(s => s.selectIdea);
+  const generateDirect = useEditorStore(s => s.generateDirect);
   const aiEdit = useEditorStore(s => s.aiEdit);
   const undo = useEditorStore(s => s.undo);
   const previousPostText = useEditorStore(s => s.previousPostText);
@@ -284,171 +279,64 @@ export default function Home() {
           >
           <ErrorBoundary fallbackTitle="Ошибка в редакторе">
 
-          {/* LEFT SIDEBAR: STRATEGY + IDEAS */}
+          {/* LEFT SIDEBAR: CHANNEL CONTEXT */}
           <aside className={`${editorTab === 'ideas' ? 'flex' : 'hidden'} lg:flex lg:col-span-3 bg-white border-r border-slate-200 flex-col overflow-hidden flex-1 lg:flex-none min-h-0`}>
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              {/* STRATEGY */}
-              <section className="p-4 space-y-4 shrink-0 overflow-y-auto max-h-[50vh] custom-scrollbar border-b border-slate-100">
-                <div>
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2">
-                    <Target size={12} /> Цель поста
-                  </h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {Object.values(PostGoal).map(g => (
-                      <button 
-                        key={g}
-                        onClick={() => setStrategy(s => ({...s, goal: g}))}
-                        className={`py-2 px-2 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${strategy.goal === g ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
-                      >
-                        {g}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-4">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                <Target size={12} /> Контекст канала
+              </h3>
 
-                {/* Point */}
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 mb-1 flex items-center gap-1">
-                    <MessageSquareQuote size={10} /> Поинт (Опционально)
-                  </label>
-                  <textarea
-                    value={strategy.point || ''}
-                    onChange={(e) => setStrategy(s => ({...s, point: e.target.value}))}
-                    placeholder="О чем конкретно пост?"
-                    rows={2}
-                    className="w-full bg-slate-50 border border-slate-200 text-xs font-medium rounded-xl p-2.5 outline-none focus:border-violet-300 focus:bg-white transition-all placeholder:text-slate-300 resize-none"
-                  />
-                </div>
-
-                <button 
-                  onClick={generateIdeas}
-                  disabled={loadingIdeas || !strategy.channelUrl}
-                  className="w-full py-3 bg-violet-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-violet-700 transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-violet-200 hover:shadow-violet-300"
-                >
-                  {loadingIdeas ? <Loader2 className="animate-spin" size={14} /> : <Sparkles size={14} />}
-                  {loadingIdeas ? 'Анализирую...' : (strategy.point ? 'Развить Поинт' : 'Придумать Идеи')}
-                </button>
-               </section>
-
-              {/* IDEAS — Loading */}
-              {loadingIdeas && (
-                <section className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-3">
-                    <Zap size={12} className="animate-pulse" />
-                    {analyzing ? 'Читаю ваш канал...' : 'Генерирую идеи...'}
-                  </h3>
-                  <div className="space-y-2">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="p-3 bg-slate-50 border border-slate-100 rounded-xl animate-pulse">
-                        <div className="flex gap-2">
-                          <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-slate-200 shrink-0"></div>
-                          <div className="flex-1 space-y-2">
-                            <div className="h-3 bg-slate-200 rounded w-3/4"></div>
-                            <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+              {strategy.analyzedChannel && (strategy.analyzedChannel.contentPillars?.length || strategy.analyzedChannel.toneOfVoice || strategy.analyzedChannel.forbiddenPhrases?.length) ? (
+                <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50/50 border border-violet-100 rounded-2xl overflow-hidden">
+                  <button
+                    onClick={() => setInsightsOpen(v => !v)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-violet-600 hover:bg-violet-50/80 transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles size={10} /> Инсайты о канале
+                    </span>
+                    <ChevronDown size={11} className={`transition-transform duration-200 ${insightsOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {insightsOpen && (
+                    <div className="px-3 pb-3 space-y-2.5">
+                      {(strategy.analyzedChannel.contentPillars?.length ?? 0) > 0 && (
+                        <div>
+                          <div className="text-[9px] font-bold uppercase tracking-widest text-violet-400 mb-1.5">Столпы контента</div>
+                          <div className="flex flex-wrap gap-1">
+                            {strategy.analyzedChannel.contentPillars!.map(p => (
+                              <span key={p} className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">{p}</span>
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* IDEAS — List */}
-              {ideas.length > 0 && !loadingIdeas && (
-                <section className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                      <Zap size={12} /> Идеи ({ideas.length})
-                    </h3>
-                    {ideas[0]?.sources && ideas[0].sources.length > 0 && (
-                      <span className="text-[9px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                        🔍 {ideas[0].sources.length} ист.
-                      </span>
-                    )}
-                  </div>
-                  {/* CHANNEL INSIGHTS — Aha-moment card */}
-                  {strategy.analyzedChannel && (
-                    (strategy.analyzedChannel.contentPillars?.length || strategy.analyzedChannel.toneOfVoice || strategy.analyzedChannel.forbiddenPhrases?.length)
-                  ) && (
-                    <div className="mb-3">
-                      <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50/50 border border-violet-100 rounded-2xl overflow-hidden">
-                        <button
-                          onClick={() => setInsightsOpen(v => !v)}
-                          className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-black uppercase tracking-widest text-violet-600 hover:bg-violet-50/80 transition-colors"
-                        >
-                          <span className="flex items-center gap-1.5">
-                            <Target size={10} /> Что ИИ узнал о канале
-                          </span>
-                          <ChevronDown size={11} className={`transition-transform duration-200 ${insightsOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        {insightsOpen && (
-                          <div className="px-3 pb-3 space-y-2.5">
-                            {(strategy.analyzedChannel.contentPillars?.length ?? 0) > 0 && (
-                              <div>
-                                <div className="text-[9px] font-bold uppercase tracking-widest text-violet-400 mb-1.5">Столпы контента</div>
-                                <div className="flex flex-wrap gap-1">
-                                  {strategy.analyzedChannel.contentPillars!.map(p => (
-                                    <span key={p} className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">{p}</span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                            {strategy.analyzedChannel.toneOfVoice && (
-                              <div>
-                                <div className="text-[9px] font-bold uppercase tracking-widest text-fuchsia-400 mb-1">Тональность</div>
-                                <p className="text-[10px] text-slate-600 leading-relaxed font-medium">{strategy.analyzedChannel.toneOfVoice}</p>
-                              </div>
-                            )}
-                            {(strategy.analyzedChannel.forbiddenPhrases?.length ?? 0) > 0 && (
-                              <div>
-                                <div className="text-[9px] font-bold uppercase tracking-widest text-rose-400 mb-1.5">Избегать</div>
-                                <div className="flex flex-wrap gap-1">
-                                  {strategy.analyzedChannel.forbiddenPhrases!.map(p => (
-                                    <span key={p} className="text-[10px] bg-rose-50 text-rose-400 px-2 py-0.5 rounded-full font-medium">{p}</span>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                      )}
+                      {strategy.analyzedChannel.toneOfVoice && (
+                        <div>
+                          <div className="text-[9px] font-bold uppercase tracking-widest text-fuchsia-400 mb-1">Тональность</div>
+                          <p className="text-[10px] text-slate-600 leading-relaxed font-medium">{strategy.analyzedChannel.toneOfVoice}</p>
+                        </div>
+                      )}
+                      {(strategy.analyzedChannel.forbiddenPhrases?.length ?? 0) > 0 && (
+                        <div>
+                          <div className="text-[9px] font-bold uppercase tracking-widest text-rose-400 mb-1.5">Избегать</div>
+                          <div className="flex flex-wrap gap-1">
+                            {strategy.analyzedChannel.forbiddenPhrases!.map(p => (
+                              <span key={p} className="text-[10px] bg-rose-50 text-rose-400 px-2 py-0.5 rounded-full font-medium">{p}</span>
+                            ))}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   )}
-
-                  <motion.div className="space-y-2" variants={listContainer} initial="hidden" animate="show">
-                    <AnimatePresence>
-                    {ideas.map((idea) => (
-                      <motion.div
-                        key={idea.id} variants={listItem} layout
-                        onClick={() => selectIdea(idea)}
-                        className="group p-3 bg-white hover:bg-violet-50 border border-slate-200 hover:border-violet-300 rounded-xl cursor-pointer active:scale-98 hover:-translate-y-0.5 hover:shadow-md"
-                      >
-                        <div className="flex gap-2">
-                          <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-violet-300 group-hover:bg-violet-600 shrink-0"></div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-slate-700 leading-relaxed group-hover:text-slate-900">
-                              {idea.title}
-                            </p>
-                            {idea.userBenefit && (
-                              <p className="text-[10px] text-slate-400 mt-1 leading-snug">
-                                {idea.userBenefit}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                    </AnimatePresence>
-                  </motion.div>
-                  <button
-                    onClick={appendIdeas}
-                    disabled={loadingIdeas}
-                    className="w-full mt-2 py-2.5 border border-dashed border-slate-300 text-slate-400 hover:border-violet-300 hover:text-violet-600 hover:bg-violet-50 rounded-xl text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
-                  >
-                    {loadingIdeas ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                    Ещё идеи
-                  </button>
-                </section>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center text-center py-6 px-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
+                    <Sparkles size={16} className="text-slate-300" />
+                  </div>
+                  <p className="text-xs font-medium text-slate-400 leading-relaxed">
+                    Добавь источник в рабочем пространстве — и мы адаптируем посты под стиль канала
+                  </p>
+                </div>
               )}
             </div>
           </aside>
@@ -469,7 +357,7 @@ export default function Home() {
                       </div>
                       <div className="text-center">
                         <p className="text-sm font-bold text-slate-900">Редактирую текст...</p>
-                        <p className="text-xs text-slate-500 mt-1">ИИ применяет ваши изменения</p>
+                        <p className="text-xs text-slate-500 mt-1">Применяю ваши изменения</p>
                       </div>
                     </div>
                   )}
@@ -531,24 +419,57 @@ export default function Home() {
                 </div>
               </div>
             ) : (
-              /* IDLE STATE */
-              <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-                <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full blur-2xl opacity-20 animate-pulse scale-150"></div>
-                  <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-violet-200">
-                    <Sparkles size={36} className="text-white" />
+              /* COMPOSE SCREEN */
+              <div className="flex-1 flex flex-col items-center justify-center p-8">
+                <div className="w-full max-w-md space-y-6">
+                  <div className="text-center mb-2">
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Что пишем?</h3>
+                    <p className="text-sm text-slate-400 mt-1">Выбери цель и напиши суть поста</p>
                   </div>
+
+                  {/* Goal */}
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Цель поста</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.values(PostGoal).map(g => (
+                        <button
+                          key={g}
+                          onClick={() => setStrategy(s => ({...s, goal: g}))}
+                          className={`py-3 px-3 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${
+                            strategy.goal === g
+                              ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+                              : 'bg-white text-slate-600 border-slate-200 hover:border-violet-300 hover:text-violet-700'
+                          }`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Point */}
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
+                      <MessageSquareQuote size={10} /> Главная мысль
+                    </label>
+                    <textarea
+                      value={strategy.point || ''}
+                      onChange={(e) => setStrategy(s => ({...s, point: e.target.value}))}
+                      placeholder="Что конкретно хочешь сказать читателю? (необязательно)"
+                      rows={3}
+                      className="w-full bg-slate-50 border border-slate-200 text-sm font-medium rounded-xl p-3 outline-none focus:border-violet-300 focus:bg-white transition-all placeholder:text-slate-300 resize-none"
+                    />
+                  </div>
+
+                  <button
+                    onClick={generateDirect}
+                    disabled={pipelineState.stage !== 'idle'}
+                    className="w-full py-4 bg-violet-600 text-white rounded-xl font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-violet-700 transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-violet-200"
+                  >
+                    <Sparkles size={16} />
+                    Написать пост
+                  </button>
                 </div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">Выбери идею</h3>
-                <p className="text-sm text-slate-500 max-w-xs mt-2 leading-relaxed">
-                  Кликни на идею слева, чтобы ИИ превратил её в готовый пост
-                </p>
-                <div className="flex items-center gap-2 mt-6 text-xs text-slate-400">
-                  <div className="w-8 h-0.5 bg-gradient-to-r from-transparent to-slate-200"></div>
-                  <span className="uppercase tracking-widest font-bold">или</span>
-                  <div className="w-8 h-0.5 bg-gradient-to-l from-transparent to-slate-200"></div>
-                </div>
-                <p className="text-xs text-slate-400 mt-4">Сгенерируй новые идеи в панели слева</p>
               </div>
             )}
           </main>
@@ -696,7 +617,7 @@ export default function Home() {
           {/* MOBILE BOTTOM TAB BAR */}
           <div className="lg:hidden flex items-center bg-white border-t border-slate-200 px-2 py-2 gap-1 shrink-0 safe-area-inset-bottom">
             {[
-              { id: 'ideas' as const, label: 'Идеи', icon: Zap },
+              { id: 'ideas' as const, label: 'Контекст', icon: Target },
               { id: 'editor' as const, label: 'Редактор', icon: Layout },
               { id: 'preview' as const, label: 'Публикация', icon: MessageCircle },
             ].map(tab => (

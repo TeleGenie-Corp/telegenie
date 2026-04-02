@@ -70,7 +70,7 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
               Профиль канала
             </h2>
             <p className="text-slate-500 text-sm mb-5">
-              Что ИИ знает о канале — используется при каждой генерации.
+              Контекст канала — используется при каждой генерации.
             </p>
 
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 custom-scrollbar">
@@ -168,7 +168,7 @@ export const PositioningModal: React.FC<PositioningModalProps> = ({
                 <textarea
                   value={positioning}
                   onChange={e => setPositioning(e.target.value)}
-                  placeholder="Опционально: опиши своим словами, для кого канал, что даёт аудитории, чем отличается от других. ИИ учтёт это при генерации."
+                  placeholder="Опционально: опиши своим словами, для кого канал, что даёт аудитории, чем отличается от других — учтём при генерации."
                   rows={4}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-900 focus:border-violet-300 focus:ring-4 focus:ring-violet-500/10 transition-all outline-none resize-none placeholder:text-slate-300 leading-relaxed"
                 />
