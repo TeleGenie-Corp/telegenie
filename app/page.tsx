@@ -116,6 +116,7 @@ export default function Home() {
   const loadingSuggestions = useEditorStore(s => s.loadingSuggestions);
 
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
 
   // --- INIT: Auth listener + Firestore subscriptions ---
   // --- INIT: Auth listener moved to AuthInitializer ---
@@ -444,15 +445,16 @@ export default function Home() {
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity group"
                 >
-                  {(currentBrand?.linkedChannel?.photoUrl || profile?.linkedChannel?.photoUrl) ? (
-                    <img 
-                      src={currentBrand?.linkedChannel?.photoUrl || profile?.linkedChannel?.photoUrl} 
-                      alt="Avatar" 
-                      className="w-10 h-10 rounded-full object-cover border border-black/5" 
+                  {(currentBrand?.linkedChannel?.photoUrl || profile?.linkedChannel?.photoUrl) && !avatarError ? (
+                    <img
+                      src={currentBrand?.linkedChannel?.photoUrl || profile?.linkedChannel?.photoUrl}
+                      alt="Avatar"
+                      onError={() => setAvatarError(true)}
+                      className="w-10 h-10 rounded-full object-cover border border-black/5"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-violet-400 text-white flex items-center justify-center font-bold text-sm shrink-0">
-                      {(currentBrand?.name || profile?.linkedChannel?.title)?.[0] || 'A'}
+                    <div className="w-10 h-10 rounded-full bg-[#9aaeb5] text-white flex items-center justify-center font-bold text-sm shrink-0">
+                      {(currentBrand?.name || profile?.linkedChannel?.title)?.[0]?.toUpperCase() || 'A'}
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
@@ -482,10 +484,9 @@ export default function Home() {
                     )}
                     <div
                       className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none
-                        prose-p:my-0 prose-p:min-h-[1.25rem]
-                        [&_p:empty]:h-[1.25rem] [&_p:empty]:block
-                        [&_p>br]:h-[1.25rem]
-                        [&_a]:text-violet-600 [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-violet-800"
+                        [&_p]:my-0 [&_p]:leading-[1.6] [&_p]:min-h-[1.6em]
+                        [&_p:empty]:block [&_p:empty]:min-h-[1.6em]
+                        [&_a]:text-[#5e8090] [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-[#233137]"
                       dangerouslySetInnerHTML={{ __html: currentPost.text }}
                     />
                     <div className="flex justify-between items-center mt-2 pt-2">

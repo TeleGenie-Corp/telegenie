@@ -358,6 +358,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       const newPost = result.post;
       newPost.id = currentProject.id;
+      // Strip leading/trailing empty paragraphs from AI output
+      if (newPost.text) {
+        newPost.text = newPost.text
+          .replace(/^(\s*<p>\s*<\/p>\s*)+/gi, '')
+          .replace(/(\s*<p>\s*<\/p>\s*)+$/gi, '')
+          .trim();
+      }
       set({
         currentPost: newPost,
         pipelineState: { stage: 'idle', progress: 0 },

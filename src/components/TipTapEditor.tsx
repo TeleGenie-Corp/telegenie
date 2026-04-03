@@ -42,8 +42,14 @@ interface TipTapEditorProps {
  * Only transforms if no <p> tags are present — avoids double-conversion.
  */
 function telegramToTiptap(html: string): string {
-  if (!html || html.includes('<p>')) return html;
-  const lines = html.split('\n');
+  if (!html) return html;
+  // Strip leading/trailing empty <p> tags from AI-generated HTML
+  let cleaned = html
+    .replace(/^(\s*<p>\s*<\/p>\s*)+/i, '')
+    .replace(/(\s*<p>\s*<\/p>\s*)+$/i, '')
+    .trim();
+  if (cleaned.includes('<p>')) return cleaned;
+  const lines = cleaned.split('\n');
   return lines
     .map(line => (line.trim().length === 0 ? '<p></p>' : `<p>${line}</p>`))
     .join('');
@@ -189,12 +195,12 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
             color: #6d28d9 !important;
         }
 
-        /* Enforce Paragraph Spacing */
+        /* No extra spacing between paragraphs — match Telegram line breaks */
         .prose p {
-            margin-top: 0.5em !important;
-            margin-bottom: 0.5em !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
             line-height: 1.6;
-            min-height: 1.6em; /* Ensure empty paragraphs have height */
+            min-height: 1.6em;
         }
         
         /* Show ProseMirror internal breaks - essential for empty lines */
