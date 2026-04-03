@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Zap, Shield, MousePointer2, ArrowRight, CheckCircle2, Clock, TrendingDown } from 'lucide-react';
+import { Sparkles, Zap, Shield, MousePointer2, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { SiteFooter } from './SiteFooter';
 import { motion } from 'framer-motion';
 import { PLANS } from '../constants/plans';
@@ -29,7 +29,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="font-display text-5xl md:text-7xl tracking-[-0.06rem] md:tracking-[-0.12rem] leading-[1.1] text-[#233137] mb-6 font-normal"
+            className="font-display text-5xl md:text-7xl tracking-[-0.06rem] md:tracking-[-0.12rem] leading-[1.1] text-[#233137] mb-6 font-light"
           >
             Контент{' '}
             <span className="text-[#9aaeb5]">
@@ -43,26 +43,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             transition={{ delay: 0.2 }}
             className="text-lg md:text-xl text-[#515255] max-w-2xl mx-auto mb-6 leading-relaxed"
           >
-            Большинство авторов тратят часы на придумывание тем и написание постов. TeleGenie изучает ваш канал и генерирует идеи и тексты в вашем стиле — вам остаётся только нажать «Опубликовать».
+            TeleGenie изучает ваш канал и генерирует идеи и тексты в вашем стиле — вам остаётся только нажать «Опубликовать».
           </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-            className="flex flex-wrap items-center justify-center gap-3 mb-10"
-          >
-            {[
-              { icon: Clock, text: 'Не знаете о чём писать сегодня' },
-              { icon: TrendingDown, text: 'Канал молчит неделями' },
-              { icon: Zap, text: 'Нет времени на контент' },
-            ].map(({ icon: Icon, text }) => (
-              <span key={text} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#f2f5f5] border border-[#e8e8e8] text-[#515255] text-xs font-medium">
-                <Icon size={13} className="text-[#9aaeb5]" />
-                {text}
-              </span>
-            ))}
-          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, scale: 0.97 }}
@@ -72,37 +54,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           >
             <button
               onClick={onLogin}
-              className="px-8 py-5 bg-[#233137] text-white rounded-2xl font-semibold uppercase tracking-widest text-sm flex items-center gap-3 hover:bg-[#1a2529] transition-colors active:scale-95"
+              className="px-8 py-5 bg-[#233137] text-white rounded-2xl font-medium text-base flex items-center gap-3 hover:bg-[#1a2529] transition-colors active:scale-95"
             >
               Начать бесплатно
               <ArrowRight size={18} />
             </button>
-            <button
-              onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
-              className="px-8 py-5 bg-[#f2f5f5] border border-[#e8e8e8] text-[#515255] rounded-2xl font-semibold uppercase tracking-widest text-sm hover:bg-[#e8ecec] transition-colors active:scale-95"
-            >
-              Посмотреть демо ↓
-            </button>
           </motion.div>
-        </div>
-      </section>
-
-      {/* Social Proof Bar */}
-      <section className="py-10 px-6 bg-white border-t border-[#f2f2f2]">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            {[
-              { value: '500+', label: 'Telegram-каналов' },
-              { value: '10 000+', label: 'Постов создано' },
-              { value: '3×', label: 'Чаще публикации' },
-              { value: '15 мин', label: 'На пост вместо 2 часов' },
-            ].map(({ value, label }) => (
-              <div key={label}>
-                <div className="text-3xl font-semibold text-[#233137] tracking-tight">{value}</div>
-                <div className="text-xs text-[#7d828e] uppercase tracking-wider mt-1 font-medium">{label}</div>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -110,7 +67,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       <section className="py-24 px-6 bg-white border-t border-[#f2f2f2]">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="font-display text-3xl md:text-5xl tracking-[-0.06rem] text-[#233137] mb-4 font-normal">Три шага к идеальному посту</h2>
+            <h2 className="font-display text-3xl md:text-5xl tracking-[-0.06rem] text-[#233137] mb-4 font-light">Три шага к идеальному посту</h2>
             <p className="text-[#515255]">Весь процесс автоматизирован — от идеи до публикации</p>
           </div>
 
@@ -199,7 +156,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       <section id="pricing" className="py-24 px-6 bg-white border-t border-[#f2f2f2]">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="font-display text-3xl md:text-5xl tracking-[-0.06rem] text-[#233137] mb-4 font-normal">Прозрачные тарифы</h2>
+            <h2 className="font-display text-3xl md:text-5xl tracking-[-0.06rem] text-[#233137] mb-4 font-light">Прозрачные тарифы</h2>
             <p className="text-[#515255]">Выберите план, который подходит вашему каналу</p>
           </div>
 
@@ -265,30 +222,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       </section>
 
       {/* CTA */}
-      <section className="py-20 px-6 bg-[#f2f5f5]">
-        <div className="max-w-4xl mx-auto rounded-[32px] bg-[#233137] p-12 text-center text-white relative overflow-hidden">
-          <div className="relative z-10 space-y-6">
-            <h2 className="font-display text-3xl md:text-5xl tracking-[-0.06rem] leading-tight font-normal">
-              Представьте: канал выходит<br className="hidden md:block" /> регулярно, а вы не выгораете
-            </h2>
-            <p className="text-white/60 text-lg max-w-xl mx-auto leading-relaxed">
-              Авторы с TeleGenie публикуют в 3× чаще — и тратят на это меньше времени, чем раньше.
-            </p>
-            <div className="flex flex-wrap justify-center gap-3 mb-4">
-              {['Идеи каждый день', 'Стиль сохранён', 'Публикация в 1 клик'].map(item => (
-                <span key={item} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 text-white/80 text-xs font-medium">
-                  <CheckCircle2 size={13} className="text-[#9aaeb5]" />
-                  {item}
-                </span>
-              ))}
-            </div>
+      <section className="py-24 px-6 bg-white border-t border-[#f2f2f2] text-center">
+        <div className="max-w-2xl mx-auto space-y-6">
+          <h2 className="font-display text-3xl md:text-5xl tracking-[-0.06rem] leading-tight font-light text-[#233137]">
+            Канал выходит регулярно,<br className="hidden md:block" /> а вы не выгораете
+          </h2>
+          <p className="text-[#515255] text-lg max-w-xl mx-auto leading-relaxed">
+            TeleGenie берёт на себя самую утомительную часть — вы сосредотачиваетесь на идеях.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {['Идеи каждый день', 'Стиль сохранён', 'Публикация в 1 клик'].map(item => (
+              <span key={item} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#f2f5f5] border border-[#e8e8e8] text-[#515255] text-xs font-medium">
+                <CheckCircle2 size={13} className="text-[#9aaeb5]" />
+                {item}
+              </span>
+            ))}
+          </div>
+          <div>
             <button
               onClick={onLogin}
-              className="px-10 py-5 bg-white text-[#233137] rounded-2xl font-semibold uppercase tracking-widest text-sm hover:bg-[#f2f5f5] transition-colors active:scale-95"
+              className="px-10 py-4 bg-[#233137] text-white rounded-2xl font-medium text-base hover:bg-[#1a2529] transition-colors active:scale-95"
             >
-              Попробовать TeleGenie бесплатно
+              Попробовать бесплатно
             </button>
-            <p className="text-white/30 text-xs">Бесплатный план — без карты</p>
+            <p className="text-[#9aaeb5] text-xs mt-3">Без карты</p>
           </div>
         </div>
       </section>
