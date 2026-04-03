@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Zap, Target, Send, Shield, MousePointer2, ArrowRight, CheckCircle2, Clock, TrendingDown } from 'lucide-react';
+import { Sparkles, Zap, Shield, MousePointer2, ArrowRight, CheckCircle2, Clock, TrendingDown } from 'lucide-react';
 import { SiteFooter } from './SiteFooter';
 import { motion } from 'framer-motion';
 import { PLANS } from '../constants/plans';
@@ -116,34 +116,69 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              {
-                icon: Target,
-                title: 'Анализ бренда',
-                desc: 'Изучаем ваш канал, чтобы уловить уникальный Tone of Voice и интересы вашей аудитории.',
-                iconCls: 'bg-[#d1ebf2] text-[#233137]',
-              },
-              {
-                icon: Sparkles,
-                title: 'Генерация идей',
-                desc: 'Получайте десятки релевантных тем и заголовков, адаптированных под вашу стратегию роста.',
-                iconCls: 'bg-[#f2f5f5] text-[#758084]',
-              },
-              {
-                icon: Send,
-                title: 'Публикация в клик',
-                desc: 'Редактируйте текст и отправляйте готовый пост прямо в Telegram из нашей панели.',
-                iconCls: 'bg-[#f2f5f5] text-[#758084]',
-              },
-            ].map((f, i) => (
-              <div key={i} className="p-8 rounded-3xl bg-[#f9fbfb] border border-[#f2f2f2]">
-                <div className={`w-12 h-12 rounded-2xl ${f.iconCls} flex items-center justify-center mb-6`}>
-                  <f.icon size={22} />
+
+            {/* Card 1 — Brand analysis mockup */}
+            <div className="p-8 rounded-3xl bg-[#f9fbfb] border border-[#f2f2f2]">
+              <div className="bg-[#f2f5f5] border border-[#e8e8e8] rounded-2xl p-4 mb-6 text-left">
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#9aaeb5]/25 flex items-center justify-center text-[11px] font-bold text-[#233137] shrink-0">TG</div>
+                  <div>
+                    <div className="text-[12px] font-semibold text-[#233137]">@mytech_channel</div>
+                    <div className="text-[10px] text-[#758084]">12 400 подписчиков</div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-[#233137] mb-3">{f.title}</h3>
-                <p className="text-[#515255] leading-relaxed">{f.desc}</p>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {['Технологии', 'Продуктивность', 'Стартапы'].map(t => (
+                    <span key={t} className="text-[9px] bg-white border border-[#e8e8e8] text-[#515255] px-2 py-0.5 rounded-full">{t}</span>
+                  ))}
+                </div>
+                <div className="text-[10px] text-[#758084]">
+                  <span className="text-[#9aaeb5] font-semibold">Тон:</span> Экспертный, без воды
+                </div>
               </div>
-            ))}
+              <h3 className="text-lg font-semibold text-[#233137] mb-3">Анализ бренда</h3>
+              <p className="text-[#515255] leading-relaxed">Изучаем ваш канал, чтобы уловить уникальный Tone of Voice и интересы вашей аудитории.</p>
+            </div>
+
+            {/* Card 2 — Idea generation mockup */}
+            <div className="p-8 rounded-3xl bg-[#f9fbfb] border border-[#f2f2f2]">
+              <div className="bg-[#f2f5f5] border border-[#e8e8e8] rounded-2xl p-4 mb-6 text-left space-y-2">
+                {[
+                  '5 ошибок в промптинге, которые мешают вам...',
+                  'Почему большинство команд сливают бюджет на...',
+                  'Как мы сократили время на подготовку поста до...',
+                ].map((text, i) => (
+                  <div key={i} className="flex items-start gap-2.5 bg-white border border-[#f2f2f2] rounded-xl px-3 py-2.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#9aaeb5] mt-1.5 shrink-0" />
+                    <span className="text-[10px] text-[#233137] leading-tight">{text}</span>
+                  </div>
+                ))}
+              </div>
+              <h3 className="text-lg font-semibold text-[#233137] mb-3">Генерация идей</h3>
+              <p className="text-[#515255] leading-relaxed">Получайте десятки релевантных тем и заголовков, адаптированных под вашу стратегию роста.</p>
+            </div>
+
+            {/* Card 3 — Publishing mockup */}
+            <div className="p-8 rounded-3xl bg-[#f9fbfb] border border-[#f2f2f2]">
+              <div className="bg-[#f2f5f5] border border-[#e8e8e8] rounded-2xl p-4 mb-6 text-left">
+                <div className="flex gap-1.5 mb-2.5">
+                  <div className="w-5 h-5 rounded bg-white border border-[#e8e8e8] flex items-center justify-center text-[9px] font-bold text-[#9aaeb5]">B</div>
+                  <div className="w-5 h-5 rounded bg-white border border-[#e8e8e8] flex items-center justify-center text-[9px] italic text-[#758084]">I</div>
+                  <div className="w-5 h-5 rounded bg-white border border-[#e8e8e8] flex items-center justify-center text-[9px] underline text-[#758084]">U</div>
+                  <div className="flex-1" />
+                  <div className="text-[9px] text-[#9aaeb5] font-medium self-center">284 симв.</div>
+                </div>
+                <div className="bg-white border border-[#f2f2f2] rounded-xl p-3 text-[10px] text-[#515255] leading-relaxed mb-3 min-h-[52px]">
+                  Сегодня разберём три причины, почему большинство авторов не могут выйти на регулярный постинг...
+                </div>
+                <button className="w-full text-[11px] font-semibold bg-[#233137] text-white py-2 rounded-xl">
+                  Опубликовать в Telegram →
+                </button>
+              </div>
+              <h3 className="text-lg font-semibold text-[#233137] mb-3">Публикация в клик</h3>
+              <p className="text-[#515255] leading-relaxed">Редактируйте текст и отправляйте готовый пост прямо в Telegram из нашей панели.</p>
+            </div>
+
           </div>
         </div>
       </section>
