@@ -10,12 +10,12 @@ body {
 }
 
 .font-display {
-    font-family: "Unbounded", sans-serif;
+    font-family: "Inter", "Manrope", sans-serif;
 }
 
 ::selection {
-    background-color: #00c3f2;
-    color: #111111;
+    background-color: #9aaeb5;
+    color: #ffffff;
 }
 
 /* ===== CUSTOM SCROLLBAR ===== */

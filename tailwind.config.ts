@@ -57,7 +57,7 @@ export default {
       },
       fontFamily: {
         sans: ['Manrope', 'sans-serif'],
-        display: ['Unbounded', 'sans-serif'],
+        display: ['Inter', 'Manrope', 'sans-serif'],
       },
     },
   },

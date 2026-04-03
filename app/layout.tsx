@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Manrope, Unbounded } from 'next/font/google';
+import { Manrope, Inter } from 'next/font/google';
 import './globals.css';
 import Script from 'next/script';
 import { AuthInitializer } from '@/src/components/AuthInitializer';
@@ -11,10 +11,10 @@ const manrope = Manrope({
   weight: ['300', '400', '500', '600', '700', '800'],
 });
 
-const unbounded = Unbounded({
+const inter = Inter({
   subsets: ['latin', 'cyrillic'],
-  variable: '--font-unbounded',
-  weight: ['400', '700', '900'],
+  variable: '--font-inter',
+  weight: ['300', '400', '500', '600', '700'],
 });
 
 export const viewport = {
@@ -46,7 +46,7 @@ export default function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <head />
-      <body className={`${manrope.variable} ${unbounded.variable} font-sans`}>
+      <body className={`${manrope.variable} ${inter.variable} font-sans`}>
         <AuthInitializer />
         <UTMCapture />
         {children}
