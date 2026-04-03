@@ -285,10 +285,10 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
       {/* Character Count - Fixed at bottom */}
       <div className={`absolute bottom-3 right-4 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg backdrop-blur-md border z-10 ${
         chars > TEXT_LIMIT
-          ? 'bg-red-50 text-red-600 border-red-100'
+          ? 'bg-rose-50 text-rose-600 border-rose-100'
           : chars > CAPTION_LIMIT
-            ? 'bg-amber-50 text-amber-600 border-amber-100'
-            : 'bg-slate-100/80 text-slate-400 border-slate-200'
+            ? 'bg-stone-100 text-stone-500 border-stone-200'
+            : 'bg-stone-100/80 text-stone-400 border-stone-200'
       }`}>
         {chars} / {TEXT_LIMIT}
         {chars > CAPTION_LIMIT && chars <= TEXT_LIMIT && (

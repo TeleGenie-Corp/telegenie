@@ -23,16 +23,16 @@ function relativeTime(ts: number): string {
 }
 
 const goalMeta: Record<PostGoal, { label: string; icon: React.ReactNode; cls: string }> = {
-  [PostGoal.SELL]:    { label: 'Продажа',    icon: <Zap size={10} />,        cls: 'bg-amber-50 text-amber-600 border-amber-100' },
+  [PostGoal.SELL]:    { label: 'Продажа',    icon: <Zap size={10} />,        cls: 'bg-stone-100 text-stone-600 border-stone-200' },
   [PostGoal.ENGAGE]:  { label: 'Вовлечение', icon: <TrendingUp size={10} />, cls: 'bg-violet-50 text-violet-600 border-violet-100' },
-  [PostGoal.EDUCATE]: { label: 'Обучение',   icon: <BookOpen size={10} />,   cls: 'bg-sky-50 text-sky-600 border-sky-100' },
-  [PostGoal.INFORM]:  { label: 'Инфо',       icon: <Megaphone size={10} />,  cls: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+  [PostGoal.EDUCATE]: { label: 'Обучение',   icon: <BookOpen size={10} />,   cls: 'bg-stone-100 text-stone-600 border-stone-200' },
+  [PostGoal.INFORM]:  { label: 'Инфо',       icon: <Megaphone size={10} />,  cls: 'bg-stone-100 text-stone-600 border-stone-200' },
 };
 
 const statusConfig = {
-  draft:     { icon: Clock,   color: 'text-amber-500',   bg: 'bg-amber-50',   label: 'Черновик'    },
-  published: { icon: Check,   color: 'text-emerald-500', bg: 'bg-emerald-50', label: 'Опубликован' },
-  archived:  { icon: Archive, color: 'text-slate-400',   bg: 'bg-slate-50',   label: 'Архив'       },
+  draft:     { icon: Clock,   color: 'text-stone-500',  bg: 'bg-stone-100',  label: 'Черновик'    },
+  published: { icon: Check,   color: 'text-slate-100',  bg: 'bg-slate-900',  label: 'Опубликован' },
+  archived:  { icon: Archive, color: 'text-stone-400',  bg: 'bg-stone-50',   label: 'Архив'       },
 };
 
 type TabFilter = 'all' | 'draft' | 'published';
@@ -89,7 +89,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
   }
 
   return (
-    <div className="flex-1 h-full overflow-y-auto bg-slate-50 custom-scrollbar">
+    <div className="flex-1 h-full overflow-y-auto bg-[#F5F4F0] custom-scrollbar">
       <div className="max-w-4xl mx-auto p-6 space-y-5">
 
         {/* Header */}
@@ -98,13 +98,13 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
             <h2 className="text-lg font-black text-slate-900">{selectedBrand.name}</h2>
             <p className="text-[11px] text-slate-400 mt-0.5">
               {draftCount > 0 && (
-                <span className="text-amber-500 font-bold">
+                <span className="text-stone-500 font-bold">
                   {draftCount}&nbsp;{draftCount === 1 ? 'черновик' : draftCount < 5 ? 'черновика' : 'черновиков'}
                 </span>
               )}
-              {draftCount > 0 && publishedCount > 0 && <span className="text-slate-300"> · </span>}
+              {draftCount > 0 && publishedCount > 0 && <span className="text-stone-300"> · </span>}
               {publishedCount > 0 && (
-                <span className="text-emerald-500 font-bold">
+                <span className="text-stone-800 font-bold">
                   {publishedCount}&nbsp;{publishedCount === 1 ? 'опубликован' : publishedCount < 5 ? 'опубликовано' : 'опубликовано'}
                 </span>
               )}
@@ -125,7 +125,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
 
         {/* Tab filter */}
         {brandPosts.length > 0 && (
-          <div className="flex gap-1 bg-white border border-slate-100 p-1 rounded-xl w-fit shadow-sm">
+          <div className="flex gap-1 bg-white border border-stone-200 p-1 rounded-xl w-fit shadow-sm">
             {([
               { id: 'all'       as TabFilter, label: 'Все',            count: brandPosts.length },
               { id: 'draft'     as TabFilter, label: 'Черновики',      count: draftCount },

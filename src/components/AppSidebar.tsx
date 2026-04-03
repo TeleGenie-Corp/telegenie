@@ -65,7 +65,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
     (channelCtx.contentPillars?.length || channelCtx.toneOfVoice || channelCtx.forbiddenPhrases?.length);
 
   return (
-    <aside className="w-56 bg-white border-r border-slate-100 flex flex-col h-full shrink-0 overflow-hidden">
+    <aside className="w-56 bg-[#FAFAF8] border-r border-[#ECEAE6] flex flex-col h-full shrink-0 overflow-hidden">
       {/* Logo */}
       <div className="px-4 py-3 flex items-center gap-2.5">
         <div className="w-7 h-7 bg-slate-900 rounded-lg flex items-center justify-center text-white font-black text-[10px] shrink-0">
@@ -133,7 +133,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                         <span className="text-[8px] text-violet-500 font-bold">Изучен ✓</span>
                       )}
                       {isLinked && (
-                        <span className="text-[8px] text-sky-500 font-bold">· Подключён</span>
+                        <span className="text-[8px] text-stone-400 font-bold">· Подключён</span>
                       )}
                     </div>
                   </div>
@@ -278,7 +278,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       </div>
 
       {/* Bottom: user info */}
-      <div className="p-3 border-t border-slate-100 shrink-0">
+      <div className="p-3 border-t border-[#ECEAE6] shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-full bg-slate-200 overflow-hidden shrink-0">
             {user?.avatar ? (

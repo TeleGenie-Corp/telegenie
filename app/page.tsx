@@ -176,7 +176,7 @@ export default function Home() {
 
   if (isLoadingAuth) {
        return (
-          <div className="flex items-center justify-center min-h-screen bg-slate-50">
+          <div className="flex items-center justify-center min-h-screen bg-[#F5F4F0]">
               <div className="flex flex-col items-center gap-4">
                   <div className="w-12 h-12 rounded-full border-4 border-slate-200 border-t-violet-600 animate-spin" />
                   <p className="text-slate-400 text-sm font-medium animate-pulse">Загрузка TeleGenie...</p>
@@ -193,7 +193,7 @@ export default function Home() {
 
 
   return (
-    <div className="h-screen flex bg-slate-50 overflow-hidden font-sans text-slate-900">
+    <div className="h-screen flex bg-[#F5F4F0] overflow-hidden font-sans text-[#111111]">
       <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-violet-600" size={32} /></div>}>
 
       {/* MODALS */}
@@ -333,7 +333,7 @@ export default function Home() {
                       <button
                         onClick={undo}
                         disabled={pipelineState.stage !== 'idle'}
-                        className="px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-lg text-[11px] font-medium text-amber-700 hover:border-amber-400 hover:bg-amber-100 transition-all disabled:opacity-50 flex items-center gap-1"
+                        className="px-2.5 py-1 bg-stone-100 border border-stone-200 rounded-lg text-[11px] font-medium text-stone-600 hover:border-stone-400 hover:bg-stone-200 transition-all disabled:opacity-50 flex items-center gap-1"
                       >
                         ↩ Отменить
                       </button>
