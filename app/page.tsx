@@ -175,14 +175,25 @@ export default function Home() {
   const router = useRouter();
 
   if (isLoadingAuth) {
-       return (
-          <div className="flex items-center justify-center min-h-screen bg-[#F5F4F0]">
-              <div className="flex flex-col items-center gap-4">
-                  <div className="w-12 h-12 rounded-full border-4 border-slate-200 border-t-violet-600 animate-spin" />
-                  <p className="text-slate-400 text-sm font-medium animate-pulse">Загрузка TeleGenie...</p>
-              </div>
-          </div>
-      );
+    const quotes = [
+      { text: 'Слова — это всё, что у нас есть.', author: 'Сэмюэл Беккет' },
+      { text: 'Начни писать, и остальное придёт само.', author: 'Харуки Мураками' },
+      { text: 'Пиши пьяным, редактируй трезвым.', author: 'Эрнест Хемингуэй' },
+      { text: 'Нет ничего страшнее чистого листа — и ничего лучше заполненного.', author: 'Виктор Гюго' },
+      { text: 'Чтобы написать хорошую книгу, надо сначала написать плохую.', author: 'Энн Ламотт' },
+      { text: 'Настоящий писатель тот, кто пишет — а не тот, кто собирается.', author: 'Антон Чехов' },
+    ];
+    const q = quotes[Math.floor(Math.random() * quotes.length)];
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#f2f5f5]">
+        <div className="text-center max-w-md px-8">
+          <p className="font-display text-3xl md:text-4xl font-light text-[#233137] leading-snug tracking-tight mb-4">
+            «{q.text}»
+          </p>
+          <p className="text-[#9aaeb5] text-sm">— {q.author}</p>
+        </div>
+      </div>
+    );
   }
 
   // Show Landing Page for unauthenticated users
