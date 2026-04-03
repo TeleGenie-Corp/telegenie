@@ -25,7 +25,7 @@ export const shadows = {
   md: 'shadow-md',                           // Default cards
   lg: 'shadow-lg',                           // Elevated elements
   xl: 'shadow-xl',                           // Modals, dropdowns
-  glow: 'shadow-lg shadow-violet-200',       // AI/Magic actions
+  glow: 'shadow-sm',                          // AI/Magic actions
   inner: 'shadow-inner',                     // Pressed states
 } as const;
 
@@ -112,7 +112,7 @@ export const components = {
   // Buttons
   buttonPrimary: `${radii.md} ${shadows.sm} ${transitions.default} ${transitions.active} bg-slate-900 text-white hover:bg-slate-800`,
   buttonSecondary: `${radii.md} ${shadows.none} ${transitions.default} ${transitions.active} bg-slate-100 text-slate-600 hover:bg-slate-200`,
-  buttonMagic: `${radii.md} ${shadows.glow} ${transitions.default} ${transitions.active} bg-violet-600 text-white hover:bg-violet-700`,
+  buttonMagic: `${radii.md} ${transitions.default} ${transitions.active} bg-violet-600 text-white hover:bg-violet-700`,
   buttonGhost: `${radii.md} ${transitions.default} bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900`,
   
   // Cards

@@ -38,19 +38,19 @@ export default {
           foreground: '#FFFFFF',
         },
 
-        // 3. LEGACY MAPPING — 'violet' maps to brand scale
+        // 3. LEGACY MAPPING — 'violet' maps to new teal-gray palette
         violet: {
-          50:  '#F2FCFE',
-          100: '#E6FAFE',
-          200: '#B5F4FD',
-          300: '#7CDFF9',
-          400: '#3ED0F5',
-          500: '#00C3F2',
-          600: '#00A0C6',
-          700: '#0076A3',
-          800: '#00567A',
-          900: '#000B46',
-          950: '#000522',
+          50:  '#f2f5f5',
+          100: '#d1ebf2',
+          200: '#cddbe1',
+          300: '#aec2c9',
+          400: '#9aaeb5',
+          500: '#758084',
+          600: '#233137',
+          700: '#1a2529',
+          800: '#141c21',
+          900: '#0e1519',
+          950: '#080d10',
         },
 
         // 4. Keep standard slate, emerald, rose, amber for semantic states

@@ -440,7 +440,7 @@ export default function Home() {
                       className="w-10 h-10 rounded-full object-cover border border-black/5" 
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-violet-400 text-white flex items-center justify-center font-bold text-sm shrink-0">
                       {(currentBrand?.name || profile?.linkedChannel?.title)?.[0] || 'A'}
                     </div>
                   )}
@@ -529,7 +529,7 @@ export default function Home() {
                     </button>
                     <button
                       onClick={() => { setConfirmPublish(false); publish(); }}
-                      className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-300 active:scale-95"
+                      className="flex-1 py-3 bg-gradient-to-r bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95"
                     >
                       <Send size={14} />
                       Да, публикую
@@ -540,7 +540,7 @@ export default function Home() {
                 <button
                   onClick={() => setConfirmPublish(true)}
                   disabled={!currentPost || currentPost.generating || pipelineState.stage === 'publishing'}
-                  className="w-full py-4 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 text-white rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-violet-300 hover:shadow-violet-400 active:scale-95"
+                  className="w-full py-4 bg-gradient-to-r bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm active:scale-95"
                 >
                   {pipelineState.stage === 'publishing' ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
                   {pipelineState.stage === 'publishing' ? 'Публикую...' : 'Опубликовать в канал'}

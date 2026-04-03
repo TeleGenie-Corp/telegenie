@@ -292,7 +292,7 @@ export const PublicWidget: React.FC = () => {
                              className={`py-3 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
                                isGeneratingPost || !generatedPost
                                  ? 'flex-1 bg-slate-100 text-slate-400 cursor-not-allowed'
-                                 : 'flex-none px-4 bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/30 active:scale-95'
+                                 : 'flex-none px-4 bg-violet-600 hover:bg-violet-700 text-white shadow-sm active:scale-95'
                              }`}
                            >
                              {isPublishing ? (
@@ -326,7 +326,7 @@ export const PublicWidget: React.FC = () => {
                             rel="noopener noreferrer"
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="flex-1 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-green-500/30"
+                            className="flex-1 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-sm"
                           >
                             <ExternalLink size={16} />
                             Посмотреть пост
@@ -340,7 +340,7 @@ export const PublicWidget: React.FC = () => {
                           initial={{ opacity: 0, y: 12 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.4 }}
-                          className="mt-2 p-4 rounded-2xl bg-gradient-to-br from-violet-50 to-fuchsia-50 border border-violet-100 text-center space-y-3"
+                          className="mt-2 p-4 rounded-2xl bg-violet-50 border border-violet-200 text-center space-y-3"
                         >
                           <p className="text-sm font-bold text-slate-800">
                             Хотите так для своего канала?

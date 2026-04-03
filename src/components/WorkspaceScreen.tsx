@@ -74,7 +74,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
 
   if (!selectedBrand) {
     return (
-      <div className="flex-1 h-full flex flex-col items-center justify-center py-20 text-center bg-slate-50">
+      <div className="flex-1 h-full flex flex-col items-center justify-center py-20 text-center bg-[#f2f5f5]">
         <Radio size={40} className="text-slate-200 mb-4" />
         <div className="text-base font-bold text-slate-400 mb-1">Нет источников</div>
         <div className="text-sm text-slate-400 mb-4">Добавь первый Telegram-канал</div>
@@ -89,7 +89,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
   }
 
   return (
-    <div className="flex-1 h-full overflow-y-auto bg-[#F5F4F0] custom-scrollbar">
+    <div className="flex-1 h-full overflow-y-auto bg-[#f2f5f5] custom-scrollbar">
       <div className="max-w-4xl mx-auto p-6 space-y-5">
 
         {/* Header */}
