@@ -61,13 +61,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
       </section>
 
       {/* Demo — full width */}
-      <section id="demo" className="py-20 px-6 bg-[#f2f5f5]">
+      <section id="demo" className="py-16 px-6 bg-white">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="font-display text-3xl md:text-4xl tracking-[-0.05rem] text-[#233137] mb-3 font-light">Убедитесь сами</h2>
-            <p className="text-[#758084] font-light">Введите ссылку на любой Telegram-канал — проанализируем и придумаем идеи прямо сейчас</p>
-          </div>
-          <div className="rounded-2xl bg-white border border-[#e8e8e8] overflow-hidden py-8">
+          <div className="rounded-2xl bg-[#f9fbfb] overflow-hidden py-8">
             <PublicWidget />
           </div>
         </div>
