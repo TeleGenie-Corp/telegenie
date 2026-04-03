@@ -42,7 +42,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     set({ loadingWorkspace: true });
 
     const unsubBrands = BrandService.subscribeToBrands(userId, (brands) => {
-      set({ brands, loadingWorkspace: false });
+      const { currentBrand } = get();
+      const update: Partial<WorkspaceState> = { brands, loadingWorkspace: false };
+      if (!currentBrand && brands.length > 0) update.currentBrand = brands[0];
+      set(update);
     });
 
     const unsubProjects = PostProjectService.subscribeToProjects(userId, (projects) => {

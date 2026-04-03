@@ -102,7 +102,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   previousPostText: null,
   pipelineState: { stage: 'idle', progress: 0 },
   editPrompt: '',
-  editorTab: 'ideas',
+  editorTab: 'editor',
   isSaving: false,
 
   setStrategy: (updater) => set((s) => {

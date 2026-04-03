@@ -3,9 +3,9 @@
 import React, { Suspense, useEffect, useState, lazy } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Sparkles, Loader2, Layout, Target,
+  Sparkles, Loader2, Layout,
   MessageCircle, Send, Wand2, Settings,
-  MessageSquareQuote, ChevronDown
+  MessageSquareQuote,
 } from 'lucide-react';
 import { PostGoal } from '@/types';
 
@@ -20,10 +20,7 @@ import { BillingService } from '@/services/billingService';
 import { BrandService } from '@/services/brandService';
 
 // --- Components ---
-// import { AuthPage } from '@/src/components/AuthPage'; // Removed
-
-import { AppHeader } from '@/src/components/AppHeader';
-
+import { AppSidebar } from '@/src/components/AppSidebar';
 import { LandingPage } from '@/src/components/LandingPage';
 import { GenerationLoading } from '@/src/components/GenerationLoading';
 import { SettingsModal } from '@/src/components/SettingsModal';
@@ -119,7 +116,6 @@ export default function Home() {
   const loadingSuggestions = useEditorStore(s => s.loadingSuggestions);
 
   const [confirmPublish, setConfirmPublish] = useState(false);
-  const [insightsOpen, setInsightsOpen] = useState(true);
 
   // --- INIT: Auth listener + Firestore subscriptions ---
   // --- INIT: Auth listener moved to AuthInitializer ---
@@ -197,12 +193,12 @@ export default function Home() {
 
 
   return (
-    <div className="h-screen flex flex-col bg-slate-50 overflow-hidden font-sans text-slate-900">
+    <div className="h-screen flex bg-slate-50 overflow-hidden font-sans text-slate-900">
       <Suspense fallback={<div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-violet-600" size={32} /></div>}>
 
       {/* MODALS */}
-      <SettingsModal 
-        isOpen={showSettings} 
+      <SettingsModal
+        isOpen={showSettings}
         onClose={closeSettings}
         profile={profile}
         onChannelConnect={connectChannel}
@@ -221,7 +217,7 @@ export default function Home() {
           }
         }}
       />
-      
+
       <PublishedPostModal
         isOpen={showPublishedPostModal}
         onClose={closePublishedPost}
@@ -229,122 +225,65 @@ export default function Home() {
         brand={brands.find(b => b.id === activePublishedPost?.brandId) || null}
       />
 
-      {/* HEADER */}
-      <AppHeader
+      {/* PERSISTENT LEFT SIDEBAR */}
+      <AppSidebar
         viewMode={viewMode}
+        brands={brands}
+        currentBrand={currentBrand}
         user={user}
         profile={profile}
-        currentBrand={currentBrand}
-        darkMode={darkMode}
-        showMobileSidebar={showMobileSidebar}
-        onBackToWorkspace={backToWorkspace}
-        onToggleDarkMode={toggleDarkMode}
+        editorAnalyzedChannel={strategy.analyzedChannel}
+        onSelectBrand={(brand) => {
+          setCurrentBrand(brand);
+          if (viewMode === 'editor') backToWorkspace();
+        }}
+        onCreateBrand={openCreateBrand}
+        onEditBrand={(brand) => { setCurrentBrand(brand); openSettings(); }}
+        onDeleteBrand={deleteBrand}
+        onAnalysisDone={async (brand, analysis) => {
+          const uid = user?.id;
+          if (uid) await BrandService.cacheAnalysis(uid, brand.id, analysis);
+        }}
         onLogout={logout}
-        onToggleMobileSidebar={toggleMobileSidebar}
         onOpenSubscription={openSubscription}
       />
+
+      {/* MAIN CONTENT */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
       {/* ANIMATED ROUTER */}
       <AnimatePresence mode="wait">
         {viewMode === 'workspace' ? (
-          <motion.div 
+          <motion.div
             key="workspace"
             initial="initial" animate="animate" exit="exit"
             variants={pageTransitions}
-            className="flex-1 flex flex-col min-h-0"
+            className="flex-1 flex min-h-0"
           >
             <ErrorBoundary fallbackTitle="Ошибка в рабочем пространстве">
               <WorkspaceScreen
-                brands={brands}
+                selectedBrand={currentBrand}
                 posts={postProjects}
                 onSelectPost={selectPost}
                 onCreatePost={createPost}
                 onCreateBrand={openCreateBrand}
-                onEditBrand={(brand) => { setCurrentBrand(brand); openSettings(); }}
-                onDeleteBrand={deleteBrand}
                 onDeletePost={deletePost}
-                onOpenPositioning={editPositioning}
-                onAnalysisDone={async (brand, analysis) => {
-                  const uid = user?.id;
-                  if (uid) await BrandService.cacheAnalysis(uid, brand.id, analysis);
-                }}
                 loading={loadingWorkspace}
               />
             </ErrorBoundary>
           </motion.div>
         ) : (
-          <motion.div 
+          <motion.div
             key="editor"
             initial="initial" animate="animate" exit="exit"
             variants={pageTransitions}
-            className="flex-1 flex flex-col lg:grid lg:grid-cols-12 overflow-hidden relative"
+            className="flex-1 flex flex-col overflow-hidden"
           >
+          <div className="flex-1 flex overflow-hidden relative">
           <ErrorBoundary fallbackTitle="Ошибка в редакторе">
 
-          {/* LEFT SIDEBAR: CHANNEL CONTEXT */}
-          <aside className={`${editorTab === 'ideas' ? 'flex' : 'hidden'} lg:flex lg:col-span-3 bg-white border-r border-slate-100 flex-col overflow-hidden flex-1 lg:flex-none min-h-0`}>
-            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto custom-scrollbar p-4 space-y-4">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                <Target size={12} /> Контекст канала
-              </h3>
-
-              {strategy.analyzedChannel && (strategy.analyzedChannel.contentPillars?.length || strategy.analyzedChannel.toneOfVoice || strategy.analyzedChannel.forbiddenPhrases?.length) ? (
-                <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50/50 border border-violet-100 rounded-2xl overflow-hidden">
-                  <button
-                    onClick={() => setInsightsOpen(v => !v)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-violet-600 hover:bg-violet-50/80 transition-colors"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Sparkles size={10} /> Инсайты о канале
-                    </span>
-                    <ChevronDown size={11} className={`transition-transform duration-200 ${insightsOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                  {insightsOpen && (
-                    <div className="px-3 pb-3 space-y-2.5">
-                      {(strategy.analyzedChannel.contentPillars?.length ?? 0) > 0 && (
-                        <div>
-                          <div className="text-[9px] font-bold uppercase tracking-widest text-violet-400 mb-1.5">Столпы контента</div>
-                          <div className="flex flex-wrap gap-1">
-                            {strategy.analyzedChannel.contentPillars!.map(p => (
-                              <span key={p} className="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">{p}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {strategy.analyzedChannel.toneOfVoice && (
-                        <div>
-                          <div className="text-[9px] font-bold uppercase tracking-widest text-fuchsia-400 mb-1">Тональность</div>
-                          <p className="text-[10px] text-slate-600 leading-relaxed font-medium">{strategy.analyzedChannel.toneOfVoice}</p>
-                        </div>
-                      )}
-                      {(strategy.analyzedChannel.forbiddenPhrases?.length ?? 0) > 0 && (
-                        <div>
-                          <div className="text-[9px] font-bold uppercase tracking-widest text-rose-400 mb-1.5">Избегать</div>
-                          <div className="flex flex-wrap gap-1">
-                            {strategy.analyzedChannel.forbiddenPhrases!.map(p => (
-                              <span key={p} className="text-[10px] bg-rose-50 text-rose-400 px-2 py-0.5 rounded-full font-medium">{p}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center text-center py-6 px-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
-                    <Sparkles size={16} className="text-slate-300" />
-                  </div>
-                  <p className="text-xs font-medium text-slate-400 leading-relaxed">
-                    Добавь источник в рабочем пространстве — и мы адаптируем посты под стиль канала
-                  </p>
-                </div>
-              )}
-            </div>
-          </aside>
-
           {/* CENTER: EDITOR */}
-          <main className={`${editorTab === 'editor' ? 'flex' : 'hidden'} lg:flex lg:col-span-6 bg-white flex-col h-full flex-1 lg:flex-none min-h-0 overflow-hidden`}>
+          <main className={`${editorTab === 'editor' ? 'flex' : 'hidden'} lg:flex flex-1 bg-white flex-col h-full min-h-0 overflow-hidden`}>
             {currentPost && currentPost.generating ? (
               <GenerationLoading state={pipelineState} />
             ) : currentPost ? (
@@ -477,7 +416,7 @@ export default function Home() {
           </main>
 
           {/* RIGHT: PREVIEW & ACTIONS */}
-          <aside className={`${editorTab === 'preview' ? 'flex' : 'hidden'} lg:flex lg:col-span-3 bg-white flex-col flex-1 lg:flex-none min-h-0 overflow-hidden`}>
+          <aside className={`${editorTab === 'preview' ? 'flex' : 'hidden'} lg:flex lg:w-80 bg-white flex-col shrink-0 min-h-0 overflow-hidden border-l border-slate-100`}>
             {/* Telegram Preview */}
             <div className="flex-1 bg-[#879bb1] bg-[url('https://web.telegram.org/img/bg_0.png')] flex flex-col min-h-0">
               <div className="bg-white/95 backdrop-blur-sm p-3 border-b border-black/5 flex items-center gap-3">
@@ -611,11 +550,11 @@ export default function Home() {
           </aside>
 
           </ErrorBoundary>
+          </div>
 
           {/* MOBILE BOTTOM TAB BAR */}
           <div className="lg:hidden flex items-center bg-white shadow-[0_-1px_0_0_#f1f5f9] px-2 py-2 gap-1 shrink-0 safe-area-inset-bottom">
             {[
-              { id: 'ideas' as const, label: 'Контекст', icon: Target },
               { id: 'editor' as const, label: 'Редактор', icon: Layout },
               { id: 'preview' as const, label: 'Публикация', icon: MessageCircle },
             ].map(tab => (
@@ -623,8 +562,8 @@ export default function Home() {
                 key={tab.id}
                 onClick={() => setEditorTab(tab.id)}
                 className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${
-                  editorTab === tab.id 
-                    ? 'bg-violet-600 text-white shadow-md' 
+                  editorTab === tab.id
+                    ? 'bg-violet-600 text-white shadow-md'
                     : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                 }`}
               >
@@ -672,6 +611,8 @@ export default function Home() {
         currentTier={profile?.subscription?.tier || 'free'}
         profile={profile}
       />
+
+      </div>{/* /MAIN CONTENT */}
 
       </Suspense>
     </div>
