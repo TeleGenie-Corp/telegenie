@@ -286,7 +286,7 @@ export default function Home() {
           <main className={`${editorTab === 'editor' ? 'flex' : 'hidden'} lg:flex flex-1 bg-white flex-col h-full min-h-0 overflow-hidden`}>
             {currentPost && currentPost.generating ? (
               <GenerationLoading state={pipelineState} />
-            ) : currentPost ? (
+            ) : currentPost && currentPost.text ? (
               <div className="flex-1 flex flex-col h-full">
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative min-h-0">
                   {/* AI Editing Overlay */}
@@ -361,25 +361,25 @@ export default function Home() {
               </div>
             ) : (
               /* COMPOSE SCREEN */
-              <div className="flex-1 flex flex-col items-center justify-center p-8">
-                <div className="w-full max-w-md space-y-6">
-                  <div className="text-center mb-2">
-                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Что пишем?</h3>
-                    <p className="text-sm text-slate-400 mt-1">Выбери цель и напиши суть поста</p>
+              <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#f2f5f5]">
+                <div className="w-full max-w-sm space-y-5 bg-white rounded-2xl p-8 border border-[#e8e8e8]">
+                  <div>
+                    <h3 className="text-lg font-medium text-[#233137] tracking-tight">Что пишем?</h3>
+                    <p className="text-sm text-[#758084] mt-1 font-light">Выбери цель и напиши суть поста</p>
                   </div>
 
                   {/* Goal */}
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Цель поста</label>
+                    <label className="text-[10px] uppercase tracking-widest text-[#9aaeb5] mb-2 block">Цель поста</label>
                     <div className="grid grid-cols-2 gap-2">
                       {Object.values(PostGoal).map(g => (
                         <button
                           key={g}
                           onClick={() => setStrategy(s => ({...s, goal: g}))}
-                          className={`py-3 px-3 rounded-xl text-xs font-bold uppercase tracking-wider border transition-all ${
+                          className={`py-2.5 px-3 rounded-lg text-xs font-medium border transition-all ${
                             strategy.goal === g
-                              ? 'bg-slate-900 text-white border-slate-900 shadow-md'
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-violet-300 hover:text-violet-700'
+                              ? 'bg-[#233137] text-white border-[#233137]'
+                              : 'bg-white text-[#515255] border-[#e8e8e8] hover:border-[#aec2c9]'
                           }`}
                         >
                           {g}
@@ -390,24 +390,24 @@ export default function Home() {
 
                   {/* Point */}
                   <div>
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">
-                      <MessageSquareQuote size={10} /> Главная мысль
+                    <label className="text-[10px] uppercase tracking-widest text-[#9aaeb5] mb-2 flex items-center gap-1.5">
+                      <MessageSquareQuote size={10} /> О чём пост
                     </label>
                     <textarea
                       value={strategy.point || ''}
                       onChange={(e) => setStrategy(s => ({...s, point: e.target.value}))}
-                      placeholder="Что конкретно хочешь сказать читателю? (необязательно)"
+                      placeholder="Главная мысль или тема (необязательно)"
                       rows={3}
-                      className="w-full bg-slate-50 border border-slate-200 text-sm font-medium rounded-xl p-3 outline-none focus:border-violet-300 focus:bg-white transition-all placeholder:text-slate-300 resize-none"
+                      className="w-full bg-[#f2f5f5] border border-[#e8e8e8] text-sm text-[#233137] rounded-lg p-3 outline-none focus:border-[#aec2c9] focus:bg-white transition-all placeholder:text-[#9aaeb5] resize-none font-light"
                     />
                   </div>
 
                   <button
                     onClick={generateDirect}
                     disabled={pipelineState.stage !== 'idle'}
-                    className="w-full py-4 bg-violet-600 text-white rounded-xl font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-violet-700 transition-all disabled:opacity-50 active:scale-95 shadow-lg shadow-violet-200"
+                    className="w-full py-3 bg-[#233137] text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-[#1a2529] transition-all disabled:opacity-50 active:scale-95"
                   >
-                    <Sparkles size={16} />
+                    <Sparkles size={15} />
                     Написать пост
                   </button>
                 </div>
