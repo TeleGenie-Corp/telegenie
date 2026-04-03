@@ -31,10 +31,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLogin }) => {
             transition={{ delay: 0.1 }}
             className="font-display text-5xl md:text-7xl tracking-[-0.06rem] md:tracking-[-0.12rem] leading-[1.1] text-[#233137] mb-6 font-normal"
           >
-            Ваш канал растёт —<br />
-            а контент занимает{' '}
+            Контент{' '}
             <span className="text-[#9aaeb5]">
-              15 минут
+              без напряжения
             </span>
           </motion.h1>
 
