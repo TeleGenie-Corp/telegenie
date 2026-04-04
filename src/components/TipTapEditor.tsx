@@ -109,10 +109,7 @@ export function TipTapEditor({ value, rawText, onChange }: TipTapEditorProps) {
     if (!editor || editor.isFocused || typeof value !== 'string') return;
     const content = telegramToTiptap(value);
     if (editor.getHTML() !== content) {
-      const currentLength = editor.getText().length;
-      if (currentLength === 0 || Math.abs(currentLength - editor.getText().length) > 5) {
-        editor.commands.setContent(content);
-      }
+      editor.commands.setContent(content);
     }
   }, [value, editor]);
 

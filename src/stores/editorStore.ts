@@ -439,7 +439,19 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const result = await polishContentAction(currentPost.text, instruction, strategy);
       const { AnalyticsService } = await import('../../services/analyticsService');
       AnalyticsService.trackPostEditedAI(instruction.length);
-      const updatedText = result.text;
+      let updatedText = result.text.trim();
+      // Normalize to <p> HTML if AI returned plain text with newlines
+      if (!updatedText.includes('<p>')) {
+        updatedText = updatedText
+          .split('\n')
+          .map((line: string) => (line.trim() ? `<p>${line}</p>` : '<p></p>'))
+          .join('');
+      }
+      // Strip leading/trailing empty paragraphs
+      updatedText = updatedText
+        .replace(/^(\s*<p>\s*<\/p>\s*)+/gi, '')
+        .replace(/(\s*<p>\s*<\/p>\s*)+$/gi, '')
+        .trim();
 
       set((s) => ({
         currentPost: s.currentPost ? { ...s.currentPost, text: updatedText } : null,

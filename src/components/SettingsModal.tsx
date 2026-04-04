@@ -22,7 +22,7 @@ export const SettingsModal: React.FC<{
           <X size={20} />
         </button>
         
-        <h2 className="text-xl font-display font-black text-slate-900 mb-6">Channel Settings</h2>
+        <h2 className="text-xl font-display font-semibold text-[#233137] mb-6">Настройки канала</h2>
 
         <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="animate-spin text-violet-600" size={24} /></div>}>
           {!profile?.linkedChannel ? (
@@ -34,30 +34,30 @@ export const SettingsModal: React.FC<{
             />
           ) : (
             <div className="space-y-6">
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 flex items-center gap-4">
-                <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center text-violet-600 shadow-sm border border-slate-100">
-                  <MessageCircle size={32} />
+              <div className="bg-[#f9fbfb] p-5 rounded-2xl border border-[#f2f2f2] flex items-center gap-4">
+                <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center text-[#9aaeb5] shadow-sm border border-[#f2f2f2]">
+                  <MessageCircle size={28} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-bold text-slate-900 truncate">{profile.linkedChannel.title}</h3>
-                  <a href={`https://t.me/${profile.linkedChannel.username.replace('@','')}`} target="_blank" className="text-sm font-medium text-violet-500 hover:underline">
+                  <h3 className="text-base font-semibold text-[#233137] truncate">{profile.linkedChannel.title}</h3>
+                  <a href={`https://t.me/${profile.linkedChannel.username.replace('@','')}`} target="_blank" className="text-xs text-[#9aaeb5] hover:text-[#233137] transition-colors">
                     @{profile.linkedChannel.username.replace('@','')}
                   </a>
                 </div>
-                <div className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold uppercase tracking-wider">
-                  Active
+                <div className="px-2.5 py-1 bg-[#f2f5f5] text-[#758084] rounded-lg text-[10px] font-medium uppercase tracking-wider">
+                  Активен
                 </div>
               </div>
-              
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-500">
-                Bot Token: <span className="font-mono bg-slate-200 px-1 rounded text-slate-700">{profile.linkedChannel.botToken ? `${profile.linkedChannel.botToken.substr(0,10)}...` : 'Using Demo Bot'}</span>
+
+              <div className="p-4 bg-[#f9fbfb] rounded-xl border border-[#f2f2f2] text-sm text-[#9aaeb5]">
+                Бот: <span className="font-mono bg-[#f2f5f5] px-1.5 py-0.5 rounded text-[#758084] text-xs">{profile.linkedChannel.botToken ? `${profile.linkedChannel.botToken.substr(0,10)}...` : 'Бот TeleGenie'}</span>
               </div>
 
-              <button 
-                onClick={onChannelDisconnect} 
-                className="w-full py-4 text-rose-500 font-bold bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors border border-rose-100"
+              <button
+                onClick={onChannelDisconnect}
+                className="w-full py-3 text-rose-500 text-sm font-medium bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors border border-rose-100"
               >
-                Disconnect Channel
+                Отключить канал
               </button>
             </div>
           )}

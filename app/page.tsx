@@ -118,6 +118,20 @@ export default function Home() {
   const [confirmPublish, setConfirmPublish] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
 
+  // Pick a loading quote once per mount — never changes on re-render
+  const loadingQuoteRef = React.useRef<{ text: string; author: string } | null>(null);
+  if (!loadingQuoteRef.current) {
+    const quotes = [
+      { text: 'Слова — это всё, что у нас есть.', author: 'Сэмюэл Беккет' },
+      { text: 'Начни писать, и остальное придёт само.', author: 'Харуки Мураками' },
+      { text: 'Пиши пьяным, редактируй трезвым.', author: 'Эрнест Хемингуэй' },
+      { text: 'Нет ничего страшнее чистого листа — и ничего лучше заполненного.', author: 'Виктор Гюго' },
+      { text: 'Чтобы написать хорошую книгу, надо сначала написать плохую.', author: 'Энн Ламотт' },
+      { text: 'Настоящий писатель тот, кто пишет — а не тот, кто собирается.', author: 'Антон Чехов' },
+    ];
+    loadingQuoteRef.current = quotes[Math.floor(Math.random() * quotes.length)];
+  }
+
   // --- INIT: Auth listener + Firestore subscriptions ---
   // --- INIT: Auth listener moved to AuthInitializer ---
   // We just check redirections here
@@ -176,15 +190,7 @@ export default function Home() {
   const router = useRouter();
 
   if (isLoadingAuth) {
-    const quotes = [
-      { text: 'Слова — это всё, что у нас есть.', author: 'Сэмюэл Беккет' },
-      { text: 'Начни писать, и остальное придёт само.', author: 'Харуки Мураками' },
-      { text: 'Пиши пьяным, редактируй трезвым.', author: 'Эрнест Хемингуэй' },
-      { text: 'Нет ничего страшнее чистого листа — и ничего лучше заполненного.', author: 'Виктор Гюго' },
-      { text: 'Чтобы написать хорошую книгу, надо сначала написать плохую.', author: 'Энн Ламотт' },
-      { text: 'Настоящий писатель тот, кто пишет — а не тот, кто собирается.', author: 'Антон Чехов' },
-    ];
-    const q = quotes[Math.floor(Math.random() * quotes.length)];
+    const q = loadingQuoteRef.current!;
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#f2f5f5]">
         <div className="text-center max-w-md px-8">
