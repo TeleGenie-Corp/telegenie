@@ -358,12 +358,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       const newPost = result.post;
       newPost.id = currentProject.id;
-      // Strip leading/trailing empty paragraphs from AI output
+      // Normalize text to <p> HTML so preview renders correctly on first load
       if (newPost.text) {
-        newPost.text = newPost.text
+        let t = newPost.text.trim();
+        // Convert newline-separated text to <p> tags if not already HTML
+        if (!t.includes('<p>')) {
+          t = t.split('\n')
+            .map(line => line.trim() ? `<p>${line}</p>` : '<p></p>')
+            .join('');
+        }
+        // Strip leading/trailing empty paragraphs
+        t = t
           .replace(/^(\s*<p>\s*<\/p>\s*)+/gi, '')
           .replace(/(\s*<p>\s*<\/p>\s*)+$/gi, '')
           .trim();
+        newPost.text = t;
       }
       set({
         currentPost: newPost,

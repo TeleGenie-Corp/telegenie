@@ -22,12 +22,12 @@ export const viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'TeleGenie Studio — ИИ-ассистент для Telegram',
-  description: 'Создавайте контент для Telegram-каналов с помощью ИИ. Стратегия, генерация идей, умный редактор и публикация — всё в одном месте.',
+  title: 'TeleGenie Studio — редактор для Telegram-каналов',
+  description: 'Создавайте контент для Telegram-каналов. Стратегия, генерация идей, умный редактор и публикация — всё в одном месте.',
   openGraph: {
     type: 'website',
-    title: 'TeleGenie Studio — ИИ-ассистент для Telegram',
-    description: 'Создавайте контент для Telegram-каналов с помощью ИИ. Стратегия, генерация идей, умный редактор и публикация.',
+    title: 'TeleGenie Studio — редактор для Telegram-каналов',
+    description: 'Создавайте контент для Telegram-каналов. Стратегия, генерация идей, умный редактор и публикация.',
     url: 'https://telegenie.app',
     siteName: 'TeleGenie Studio',
   },
