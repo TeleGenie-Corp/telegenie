@@ -107,16 +107,16 @@ export async function verifyPaymentAction(paymentId: string): Promise<{ success:
                 'subscription.currentPeriodEnd': currentPeriodEnd,
                 'subscription.autoRenew': true
             };
-            
-            // Save Payment Method for Recurrent Payments
-            if (payment.payment_method?.saved && payment.payment_method?.id) {
-                updateData['subscription.yookassaPaymentMethodId'] = payment.payment_method.id;
-                
-                // Save Card Details for UI transparency
-                if ((payment.payment_method as any).card) {
-                    const card = (payment.payment_method as any).card;
-                    updateData['subscription.cardLast4'] = card.last4;
-                    updateData['subscription.cardType'] = card.card_type;
+
+            // Save payment method ID when payment is fully succeeded.
+            // For pending/waiting status the webhook (yookassaWebhook) will save it
+            // once the payment reaches succeeded state — so we don't miss it.
+            if (payment.status === 'succeeded' && (payment.payment_method as any)?.id) {
+                const pm = payment.payment_method as any;
+                updateData['subscription.yookassaPaymentMethodId'] = pm.id;
+                if (pm.card) {
+                    updateData['subscription.cardLast4'] = pm.card.last4;
+                    updateData['subscription.cardType'] = pm.card.card_type;
                 }
             }
             

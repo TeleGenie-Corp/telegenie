@@ -75,37 +75,28 @@ export class BillingService {
   }
 
   static async getTransactions(userId: string): Promise<Transaction[]> {
-      // Mock transactions
-      return [
-          {
-              id: 'tx_1',
-              userId,
-              amount: 0,
-              currency: 'RUB',
-              status: 'success',
-              type: 'subscription',
-              createdAt: Date.now() - 10000000,
-              planId: 'free'
-          }
-      ];
+      try {
+          const { db } = await import('./firebaseConfig');
+          const { collection, query, where, orderBy, limit, getDocs } = await import('firebase/firestore');
+          const q = query(
+              collection(db, 'transactions'),
+              where('userId', '==', userId),
+              orderBy('createdAt', 'desc'),
+              limit(20)
+          );
+          const snap = await getDocs(q);
+          return snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+      } catch (e) {
+          console.error('getTransactions error', e);
+          return [];
+      }
   }
 
   static async cancelSubscription(userId: string): Promise<boolean> {
       try {
-          const { functions } = await import('./firebaseConfig');
-          const { httpsCallable } = await import('firebase/functions');
-          const cancelFn = httpsCallable(functions, 'cancelSubscription');
-          await cancelFn();
-          
-          // Optimistic update
-          const profile = await UserService.getUserProfile(userId);
-          if (profile && profile.subscription) {
-              await UserService.updateProfile({
-                  ...profile,
-                  subscription: { ...profile.subscription, autoRenew: false }
-              });
-          }
-          return true;
+          const { cancelSubscriptionAction } = await import('@/app/actions/payment');
+          const result = await cancelSubscriptionAction(userId);
+          return result.success;
       } catch (e) {
           console.error("Cancel subscription error", e);
           return false;
