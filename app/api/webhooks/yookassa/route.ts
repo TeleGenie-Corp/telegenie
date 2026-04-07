@@ -33,8 +33,10 @@ async function activateSubscription(payment: any) {
     'subscription.updatedAt': now,
   };
 
-  // Save payment method if available
-  if (payment.payment_method?.saved && payment.payment_method?.id) {
+  // Save payment method for future recurring charges.
+  // On payment.succeeded the method is always available if save_payment_method was set.
+  // We save it regardless of the `saved` flag — YooKassa sets saved=true async sometimes.
+  if (payment.payment_method?.id) {
     updateData['subscription.yookassaPaymentMethodId'] = payment.payment_method.id;
     const card = (payment.payment_method as any).card;
     if (card) {

@@ -6,9 +6,6 @@ admin.initializeApp();
 // Export Schedulers
 export { checkSubscriptionRenewals } from './schedulers/subscription.scheduler';
 
-// Export Webhooks
-export { yookassaWebhook } from './webhooks/yookassa.webhook';
-
 // Callable function to publish demo post to @AiKanalishe
 export const publishDemoPost = functions
   .region('europe-west1')
