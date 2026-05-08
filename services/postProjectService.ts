@@ -156,12 +156,14 @@ export class PostProjectService {
   }
 
   /**
-   * Update content (text + image).
+   * Update content (text + image + image options).
    */
-  static async updateContent(userId: string, postId: string, text: string, rawText?: string, imageUrl?: string | null): Promise<void> {
+  static async updateContent(userId: string, postId: string, text: string, rawText?: string, imageUrl?: string | null, imageUrlOptions?: string[], imagePrompt?: string): Promise<void> {
     const data: any = { text };
     if (rawText !== undefined) data.rawText = rawText;
     if (imageUrl !== undefined) data.imageUrl = imageUrl;
+    if (imageUrlOptions !== undefined) data.imageUrlOptions = imageUrlOptions;
+    if (imagePrompt !== undefined) data.imagePrompt = imagePrompt;
     await this.updateProject(userId, postId, data);
   }
 }

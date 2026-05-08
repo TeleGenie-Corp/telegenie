@@ -87,31 +87,33 @@ export class PostGenerationService {
 
       // === GENERATE IMAGE (optional) ===
       let imageUrl: string | undefined;
+      let imageUrlOptions: string[] | undefined;
+      let imagePrompt: string | undefined;
       let imageUsage: UsageMetadata | undefined;
 
       if (input.config.withImage) {
-        emit('generating_image', 50, 'Генерация изображения...');
-        const imageResult = await GeminiService.generateImage(input.idea.title);
-        costs.image = imageResult.usage?.estimatedCostUsd || 0;
-        imageUsage = imageResult.usage || undefined;
+        emit('generating_image', 50, 'Создаю изображение через fal.ai...');
+        try {
+          // Use Server Action to hide API keys and handle upload
+          const { generatePostImagesAction } = await import('@/app/actions/fal');
+          const result = await generatePostImagesAction(
+            generatedText,
+            input.strategy,
+            input.userId
+          );
 
-        // === UPLOAD IMAGE ===
-        if (imageResult.imageUrl?.startsWith('data:')) {
-          emit('uploading', 75, 'Загрузка изображения в хранилище...');
-          try {
-            const { ImageStorageService } = await import('./imageStorageService');
-            imageUrl = await ImageStorageService.uploadBase64Image(
-              imageResult.imageUrl,
-              input.userId,
-              `post-${Date.now()}`
-            );
-          } catch (uploadError) {
-            console.error('Image upload failed:', uploadError);
-            // Keep base64 for display, but don't fail the pipeline
-            imageUrl = imageResult.imageUrl;
+          if (result.success) {
+            imageUrl = result.storageUrl;
+            imageUrlOptions = result.images;
+            imagePrompt = result.imagePrompt;
+            imageUsage = result.usage;
+            costs.image = result.usage?.estimatedCostUsd || 0;
+          } else {
+            errors.push(result.error || 'Генерация изображения не удалась');
           }
-        } else {
-          imageUrl = imageResult.imageUrl || undefined;
+        } catch (imageError) {
+          console.error('Image generation failed:', imageError);
+          errors.push('Генерация изображения не удалась, но текст готов');
         }
       }
 
@@ -123,6 +125,7 @@ export class PostGenerationService {
         text: generatedText,
         rawText: generatedText,
         imageUrl,
+        imageUrlOptions,
         generating: false,
         timestamp: Date.now(),
         usage: contentUsage,

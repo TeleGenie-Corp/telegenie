@@ -83,6 +83,8 @@ export interface PostProject {
   text: string;
   rawText?: string;
   imageUrl?: string;
+  imageUrlOptions?: string[];
+  imagePrompt?: string;
   
   // History
   versions: PostVersion[];
@@ -205,11 +207,13 @@ export interface Post {
   text: string;
   rawText?: string; // Original unformatted text from AI
   imageUrl?: string;
+  imageUrlOptions?: string[]; // Multiple generated image options (fal.ai URLs)
+  imagePrompt?: string; // The English prompt used for image generation (for regeneration)
   generating: boolean;
   timestamp: number;
   usage?: UsageMetadata;
   polishingUsage?: UsageMetadata;
-  imageUsage?: UsageMetadata;
+  imageUsage?: UsageMetadata; // Combined cost of prompt generation + image generation
   analysisUsage?: UsageMetadata;
   ideasUsage?: UsageMetadata;
   publishedAt?: number;

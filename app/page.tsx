@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Sparkles, Loader2, Layout,
   MessageCircle, Send, Wand2, Settings,
-  MessageSquareQuote,
+  MessageSquareQuote, Check, Image as ImageIcon, RefreshCw
 } from 'lucide-react';
 import { PostGoal } from '@/types';
 
@@ -23,6 +23,7 @@ import { BrandService } from '@/services/brandService';
 import { AppSidebar } from '@/src/components/AppSidebar';
 import { LandingPage } from '@/src/components/LandingPage';
 import { GenerationLoading } from '@/src/components/GenerationLoading';
+import { ImagePicker } from '@/src/components/ImagePicker';
 import { SettingsModal } from '@/src/components/SettingsModal';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 
@@ -420,6 +421,26 @@ export default function Home() {
                     />
                   </div>
 
+                  {/* With Image Toggle */}
+                  <div
+                    className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                      strategy.withImage
+                        ? 'bg-violet-50 border-violet-200'
+                        : 'bg-[#f2f5f5] border-[#e8e8e8] hover:border-[#aec2c9]'
+                    }`}
+                    onClick={() => setStrategy(s => ({...s, withImage: !s.withImage}))}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
+                        strategy.withImage ? 'bg-violet-600 text-white' : 'bg-white border border-[#c5d1d6] text-transparent'
+                      }`}>
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+                      <span className="text-sm font-medium text-[#233137]">С вложенным изображением</span>
+                    </div>
+                    <span className="text-[10px] text-[#9aaeb5]">+~$0.04</span>
+                  </div>
+
                   <button
                     onClick={generateDirect}
                     disabled={pipelineState.stage !== 'idle'}
@@ -495,6 +516,19 @@ export default function Home() {
                         [&_a]:text-[#5e8090] [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-[#233137]"
                       dangerouslySetInnerHTML={{ __html: currentPost.text }}
                     />
+                    {/* Image Picker — выбор изображения если есть опции */}
+                    {currentPost.imageUrlOptions && currentPost.imageUrlOptions.length > 0 && (
+                      <div className="mt-3">
+                        <ImagePicker
+                          imageUrl={currentPost.imageUrl}
+                          imageUrlOptions={currentPost.imageUrlOptions}
+                          imagePrompt={currentPost.imagePrompt}
+                          onSelectImage={(url) => useEditorStore.getState().selectImage(url)}
+                          onRegenerate={() => useEditorStore.getState().regenerateImages()}
+                          regenerating={pipelineState.stage === 'generating_image'}
+                        />
+                      </div>
+                    )}
                     <div className="flex justify-between items-center mt-2 pt-2">
                       <span className={`text-[10px] font-bold uppercase tracking-widest transition-opacity ${isSaving ? 'text-violet-500 opacity-100' : 'text-slate-300 opacity-0'}`}>
                         {isSaving ? 'Сохраняю...' : 'Сохранено'}

@@ -45,6 +45,8 @@ interface EditorState {
   aiEdit: (instruction: string) => Promise<void>;
   undo: () => void;
   contentChange: (newHtml: string) => void;
+  selectImage: (imageUrl: string) => void;
+  regenerateImages: () => Promise<void>;
   publish: () => Promise<void>;
 }
 
@@ -169,6 +171,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
               text: freshPost.text || '',
               rawText: freshPost.rawText,
               imageUrl: freshPost.imageUrl,
+              imageUrlOptions: (freshPost as any).imageUrlOptions,
               generating: false,
               timestamp: freshPost.updatedAt,
             },
@@ -385,15 +388,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
       // SAVE TO FIRESTORE
       await PostProjectService.updateIdeas(user.id, currentProject.id, ideas, idea.id);
-      await PostProjectService.updateContent(user.id, currentProject.id, newPost.text, newPost.rawText, newPost.imageUrl);
+      await PostProjectService.updateContent(user.id, currentProject.id, newPost.text, newPost.rawText, newPost.imageUrl, newPost.imageUrlOptions, newPost.imagePrompt);
       useWorkspaceStore.getState().setPostProjects((prev) =>
-        prev.map((p) => (p.id === currentProject.id ? { ...p, text: newPost.text, ideas, selectedIdeaId: idea.id, updatedAt: Date.now() } : p)),
+        prev.map((p) => (p.id === currentProject.id ? { ...p, text: newPost.text, ideas, selectedIdeaId: idea.id, imageUrl: newPost.imageUrl, imageUrlOptions: newPost.imageUrlOptions, imagePrompt: newPost.imagePrompt, updatedAt: Date.now() } : p)),
       );
 
       await BillingService.incrementUsage(user.id, 'posts', 1);
 
       const { AnalyticsService } = await import('../../services/analyticsService');
-      AnalyticsService.trackGeneratePost('idea', !!(newPost.imageUrl), idea.title);
+      AnalyticsService.trackGeneratePost('idea', !!(newPost.imageUrl || newPost.imageUrlOptions?.length), idea.title);
 
       const { UserService } = await import('../../services/userService');
       const updated = { ...profile, balance: profile.balance - (result.costs?.total || 0), generationHistory: [newPost, ...profile.generationHistory].slice(0, 50) };
@@ -524,6 +527,82 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         set({ isSaving: false });
       }
     }, 1000);
+  },
+
+  // --- SELECT IMAGE ---
+  selectImage: (imageUrl: string) => {
+    set((s) => ({
+      currentPost: s.currentPost ? { ...s.currentPost, imageUrl } : null,
+    }));
+
+    const user = useAuthStore.getState().user;
+    const { currentProject } = useWorkspaceStore.getState();
+    const { currentPost } = get();
+    if (user && currentProject && currentPost) {
+      PostProjectService.updateContent(user.id, currentProject.id, currentPost.text, currentPost.rawText, imageUrl).catch(console.error);
+      useWorkspaceStore.getState().setPostProjects((prev) =>
+        prev.map((p) => (p.id === currentProject.id ? { ...p, imageUrl, updatedAt: Date.now() } : p)),
+      );
+    }
+  },
+
+  // --- REGENERATE IMAGES ---
+  regenerateImages: async () => {
+    const { currentPost, strategy } = get();
+    const user = useAuthStore.getState().user;
+    const { currentProject } = useWorkspaceStore.getState();
+
+    if (!currentPost || !currentPost.imagePrompt || !user || !currentProject) return;
+
+    if (!strategy.withImage) return;
+
+    set({ pipelineState: { stage: 'generating_image', progress: 50, currentTask: 'Перегенерация изображений...' } });
+
+    try {
+      const { regeneratePostImagesAction } = await import('@/app/actions/fal');
+      const result = await regeneratePostImagesAction(
+        currentPost.imagePrompt,
+        user.id,
+        currentProject.id
+      );
+
+      if (result.success) {
+        set((s) => ({
+          currentPost: s.currentPost
+            ? {
+                ...s.currentPost,
+                imageUrl: result.storageUrl || result.images?.[0] || s.currentPost.imageUrl,
+                imageUrlOptions: result.images,
+              }
+            : null,
+        }));
+
+        await PostProjectService.updateContent(
+          user.id,
+          currentProject.id,
+          currentPost.text,
+          currentPost.rawText,
+          result.storageUrl || result.images?.[0] || currentPost.imageUrl
+        );
+
+        useWorkspaceStore.getState().setPostProjects((prev) =>
+          prev.map((p) =>
+            p.id === currentProject.id
+              ? { ...p, imageUrl: result.storageUrl || result.images?.[0] || p.imageUrl, updatedAt: Date.now() }
+              : p
+          ),
+        );
+
+        toast.success('Новые изображения сгенерированы');
+      } else {
+        toast.error(result.error || 'Не удалось сгенерировать новые изображения');
+      }
+    } catch (e: any) {
+      console.error('[regenerateImages]', e);
+      toast.error(e.message || 'Ошибка перегенерации изображений');
+    } finally {
+      set({ pipelineState: { stage: 'idle', progress: 0 } });
+    }
   },
 
   // --- PUBLISH ---

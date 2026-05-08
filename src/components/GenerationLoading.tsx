@@ -14,7 +14,14 @@ export const GenerationLoading: React.FC<{ state: PipelineState }> = ({ state })
       
       <div className="text-center space-y-2 max-w-sm">
         <h3 className="text-xl font-bold text-slate-900">Генерирую пост</h3>
-        <p className="text-slate-500 font-medium animate-pulse">{state.stage === 'idle' ? 'Запускаю...' : state.stage === 'generating_content' ? 'Формирую текст...' : state.stage === 'polishing' ? 'Полирую стиль...' : state.stage === 'generating_image' ? 'Создаю изображение...' : 'Финальная проверка...'}</p>
+        <p className="text-slate-500 font-medium animate-pulse">
+          {state.stage === 'idle' ? 'Запускаю...' : 
+           state.stage === 'generating_content' ? 'Формирую текст...' : 
+           state.stage === 'polishing' ? 'Полирую стиль...' : 
+           state.stage === 'generating_image' ? 'Создаю изображение через fal.ai...' : 
+           state.stage === 'uploading' ? 'Загружаю изображение...' :
+           'Финальная проверка...'}
+        </p>
       </div>
 
       <div className="w-full max-w-xs bg-slate-100 rounded-full h-1.5 overflow-hidden">
