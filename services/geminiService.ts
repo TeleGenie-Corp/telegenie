@@ -367,7 +367,8 @@ TELEGRAM HTML: <b>, <i>, <code>, <a href="...">. Пустая строка ме�
 
   /**
    * Generates images using gemini-2.5-flash-image.
-   * ... existing generateImage ...
+   * NOTE: This is the old Gemini-native image generation.
+   * New code should use FalImageService for higher quality via fal.ai Flux.
    */
   static async generateImage(prompt: string): Promise<{ imageUrl: string | null, usage: UsageMetadata | null }> {
     try {
@@ -403,6 +404,64 @@ TELEGRAM HTML: <b>, <i>, <code>, <a href="...">. Пустая строка ме�
       // Return null so the post creation doesn't fail completely
       return { imageUrl: null, usage: null };
     }
+  }
+
+  /**
+   * Generates a detailed English image prompt from post text + strategy.
+   * Used before FalImageService.generateImages() for high-quality results.
+   */
+  static async generateImagePrompt(
+    postText: string,
+    strategy: ChannelStrategy
+  ): Promise<{ prompt: string; usage: UsageMetadata }> {
+    const ai = this.getAI();
+    const { CostCalculator } = await import('./costCalculator');
+    const model = 'gemini-2.0-flash-lite';
+
+    const channelTopic = strategy.analyzedChannel?.topic || 'Telegram channel';
+    const channelTone = strategy.analyzedChannel?.toneOfVoice || strategy.analyzedChannel?.context || 'professional';
+    const channelName = strategy.analyzedChannel?.name || 'Channel';
+
+    const systemInstruction = `You are an expert visual prompt engineer for AI image generation (fal.ai Flux).
+Create detailed English prompts for image generation based on Telegram post content.
+Rules:
+1. Prompt MUST be in English, 100-300 words.
+2. Describe the scene, mood, colors, lighting, composition, and visual style.
+3. Match the visual style to the channel's tone.
+4. Avoid text, watermarks, UI elements, or logos in the image.
+5. Use cinematic, high-quality descriptors.
+6. Return ONLY the prompt text, no explanations, no markdown.`;
+
+    const prompt = `Create a detailed English image generation prompt for this Telegram post.
+
+CHANNEL: "${channelName}"
+CHANNEL TOPIC: ${channelTopic}
+CHANNEL TONE: ${channelTone}
+POST GOAL: ${strategy.goal}
+
+POST TEXT (Russian):
+"""
+${postText.substring(0, 2000)}
+"""
+
+Generate a detailed English image prompt that visually represents this post. The image should be suitable for Telegram channel cover/illustration. No text in the image. Cinematic quality.`;
+
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: { systemInstruction }
+    });
+
+    const usage = CostCalculator.createUsageMetadata(response.usageMetadata, model);
+    const generatedPrompt = response.text?.trim() || '';
+
+    // Fallback if generation fails
+    if (!generatedPrompt || generatedPrompt.length < 20) {
+      const fallback = `Professional illustration for Telegram channel "${channelName}" about ${channelTopic}. Clean, modern, minimalist design with subtle colors matching a ${channelTone} tone. High quality, no text.`;
+      return { prompt: fallback, usage };
+    }
+
+    return { prompt: generatedPrompt, usage };
   }
 
   /**

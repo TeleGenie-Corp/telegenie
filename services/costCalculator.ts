@@ -22,7 +22,10 @@ export class CostCalculator {
     // Google Search grounding (approximate)
     grounding: 0.035, // ~$35 per 1K grounded queries = $0.035 per query
     // Image generation (Gemini 2.0 Flash Image / Imagen)
-    image: 0.04       // ~$0.04 per image (varies by resolution)
+    image: 0.04,      // ~$0.04 per image (varies by resolution)
+    // Fal.ai image generation
+    falFluxDev: 0.035,    // ~$0.035 per image
+    falFluxSchnell: 0.003 // ~$0.003 per image
   };
 
   /**
@@ -91,6 +94,25 @@ export class CostCalculator {
       totalTokens: 0,
       estimatedCostUsd: this.PRICING.image,
       modelName
+    };
+  }
+
+  /**
+   * Returns usage metadata for Fal.ai image generation.
+   * @param count - Number of images generated
+   * @param modelName - 'flux-dev' or 'flux-schnell'
+   */
+  static createFalImageUsageMetadata(count: number, modelName: string): UsageMetadata {
+    const costPerImage = modelName.includes('schnell') 
+      ? this.PRICING.falFluxSchnell 
+      : this.PRICING.falFluxDev;
+    
+    return {
+      promptTokens: 0,
+      candidatesTokens: 0,
+      totalTokens: 0,
+      estimatedCostUsd: costPerImage * count,
+      modelName: `fal.ai/${modelName}`
     };
   }
 }
