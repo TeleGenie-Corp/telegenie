@@ -52,6 +52,15 @@ export async function generatePostImagesAction(
   userId: string
 ) {
   try {
+    // DEBUG: Verify FAL_API_KEY is available
+    if (!process.env.FAL_API_KEY) {
+      console.error('[generatePostImagesAction] FAL_API_KEY is missing or empty');
+      return {
+        success: false,
+        error: 'FAL_API_KEY is not set in environment',
+      };
+    }
+
     // Step 1: Generate English image prompt
     const { prompt: imagePrompt, usage: promptUsage } = await GeminiService.generateImagePrompt(
       postText,
