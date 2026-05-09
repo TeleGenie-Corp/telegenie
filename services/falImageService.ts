@@ -173,7 +173,7 @@ export class FalImageService {
    * Poll fal.ai queue API for async request result.
    */
   private static async pollForResult(requestId: string): Promise<FalGenerateResponse | null> {
-    const statusUrl = `https://queue.fal.run/f/requests/${requestId}`;
+    const statusUrl = `https://queue.fal.run/fal-ai/flux/requests/${requestId}`;
 
     for (let attempt = 0; attempt < this.MAX_POLL_ATTEMPTS; attempt++) {
       await new Promise(resolve => setTimeout(resolve, this.POLL_INTERVAL_MS));
