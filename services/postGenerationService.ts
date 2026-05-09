@@ -92,7 +92,7 @@ export class PostGenerationService {
       let imageUsage: UsageMetadata | undefined;
 
       if (input.config.withImage) {
-        emit('generating_image', 50, 'Создаю изображение через fal.ai...');
+        emit('generating_image', 50, 'Создаю изображение...');
         try {
           // Use Server Action to hide API keys and handle upload
           const { generatePostImagesAction } = await import('@/app/actions/fal');
@@ -103,7 +103,7 @@ export class PostGenerationService {
           );
 
           if (result.success) {
-            imageUrl = result.storageUrl;
+            imageUrl = result.storageUrl || result.images?.[0];
             imageUrlOptions = result.images;
             imagePrompt = result.imagePrompt;
             imageUsage = result.usage;

@@ -18,7 +18,7 @@ export const GenerationLoading: React.FC<{ state: PipelineState }> = ({ state })
           {state.stage === 'idle' ? 'Запускаю...' : 
            state.stage === 'generating_content' ? 'Формирую текст...' : 
            state.stage === 'polishing' ? 'Полирую стиль...' : 
-           state.stage === 'generating_image' ? 'Создаю изображение через fal.ai...' : 
+           state.stage === 'generating_image' ? 'Создаю изображение...' : 
            state.stage === 'uploading' ? 'Загружаю изображение...' :
            'Финальная проверка...'}
         </p>
