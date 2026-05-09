@@ -305,7 +305,7 @@ export default function Home() {
           <main className={`${editorTab === 'editor' ? 'flex' : 'hidden'} lg:flex flex-1 bg-white flex-col h-full min-h-0 overflow-hidden`}>
             {currentPost && currentPost.generating ? (
               <GenerationLoading state={pipelineState} />
-            ) : currentPost && currentPost.text ? (
+            ) : currentPost && (currentPost.text || currentPost.imageUrl) ? (
               <div className="flex-1 flex flex-col h-full">
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col relative min-h-0">
                   {/* AI Editing Overlay */}
