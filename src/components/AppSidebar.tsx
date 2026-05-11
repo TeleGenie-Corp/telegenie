@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import {
   Plus, Radio, Settings, Trash2, LogOut, UserCircle,
-  Sparkles, AlertTriangle, Loader2, ChevronDown, RefreshCw,
+  AlertTriangle, Loader2, RefreshCw,
 } from 'lucide-react';
 import { Brand, User, UserProfile, ChannelInfo } from '../../types';
 import { analyzeChannelAction } from '@/app/actions/gemini';
@@ -32,7 +32,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 }) => {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
-  const [insightsOpen, setInsightsOpen] = useState(true);
 
   const displayName =
     profile?.telegram?.first_name ||
@@ -53,16 +52,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
       setAnalyzingId(null);
     }
   };
-
-  // In editor mode show the editor's analyzed channel; in workspace show selected brand's analysis
-  const channelCtx =
-    viewMode === 'editor'
-      ? editorAnalyzedChannel
-      : currentBrand?.analyzedChannel;
-
-  const hasContext =
-    channelCtx &&
-    (channelCtx.contentPillars?.length || channelCtx.toneOfVoice || channelCtx.forbiddenPhrases?.length);
 
   return (
     <aside className="w-56 bg-white border-r border-[#e8e8e8] flex flex-col h-full shrink-0 overflow-hidden">
@@ -106,6 +95,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             const hasAnalysis = !!brand.analyzedChannel;
             const isLinked = !!brand.linkedChannel;
 
+            const contextSummary = brand.analyzedChannel
+              ? brand.analyzedChannel.contentPillars?.[0] || brand.analyzedChannel.topic || brand.analyzedChannel.toneOfVoice || ''
+              : '';
+
             return (
               <div
                 key={brand.id}
@@ -113,13 +106,13 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
               >
                 {/* Brand row */}
                 <div
-                  className={`flex items-center gap-2 px-2 py-2 rounded-xl cursor-pointer group transition-colors ${
+                  className={`flex items-start gap-2 px-2 py-2 rounded-xl cursor-pointer group transition-colors ${
                     isSelected ? 'text-violet-900' : 'text-slate-700 hover:bg-slate-50'
                   }`}
                   onClick={() => !isConfirming && onSelectBrand(brand)}
                 >
                   <div
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 ${
                       isSelected ? 'bg-violet-500 text-white' : 'bg-slate-100 text-slate-500'
                     }`}
                   >
@@ -128,7 +121,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
 
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold truncate">{brand.name}</div>
-                    <div className="flex items-center gap-1 mt-0.5">
+                    <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                       {hasAnalysis && (
                         <span className="text-[8px] text-violet-500 font-bold">Изучен ✓</span>
                       )}
@@ -136,11 +129,16 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                         <span className="text-[8px] text-stone-400 font-bold">· Подключён</span>
                       )}
                     </div>
+                    {contextSummary && (
+                      <div className="text-[9px] text-slate-400 truncate mt-0.5">
+                        Контекст: {contextSummary}
+                      </div>
+                    )}
                   </div>
 
                   {/* Hover action buttons */}
                   {!isConfirming && (
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
                       {hasAnalysis && (
                         <button
                           onClick={e => { e.stopPropagation(); handleAnalyze(brand); }}
@@ -219,62 +217,6 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           })
         )}
 
-        {/* Channel context panel */}
-        {hasContext && (
-          <div className="mt-3 pt-2 border-t border-slate-100">
-            <div className="bg-gradient-to-br from-violet-50 to-fuchsia-50/50 border border-violet-100 rounded-xl overflow-hidden">
-              <button
-                onClick={() => setInsightsOpen(v => !v)}
-                className="w-full flex items-center justify-between px-3 py-2 text-[9px] font-black uppercase tracking-widest text-violet-600 hover:bg-violet-50/80 transition-colors"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Sparkles size={9} /> Контекст
-                </span>
-                <ChevronDown
-                  size={10}
-                  className={`transition-transform duration-200 ${insightsOpen ? 'rotate-180' : ''}`}
-                />
-              </button>
-
-              {insightsOpen && (
-                <div className="px-3 pb-3 space-y-2">
-                  {(channelCtx!.contentPillars?.length ?? 0) > 0 && (
-                    <div>
-                      <div className="text-[8px] font-bold uppercase tracking-widest text-violet-400 mb-1">Темы</div>
-                      <div className="flex flex-wrap gap-1">
-                        {channelCtx!.contentPillars!.map(p => (
-                          <span key={p} className="text-[9px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-medium">
-                            {p}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {channelCtx!.toneOfVoice && (
-                    <div>
-                      <div className="text-[8px] font-bold uppercase tracking-widest text-fuchsia-400 mb-0.5">Тон</div>
-                      <p className="text-[9px] text-slate-600 leading-relaxed font-medium line-clamp-4">
-                        {channelCtx!.toneOfVoice}
-                      </p>
-                    </div>
-                  )}
-                  {(channelCtx!.forbiddenPhrases?.length ?? 0) > 0 && (
-                    <div>
-                      <div className="text-[8px] font-bold uppercase tracking-widest text-rose-400 mb-1">Избегать</div>
-                      <div className="flex flex-wrap gap-1">
-                        {channelCtx!.forbiddenPhrases!.map(p => (
-                          <span key={p} className="text-[9px] bg-rose-50 text-rose-400 px-1.5 py-0.5 rounded-full font-medium">
-                            {p}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Bottom: user info */}

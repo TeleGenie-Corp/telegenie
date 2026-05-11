@@ -5,7 +5,7 @@ import { adminApp } from '@/src/lib/firebaseAdmin';
 import { FalImageService } from '@/services/falImageService';
 import { GeminiService } from '@/services/geminiService';
 import { CostCalculator } from '@/services/costCalculator';
-import { ChannelStrategy } from '@/types';
+import { ChannelStrategy, buildImageTextPrompt, normalizeImageModel } from '@/types';
 
 /**
  * Server Action: Загружает изображение с fal.ai URL в Firebase Storage.
@@ -54,10 +54,11 @@ export async function generatePostImagesAction(
   userId: string
 ) {
   try {
-    // DEBUG: Verify FAL_API_KEY is available
     if (!process.env.FAL_API_KEY) {
       console.error('[generatePostImagesAction] FAL_API_KEY is missing or empty');
     }
+
+    const selectedModel = normalizeImageModel(strategy.imageModel);
 
     // Step 1: Generate English image prompt
     const { prompt: imagePrompt, usage: promptUsage } = await GeminiService.generateImagePrompt(
@@ -65,17 +66,22 @@ export async function generatePostImagesAction(
       strategy
     );
 
+    const textPrompt = buildImageTextPrompt(postText, strategy.imageTextPrompt);
+
     // Step 2: Generate 2 images via fal.ai
     let images: string[] = [];
     let genUsage: any = CostCalculator.createFalImageUsageMetadata(0, 'fallback');
 
-    const falResult = await FalImageService.generateImages(imagePrompt, { count: 2 });
+    const falResult = await FalImageService.generateImages(imagePrompt, {
+      count: 2,
+      model: selectedModel,
+      textPrompt: strategy.imageTextEnabled ? textPrompt : undefined,
+    });
 
     if (falResult && falResult.images.length > 0) {
       images = falResult.images.map((img) => img.url);
       genUsage = falResult.usage;
     } else {
-      // Fallback: generate 1 image via Gemini
       console.warn('[generatePostImagesAction] fal.ai failed, falling back to Gemini image generation');
       const geminiResult = await GeminiService.generateImage(imagePrompt);
       if (geminiResult.imageUrl) {
@@ -90,7 +96,6 @@ export async function generatePostImagesAction(
       }
     }
 
-    // Step 3: Upload first image to Firebase Storage
     let storageUrl: string | undefined;
     if (images[0]) {
       const uploadResult = await uploadFalImageToStorage(images[0], userId, `post-${Date.now()}`);
@@ -125,13 +130,18 @@ export async function generatePostImagesAction(
 export async function regeneratePostImagesAction(
   imagePrompt: string,
   userId: string,
-  postId: string
+  postId: string,
+  options?: { model?: string; textPrompt?: string; textEnabled?: boolean }
 ) {
   try {
     let images: string[] = [];
     let usage: any = CostCalculator.createFalImageUsageMetadata(0, 'fallback');
 
-    const falResult = await FalImageService.generateImages(imagePrompt, { count: 2 });
+    const falResult = await FalImageService.generateImages(imagePrompt, {
+      count: 2,
+      model: normalizeImageModel(options?.model),
+      textPrompt: options?.textEnabled ? buildImageTextPrompt(undefined, options?.textPrompt) : undefined,
+    });
 
     if (falResult && falResult.images.length > 0) {
       images = falResult.images.map((img) => img.url);

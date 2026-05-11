@@ -61,6 +61,9 @@ const loadStrategy = (): ChannelStrategy => {
       format: PostFormat.LIST,
       userComments: '',
       withImage: false,
+      imageModel: parsed?.imageModel || 'flux/dev',
+      imageTextEnabled: parsed?.imageTextEnabled || false,
+      imageTextPrompt: parsed?.imageTextPrompt || '',
     };
   } catch {
     return {
@@ -70,6 +73,8 @@ const loadStrategy = (): ChannelStrategy => {
       format: PostFormat.LIST,
       userComments: '',
       withImage: false,
+      imageModel: 'flux/dev',
+      imageTextEnabled: false,
     };
   }
 };
@@ -325,7 +330,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       previousPostText: null,
     });
 
-    const config: GenerationConfig = { withImage: strategy.withImage || false, withAnalysis: false };
+    const config: GenerationConfig = { withImage: strategy.withImage || false, withAnalysis: false, imageStyle: 'realistic' };
     
     // Simulate progress updates since Server Actions are opaque
     const progressInterval = setInterval(() => {
@@ -357,6 +362,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         toast.error(result.errors.join(', '));
         set({ currentPost: null, pipelineState: { stage: 'idle', progress: 0 } });
         return;
+      }
+
+      // Show non-fatal errors (e.g. image generation failed but text is ready)
+      if (result.errors && result.errors.length > 0) {
+        result.errors.forEach((err: string) => toast.error(err, { duration: 5000 }));
       }
 
       const newPost = result.post;
@@ -563,7 +573,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const result = await regeneratePostImagesAction(
         currentPost.imagePrompt,
         user.id,
-        currentProject.id
+        currentProject.id,
+        {
+          model: strategy.imageModel,
+          textPrompt: strategy.imageTextPrompt,
+          textEnabled: strategy.imageTextEnabled,
+        }
       );
 
       if (result.success) {

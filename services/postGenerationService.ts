@@ -141,7 +141,7 @@ export class PostGenerationService {
         success: true,
         post,
         costs,
-        errors: [],
+        errors,
         timing: {
           startedAt,
           completedAt: Date.now(),

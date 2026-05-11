@@ -15,6 +15,63 @@ export enum PostFormat {
 
 export type PostIntent = 'value' | 'engagement' | 'sales';
 
+export type ImageModel = 'flux/dev' | 'nano-banana-2' | 'grok-imagine-image';
+
+export type ImageTextMode = 'auto' | 'custom';
+
+export interface ImageGenerationPreferences {
+  model?: ImageModel;
+  textEnabled?: boolean;
+  textPrompt?: string;
+}
+
+export const DEFAULT_IMAGE_MODEL: ImageModel = 'flux/dev';
+
+export const IMAGE_MODEL_OPTIONS: { value: ImageModel; label: string; description: string }[] = [
+  { value: 'flux/dev', label: 'Flux Dev', description: 'Default. Balanced quality and speed.' },
+  { value: 'nano-banana-2', label: 'Nano Banana 2', description: 'Higher fidelity, supports text overlay.' },
+  { value: 'grok-imagine-image', label: 'Grok Imagine', description: 'Very fast preview generation.' },
+];
+
+export const IMAGE_MODEL_LABELS: Record<ImageModel, string> = {
+  'flux/dev': 'Flux Dev',
+  'nano-banana-2': 'Nano Banana 2',
+  'grok-imagine-image': 'Grok Imagine',
+};
+
+export const IMAGE_MODEL_SPEED_HINTS: Record<ImageModel, string> = {
+  'flux/dev': 'Default',
+  'nano-banana-2': 'Quality',
+  'grok-imagine-image': 'Fast',
+};
+
+export const normalizeImageModel = (value?: string | null): ImageModel => {
+  if (value === 'nano-banana-2' || value === 'grok-imagine-image' || value === 'flux/dev') {
+    return value;
+  }
+  return DEFAULT_IMAGE_MODEL;
+};
+
+export const buildImageOverlayText = (text?: string): string => {
+  if (!text) return '';
+  const cleaned = text
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!cleaned) return '';
+
+  const words = cleaned.split(' ');
+  const candidate = words.slice(0, 12).join(' ');
+  return candidate.length > 80 ? `${candidate.slice(0, 77).trim()}…` : candidate;
+};
+
+export const buildImageTextPrompt = (postText?: string, userPrompt?: string): string | undefined => {
+  const base = userPrompt?.trim() || buildImageOverlayText(postText);
+  return base || undefined;
+};
+
+
 export interface TelegramUser {
   id: number;
   first_name: string;
@@ -181,6 +238,9 @@ export interface ChannelStrategy {
   positioning?: string; // Who am I (Brand/Expert identity)
   point?: string; // Core message/product/news for this specific generation
   withImage?: boolean;
+  imageModel?: ImageModel;
+  imageTextEnabled?: boolean;
+  imageTextPrompt?: string;
   analyzedChannel?: ChannelInfo;
   analysisUsage?: UsageMetadata;
 }

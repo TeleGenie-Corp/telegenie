@@ -1,4 +1,4 @@
-import { UsageMetadata } from '../types';
+import { UsageMetadata, ImageModel, buildImageTextPrompt } from '../types';
 import { CostCalculator } from './costCalculator';
 
 export interface FalImageResult {
@@ -22,12 +22,24 @@ export interface FalImageGenerationOptions {
   count?: number;
   imageSize?: 'square' | 'square_hd' | 'portrait_4_3' | 'portrait_16_9' | 'landscape_4_3' | 'landscape_16_9';
   enableSafetyChecker?: boolean;
+  model?: ImageModel;
+  textPrompt?: string;
 }
+
+const MODEL_ENDPOINTS: Record<ImageModel, string[]> = {
+  'flux/dev': ['fal-ai/flux/dev', 'fal-ai/flux/schnell'],
+  'nano-banana-2': ['fal-ai/nano-banana-2', 'fal-ai/flux/dev', 'fal-ai/flux/schnell'],
+  'grok-imagine-image': ['xai/grok-imagine-image', 'fal-ai/flux/dev', 'fal-ai/flux/schnell'],
+};
+
+const MODEL_USAGE_KEYS: Record<ImageModel, string> = {
+  'flux/dev': 'flux-dev',
+  'nano-banana-2': 'nano-banana-2',
+  'grok-imagine-image': 'grok-imagine-image',
+};
 
 export class FalImageService {
   private static readonly API_BASE = 'https://queue.fal.run';
-  private static readonly MODEL_DEV = 'fal-ai/flux/dev';
-  private static readonly MODEL_SCHNELL = 'fal-ai/flux/schnell';
   private static readonly TIMEOUT_MS = 120_000; // 2 minutes for sync
   private static readonly POLL_INTERVAL_MS = 3_000; // 3 seconds
   private static readonly MAX_POLL_ATTEMPTS = 40; // ~2 minutes
@@ -39,49 +51,33 @@ export class FalImageService {
   }
 
   /**
-   * Generate images using fal.ai flux/dev with different seeds.
-   * Falls back to flux/schnell on failure.
-   * Each image is generated as a separate call so failure of one doesn't kill all.
+   * Generate images using fal.ai.
+   * Tries the selected model first, then falls back to flux/dev and flux/schnell.
    */
   static async generateImages(
     prompt: string,
     options: FalImageGenerationOptions = {}
   ): Promise<{ images: FalImageResult[]; usage: UsageMetadata; rawResponses: unknown[] }> {
-    const { count = 2, imageSize = 'square_hd', enableSafetyChecker = true } = options;
+    const {
+      count = 2,
+      imageSize = 'square_hd',
+      enableSafetyChecker = true,
+      model = 'flux/dev',
+      textPrompt,
+    } = options;
 
-    // Generate unique seeds for each image
     const seeds = Array.from({ length: count }, () => Math.floor(Math.random() * 2_147_483_647));
-
     const rawResponses: unknown[] = [];
+    const endpointOrder = MODEL_ENDPOINTS[model] ?? MODEL_ENDPOINTS['flux/dev'];
+    const composedPrompt = this.composePrompt(prompt, model, textPrompt);
 
-    try {
-      const results = await Promise.all(
-        seeds.map((seed) => this.generateSingle(prompt, seed, imageSize, enableSafetyChecker, this.MODEL_DEV))
-      );
-
-      results.forEach(r => rawResponses.push(r));
-
-      const images = results
-        .filter((r): r is FalGenerateResponse => r !== null)
-        .flatMap((r) => r.images ?? [])
-        .filter((img): img is FalImageResult => !!img && typeof img.url === 'string' && img.url.length > 0);
-
-      if (images.length === 0) {
-        throw new Error('No valid images generated from flux/dev');
-      }
-
-      const usage = CostCalculator.createFalImageUsageMetadata(images.length, 'flux-dev');
-      return { images, usage, rawResponses };
-    } catch (error) {
-      console.warn('[FalImageService] flux/dev failed, falling back to flux/schnell:', error);
-
-      // Fallback to schnell
+    for (const endpoint of endpointOrder) {
       try {
         const results = await Promise.all(
-          seeds.map((seed) => this.generateSingle(prompt, seed, imageSize, enableSafetyChecker, this.MODEL_SCHNELL))
+          seeds.map((seed) => this.generateSingle(composedPrompt, seed, imageSize, enableSafetyChecker, endpoint))
         );
 
-        results.forEach(r => rawResponses.push(r));
+        results.forEach((r) => rawResponses.push(r));
 
         const images = results
           .filter((r): r is FalGenerateResponse => r !== null)
@@ -89,16 +85,35 @@ export class FalImageService {
           .filter((img): img is FalImageResult => !!img && typeof img.url === 'string' && img.url.length > 0);
 
         if (images.length === 0) {
-          throw new Error('No valid images generated even with fallback');
+          throw new Error(`No valid images generated from ${endpoint}`);
         }
 
-        const usage = CostCalculator.createFalImageUsageMetadata(images.length, 'flux-schnell');
+        const usageKey = endpoint.includes('nano-banana-2')
+          ? MODEL_USAGE_KEYS['nano-banana-2']
+          : endpoint.includes('grok-imagine-image')
+            ? MODEL_USAGE_KEYS['grok-imagine-image']
+            : MODEL_USAGE_KEYS['flux/dev'];
+        const usage = CostCalculator.createFalImageUsageMetadata(images.length, usageKey);
         return { images, usage, rawResponses };
-      } catch (fallbackError) {
-        console.error('[FalImageService] Both models failed:', fallbackError);
-        throw fallbackError;
+      } catch (error) {
+        console.warn(`[FalImageService] ${endpoint} failed, trying next fallback:`, error);
       }
     }
+
+    throw new Error('All fal.ai image models failed');
+  }
+
+  private static composePrompt(prompt: string, model: ImageModel, textPrompt?: string): string {
+    const overlay = buildImageTextPrompt(undefined, textPrompt);
+    if (!overlay) return prompt;
+
+    const textInstruction = `Include this readable on-image text as a central overlay or caption: "${overlay}".`;
+
+    if (model === 'nano-banana-2' || model === 'grok-imagine-image') {
+      return `${prompt}\n\n${textInstruction}`;
+    }
+
+    return `${prompt}\n\nIf it fits naturally, incorporate the following text into the composition: "${overlay}".`;
   }
 
   /**
@@ -110,9 +125,9 @@ export class FalImageService {
     seed: number,
     imageSize: string,
     enableSafetyChecker: boolean,
-    model: string
+    endpoint: string
   ): Promise<FalGenerateResponse | null> {
-    const url = `${this.API_BASE}/${model}`;
+    const url = `${this.API_BASE}/${endpoint}`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
@@ -139,21 +154,19 @@ export class FalImageService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[FalImageService] HTTP ${response.status} from ${model}: ${errorText}`);
+        console.error(`[FalImageService] HTTP ${response.status} from ${endpoint}: ${errorText}`);
         throw new Error(`fal.ai API error ${response.status}: ${errorText}`);
       }
 
       const data: FalGenerateResponse = await response.json();
 
-      // If the API returned an async request_id, poll for result
       if (data.request_id && !data.images) {
         console.log(`[FalImageService] Got request_id=${data.request_id}, polling...`);
         return await this.pollForResult(data.request_id);
       }
 
-      // Validate the response has proper images array
       if (!data.images || !Array.isArray(data.images)) {
-        console.error(`[FalImageService] Unexpected response structure from ${model}:`, JSON.stringify(data));
+        console.error(`[FalImageService] Unexpected response structure from ${endpoint}:`, JSON.stringify(data));
         return null;
       }
 
@@ -161,9 +174,9 @@ export class FalImageService {
     } catch (error) {
       clearTimeout(timeoutId);
       if ((error as Error).name === 'AbortError') {
-        console.error(`[FalImageService] Timeout generating with ${model}`);
+        console.error(`[FalImageService] Timeout generating with ${endpoint}`);
       } else {
-        console.error(`[FalImageService] Error generating with ${model}:`, error);
+        console.error(`[FalImageService] Error generating with ${endpoint}:`, error);
       }
       return null;
     }
@@ -204,8 +217,6 @@ export class FalImageService {
           console.error(`[FalImageService] Completed but no images for ${requestId}:`, JSON.stringify(data));
           return null;
         }
-
-        // Otherwise still IN_PROGRESS or similar — keep polling
       } catch (pollError) {
         console.error(`[FalImageService] Poll exception attempt ${attempt}:`, pollError);
       }

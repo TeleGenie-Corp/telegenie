@@ -7,7 +7,7 @@ import {
   MessageCircle, Send, Wand2, Settings,
   MessageSquareQuote, Check, Image as ImageIcon, RefreshCw
 } from 'lucide-react';
-import { PostGoal } from '@/types';
+import { PostGoal, IMAGE_MODEL_OPTIONS } from '@/types';
 
 // --- Stores ---
 import { useAuthStore } from '@/src/stores/authStore';
@@ -441,6 +441,52 @@ export default function Home() {
                     <span className="text-[10px] text-[#9aaeb5]">+~$0.04</span>
                   </div>
 
+                  {strategy.withImage && (
+                    <div className="space-y-3 rounded-lg border border-violet-100 bg-violet-50/70 p-3">
+                      <div>
+                        <label className="text-[10px] uppercase tracking-widest text-violet-500 mb-2 block">Модель изображения</label>
+                        <select
+                          value={strategy.imageModel || 'flux/dev'}
+                          onChange={(e) => setStrategy(s => ({...s, imageModel: e.target.value as any}))}
+                          className="w-full bg-white border border-violet-100 text-sm text-[#233137] rounded-lg p-2.5 outline-none focus:border-violet-300"
+                        >
+                          {IMAGE_MODEL_OPTIONS.map(option => (
+                            <option key={option.value} value={option.value}>{option.label} — {option.description}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {strategy.imageModel === 'nano-banana-2' && (
+                        <div className="space-y-2">
+                          <label className="flex items-start gap-2 text-sm text-[#233137] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!strategy.imageTextEnabled}
+                              onChange={(e) => setStrategy(s => ({...s, imageTextEnabled: e.target.checked}))}
+                              className="mt-1"
+                            />
+                            <span>
+                              <span className="font-medium">Добавить текст на изображение</span>
+                              <span className="block text-[10px] text-[#758084] mt-0.5">
+                                Передаёт текстовый промпт для наложения или caption в модель.
+                              </span>
+                            </span>
+                          </label>
+
+                          {strategy.imageTextEnabled && (
+                            <textarea
+                              value={strategy.imageTextPrompt || ''}
+                              onChange={(e) => setStrategy(s => ({...s, imageTextPrompt: e.target.value}))}
+                              placeholder="Например: AI без границ"
+                              rows={2}
+                              className="w-full bg-white border border-violet-100 text-sm text-[#233137] rounded-lg p-2.5 outline-none focus:border-violet-300 resize-none"
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <button
                     onClick={generateDirect}
                     disabled={pipelineState.stage !== 'idle'}
@@ -503,33 +549,35 @@ export default function Home() {
               
               <div className="flex-1 p-4 overflow-y-auto custom-scrollbar min-h-0">
                 {currentPost && !currentPost.generating && (currentPost.text || currentPost.imageUrl) ? (
-                  <div className="bg-white rounded-2xl p-3 shadow-xl shadow-black/10 animate-in fade-in slide-in-from-bottom-3 duration-500 ring-1 ring-black/5">
+                  <div className="bg-white rounded-2xl p-3 shadow-xl shadow-black/10 animate-in fade-in slide-in-from-bottom-3 duration-500 ring-1 ring-black/5 flex flex-col gap-3 min-h-0">
                     {currentPost.imageUrl && (
-                      <div className="rounded-xl overflow-hidden mb-3">
+                      <div className="rounded-xl overflow-hidden">
                         <img src={currentPost.imageUrl} alt="Post" className="w-full h-auto object-cover" />
                       </div>
                     )}
-                    <div
-                      className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none
-                        [&_p]:my-0 [&_p]:leading-[1.6] [&_p]:min-h-[1.6em]
-                        [&_p:empty]:block [&_p:empty]:min-h-[1.6em]
-                        [&_a]:text-[#5e8090] [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-[#233137]"
-                      dangerouslySetInnerHTML={{ __html: currentPost.text }}
-                    />
-                    {/* Image Picker — выбор изображения если есть опции */}
+
                     {currentPost.imageUrlOptions && currentPost.imageUrlOptions.length > 0 && (
-                      <div className="mt-3">
-                        <ImagePicker
-                          imageUrl={currentPost.imageUrl}
-                          imageUrlOptions={currentPost.imageUrlOptions}
-                          imagePrompt={currentPost.imagePrompt}
-                          onSelectImage={(url) => useEditorStore.getState().selectImage(url)}
-                          onRegenerate={() => useEditorStore.getState().regenerateImages()}
-                          regenerating={pipelineState.stage === 'generating_image'}
-                        />
-                      </div>
+                      <ImagePicker
+                        imageUrl={currentPost.imageUrl}
+                        imageUrlOptions={currentPost.imageUrlOptions}
+                        imagePrompt={currentPost.imagePrompt}
+                        onSelectImage={(url) => useEditorStore.getState().selectImage(url)}
+                        onRegenerate={() => useEditorStore.getState().regenerateImages()}
+                        regenerating={pipelineState.stage === 'generating_image'}
+                      />
                     )}
-                    <div className="flex justify-between items-center mt-2 pt-2">
+
+                    <div className="min-h-0 max-h-[42vh] overflow-y-auto pr-1">
+                      <div
+                        className="text-sm leading-relaxed text-slate-900 break-words prose prose-sm max-w-none
+                          [&_p]:my-0 [&_p]:leading-[1.6] [&_p]:min-h-[1.6em]
+                          [&_p:empty]:block [&_p:empty]:min-h-[1.6em]
+                          [&_a]:text-[#5e8090] [&_a]:underline [&_a]:underline-offset-2 [&_a:hover]:text-[#233137]"
+                        dangerouslySetInnerHTML={{ __html: currentPost.text }}
+                      />
+                    </div>
+
+                    <div className="flex justify-between items-center pt-1">
                       <span className={`text-[10px] font-bold uppercase tracking-widest transition-opacity ${isSaving ? 'text-violet-500 opacity-100' : 'text-slate-300 opacity-0'}`}>
                         {isSaving ? 'Сохраняю...' : 'Сохранено'}
                       </span>

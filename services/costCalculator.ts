@@ -25,7 +25,9 @@ export class CostCalculator {
     image: 0.04,      // ~$0.04 per image (varies by resolution)
     // Fal.ai image generation
     falFluxDev: 0.035,    // ~$0.035 per image
-    falFluxSchnell: 0.003 // ~$0.003 per image
+    falFluxSchnell: 0.003, // ~$0.003 per image
+    falNanoBanana2: 0.05,  // quality model, slightly above Flux Dev
+    falGrokImagineImage: 0.04 // fast preview model
   };
 
   /**
@@ -103,9 +105,15 @@ export class CostCalculator {
    * @param modelName - 'flux-dev' or 'flux-schnell'
    */
   static createFalImageUsageMetadata(count: number, modelName: string): UsageMetadata {
-    const costPerImage = modelName.includes('schnell') 
-      ? this.PRICING.falFluxSchnell 
-      : this.PRICING.falFluxDev;
+    let costPerImage = this.PRICING.falFluxDev;
+
+    if (modelName.includes('schnell')) {
+      costPerImage = this.PRICING.falFluxSchnell;
+    } else if (modelName.includes('nano-banana-2')) {
+      costPerImage = this.PRICING.falNanoBanana2;
+    } else if (modelName.includes('grok-imagine-image')) {
+      costPerImage = this.PRICING.falGrokImagineImage;
+    }
     
     return {
       promptTokens: 0,
