@@ -122,18 +122,9 @@ export async function verifyPaymentAction(paymentId: string): Promise<{ success:
             
             await userRef.update(updateData);
 
-            // Log Transaction for History
-            await adminDb.collection('transactions').add({
-                userId,
-                planId,
-                amount: (payment.amount as any).value,
-                currency: (payment.amount as any).currency,
-                paymentId: payment.id,
-                status: payment.status, // Keep actual status for audit trail
-                type: 'subscription',
-                createdAt: now
-            });
-            
+            // Transaction is logged by the YooKassa webhook (payment.succeeded).
+            // Logging here would create a duplicate record for the same paymentId.
+
             return { success: true };
         } else {
              return { success: false, error: `Payment status: ${payment.status}` };

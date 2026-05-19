@@ -75,7 +75,8 @@ export const checkSubscriptionRenewals = functions
         if (payment.status === 'succeeded' || payment.status === 'waiting_for_capture') {
           console.log(`[Scheduler] Renewal successful for ${userId}. Payment: ${payment.id}`);
 
-          const newPeriodEnd = Date.now() + (30 * 24 * 60 * 60 * 1000);
+          const now = Date.now();
+          const newPeriodEnd = now + (30 * 24 * 60 * 60 * 1000);
           const updateData: any = {
             'subscription.status': 'active',
             'subscription.currentPeriodEnd': newPeriodEnd,
@@ -88,6 +89,17 @@ export const checkSubscriptionRenewals = functions
           }
 
           await doc.ref.update(updateData);
+
+          await db.collection('transactions').add({
+            userId,
+            planId: plan.id,
+            amount: payment.amount?.value,
+            currency: payment.amount?.currency || 'RUB',
+            paymentId: payment.id,
+            status: payment.status,
+            type: 'renewal',
+            createdAt: now,
+          });
         } else {
           console.warn(`[Scheduler] Payment not succeeded immediately for ${userId}: ${payment.status}`);
           if (payment.status === 'canceled') {
