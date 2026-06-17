@@ -452,7 +452,7 @@ export default function Home() {
                       <span>{loadingSuggestions ? 'Подбираю варианты...' : 'Ещё варианты улучшения'}</span>
                       <span className="text-slate-300 transition-transform group-open:rotate-45">+</span>
                     </summary>
-                    <div className="px-3 pb-3 flex flex-wrap gap-1.5">
+                    <div className="hidden px-3 pb-3 group-open:flex group-open:flex-wrap gap-1.5">
                       {QUICK_EDIT_COMMANDS.map((command) => (
                         <button
                           key={command}
@@ -792,7 +792,7 @@ export default function Home() {
                       Детали проверки
                       <span className="text-slate-300 transition-transform group-open:rotate-45">+</span>
                     </summary>
-                    <div className="mt-2 grid grid-cols-1 gap-1.5">
+                    <div className="mt-2 hidden group-open:grid grid-cols-1 gap-1.5">
                       {editorialVerdict.checks.map((check) => (
                         <div
                           key={check.label}
