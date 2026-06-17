@@ -10,7 +10,11 @@ export interface FalImageResult {
 export interface FalGenerateResponse {
   images?: FalImageResult[];
   request_id?: string;
+  status_url?: string;
+  response_url?: string;
   status?: string;
+  error?: string;
+  error_type?: string;
   seed?: number;
   has_nsfw_content?: boolean[];
   prompt?: string;
@@ -162,7 +166,7 @@ export class FalImageService {
 
       if (data.request_id && !data.images) {
         console.log(`[FalImageService] Got request_id=${data.request_id}, polling...`);
-        return await this.pollForResult(data.request_id);
+        return await this.pollForResult(data.request_id, endpoint, data.status_url, data.response_url);
       }
 
       if (!data.images || !Array.isArray(data.images)) {
@@ -185,14 +189,21 @@ export class FalImageService {
   /**
    * Poll fal.ai queue API for async request result.
    */
-  private static async pollForResult(requestId: string): Promise<FalGenerateResponse | null> {
-    const statusUrl = `https://queue.fal.run/f/requests/${requestId}`;
+  private static async pollForResult(
+    requestId: string,
+    endpoint: string,
+    initialStatusUrl?: string,
+    initialResponseUrl?: string
+  ): Promise<FalGenerateResponse | null> {
+    const statusUrl = initialStatusUrl || `${this.API_BASE}/${endpoint}/requests/${requestId}/status`;
+    let responseUrl = initialResponseUrl || `${this.API_BASE}/${endpoint}/requests/${requestId}/response`;
 
     for (let attempt = 0; attempt < this.MAX_POLL_ATTEMPTS; attempt++) {
       await new Promise(resolve => setTimeout(resolve, this.POLL_INTERVAL_MS));
 
       try {
-        const response = await fetch(statusUrl, {
+        const statusEndpoint = statusUrl.includes('?') ? statusUrl : `${statusUrl}?logs=1`;
+        const response = await fetch(statusEndpoint, {
           method: 'GET',
           headers: { 'Authorization': `Key ${this.getApiKey()}` },
         });
@@ -204,9 +215,10 @@ export class FalImageService {
         }
 
         const data: FalGenerateResponse = await response.json();
+        responseUrl = data.response_url || responseUrl;
 
-        if (data.status === 'FAILED') {
-          console.error(`[FalImageService] Request ${requestId} failed`);
+        if (data.status === 'FAILED' || data.error) {
+          console.error(`[FalImageService] Request ${requestId} failed:`, data.error || data.error_type || 'unknown error');
           return null;
         }
 
@@ -214,8 +226,8 @@ export class FalImageService {
           if (data.images && Array.isArray(data.images)) {
             return data;
           }
-          console.error(`[FalImageService] Completed but no images for ${requestId}:`, JSON.stringify(data));
-          return null;
+
+          return await this.fetchResult(responseUrl, requestId);
         }
       } catch (pollError) {
         console.error(`[FalImageService] Poll exception attempt ${attempt}:`, pollError);
@@ -224,6 +236,32 @@ export class FalImageService {
 
     console.error(`[FalImageService] Max poll attempts exceeded for ${requestId}`);
     return null;
+  }
+
+  private static async fetchResult(responseUrl: string, requestId: string): Promise<FalGenerateResponse | null> {
+    try {
+      const response = await fetch(responseUrl, {
+        method: 'GET',
+        headers: { 'Authorization': `Key ${this.getApiKey()}` },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`[FalImageService] Result error ${response.status} for ${requestId}: ${text}`);
+        return null;
+      }
+
+      const data: FalGenerateResponse = await response.json();
+      if (!data.images || !Array.isArray(data.images)) {
+        console.error(`[FalImageService] Result has no images for ${requestId}:`, JSON.stringify(data));
+        return null;
+      }
+
+      return data;
+    } catch (resultError) {
+      console.error(`[FalImageService] Result exception for ${requestId}:`, resultError);
+      return null;
+    }
   }
 
   /**
