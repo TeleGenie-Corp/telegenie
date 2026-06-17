@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Brand, PostProject, ChannelStrategy, PostGoal, PostFormat } from '../../types';
+import { Brand, PostProject, ChannelStrategy, PostGoal, PostFormat, LinkedChannel } from '../../types';
 import { BrandService } from '../../services/brandService';
 import { PostProjectService } from '../../services/postProjectService';
 import { BillingService } from '../../services/billingService';
@@ -24,6 +24,8 @@ interface WorkspaceState {
   createBrand: (data: { name: string; channelUrl: string }) => Promise<void>;
   editPositioning: (brand: Brand) => void;
   updateBrandPositioning: (pos: string) => Promise<void>;
+  connectBrandChannel: (brandId: string, channel: LinkedChannel) => Promise<void>;
+  disconnectBrandChannel: (brandId: string) => Promise<void>;
   deleteBrand: (brandId: string) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
   createPost: (brandId: string) => Promise<void>;
@@ -124,6 +126,44 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
 
     const { useEditorStore } = await import('./editorStore');
     useEditorStore.getState().setStrategy((s: ChannelStrategy) => ({ ...s, positioning: pos }));
+  },
+
+  connectBrandChannel: async (brandId: string, channel: LinkedChannel) => {
+    const userId = useAuthStore.getState().user?.id;
+    if (!userId) return;
+
+    await BrandService.updateLinkedChannel(userId, brandId, channel);
+    set((s) => {
+      const brands = s.brands.map((b) => (
+        b.id === brandId ? { ...b, linkedChannel: channel, updatedAt: Date.now() } : b
+      ));
+      const currentBrand = s.currentBrand?.id === brandId
+        ? { ...s.currentBrand, linkedChannel: channel, updatedAt: Date.now() }
+        : s.currentBrand;
+      return { brands, currentBrand };
+    });
+  },
+
+  disconnectBrandChannel: async (brandId: string) => {
+    const userId = useAuthStore.getState().user?.id;
+    if (!userId) return;
+
+    await BrandService.removeLinkedChannel(userId, brandId);
+    set((s) => {
+      const brands = s.brands.map((b) => {
+        if (b.id !== brandId) return b;
+        const next = { ...b, updatedAt: Date.now() };
+        delete next.linkedChannel;
+        return next;
+      });
+      let currentBrand = s.currentBrand;
+      if (currentBrand?.id === brandId) {
+        const next = { ...currentBrand, updatedAt: Date.now() };
+        delete next.linkedChannel;
+        currentBrand = next;
+      }
+      return { brands, currentBrand };
+    });
   },
 
   deleteBrand: async (brandId: string) => {

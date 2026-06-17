@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot, deleteField } from 'firebase/firestore';
 import { db } from './firebaseConfig';
 import { Brand, LinkedChannel, ChannelInfo } from '../types';
 
@@ -97,6 +97,13 @@ export class BrandService {
    */
   static async updateLinkedChannel(userId: string, brandId: string, linkedChannel: LinkedChannel): Promise<void> {
     await this.updateBrand(userId, brandId, { linkedChannel });
+  }
+
+  static async removeLinkedChannel(userId: string, brandId: string): Promise<void> {
+    await updateDoc(this.getBrandDoc(userId, brandId), {
+      linkedChannel: deleteField(),
+      updatedAt: Date.now(),
+    });
   }
 
   /**

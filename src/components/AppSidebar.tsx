@@ -94,7 +94,8 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
             const isConfirming = confirmDeleteId === brand.id;
             const isAnalyzing = analyzingId === brand.id;
             const hasAnalysis = !!brand.analyzedChannel;
-            const isLinked = !!brand.linkedChannel;
+            const hasOwnPublishChannel = !!brand.linkedChannel;
+            const usesGlobalPublishChannel = !hasOwnPublishChannel && !!profile?.linkedChannel;
 
             const contextSummary = brand.analyzedChannel
               ? brand.analyzedChannel.contentPillars?.[0] || brand.analyzedChannel.topic || brand.analyzedChannel.toneOfVoice || ''
@@ -126,8 +127,11 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                       {hasAnalysis && (
                         <span className="text-[8px] text-violet-500 font-bold">Изучен ✓</span>
                       )}
-                      {isLinked && (
-                        <span className="text-[8px] text-stone-400 font-bold">· Подключён</span>
+                      {hasOwnPublishChannel && (
+                        <span className="text-[8px] text-emerald-600 font-bold">· Публикует сюда</span>
+                      )}
+                      {usesGlobalPublishChannel && (
+                        <span className="text-[8px] text-stone-400 font-bold">· Общая публикация</span>
                       )}
                     </div>
                     {contextSummary && (

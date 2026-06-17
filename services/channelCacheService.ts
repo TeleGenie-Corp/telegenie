@@ -57,7 +57,10 @@ export class ChannelCacheService {
         description: data.description,
         topic: data.topic,
         context: data.context,
-        lastPosts: data.lastPosts || []
+        lastPosts: data.lastPosts || [],
+        contentPillars: data.contentPillars || [],
+        toneOfVoice: data.toneOfVoice,
+        forbiddenPhrases: data.forbiddenPhrases || [],
       };
     } catch (error) {
       console.error('Error fetching cached channel:', error);

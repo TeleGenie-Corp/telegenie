@@ -172,6 +172,8 @@ export default function Home() {
   const deletePost = useWorkspaceStore(s => s.deletePost);
   const createPost = useWorkspaceStore(s => s.createPost);
   const backToWorkspace = useWorkspaceStore(s => s.backToWorkspace);
+  const connectBrandChannel = useWorkspaceStore(s => s.connectBrandChannel);
+  const disconnectBrandChannel = useWorkspaceStore(s => s.disconnectBrandChannel);
 
   const strategy = useEditorStore(s => s.strategy);
   const setStrategy = useEditorStore(s => s.setStrategy);
@@ -270,6 +272,14 @@ export default function Home() {
   const plainPostText = currentPost?.text?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || '';
   const hasPublishableContent = !!currentPost && !currentPost.generating && (!!plainPostText || !!currentPost.imageUrl);
   const editorialVerdict = hasPublishableContent ? buildEditorialVerdict(plainPostText, !!currentPost?.imageUrl) : null;
+  const publishChannel = currentBrand?.linkedChannel || profile?.linkedChannel;
+  const publishChannelSource = currentBrand?.linkedChannel ? 'brand' : profile?.linkedChannel ? 'global' : null;
+  const publishChannelUsername = publishChannel?.username?.replace('@', '');
+  const publishChannelUrl = publishChannelUsername
+    ? `https://t.me/${publishChannelUsername}`
+    : publishChannel?.chatId?.startsWith('-100')
+      ? `https://t.me/c/${publishChannel.chatId.replace('-100', '')}`
+      : currentBrand?.channelUrl || '#';
 
   if (isLoadingAuth) {
     const q = loadingQuote;
@@ -301,8 +311,11 @@ export default function Home() {
         isOpen={showSettings}
         onClose={closeSettings}
         profile={profile}
+        currentBrand={currentBrand}
         onChannelConnect={connectChannel}
         onChannelDisconnect={disconnectChannel}
+        onBrandChannelConnect={(channel) => currentBrand ? connectBrandChannel(currentBrand.id, channel) : Promise.resolve()}
+        onBrandChannelDisconnect={() => currentBrand ? disconnectBrandChannel(currentBrand.id) : Promise.resolve()}
         defaultChannelUrl={CHANNEL_URL}
       />
       <CreateBrandModal
@@ -639,38 +652,35 @@ export default function Home() {
               <div className="bg-white/95 backdrop-blur-sm p-3 border-b border-black/5 flex items-center gap-3">
                 {/* Channel Link & Avatar */}
                 <a 
-                  href={
-                    (currentBrand?.linkedChannel?.username || profile?.linkedChannel?.username) 
-                      ? `https://t.me/${(currentBrand?.linkedChannel?.username || profile?.linkedChannel?.username)?.replace('@', '')}` 
-                      : (currentBrand?.linkedChannel?.chatId || profile?.linkedChannel?.chatId)
-                        ? `https://t.me/c/${(currentBrand?.linkedChannel?.chatId || profile?.linkedChannel?.chatId)?.toString().replace('-100', '')}`
-                        : currentBrand?.channelUrl || '#'
-                  } 
+                  href={publishChannelUrl}
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity group"
                 >
-                  {(currentBrand?.linkedChannel?.photoUrl || profile?.linkedChannel?.photoUrl) && !avatarError ? (
+                  {publishChannel?.photoUrl && !avatarError ? (
                     <img
-                      src={currentBrand?.linkedChannel?.photoUrl || profile?.linkedChannel?.photoUrl}
+                      src={publishChannel.photoUrl}
                       alt="Avatar"
                       onError={() => setAvatarError(true)}
                       className="w-10 h-10 rounded-full object-cover border border-black/5"
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-[#9aaeb5] text-white flex items-center justify-center font-bold text-sm shrink-0">
-                      {(currentBrand?.name || profile?.linkedChannel?.title)?.[0]?.toUpperCase() || 'A'}
+                      {(publishChannel?.title || currentBrand?.name)?.[0]?.toUpperCase() || 'A'}
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-slate-900 truncate group-hover:text-violet-600 transition-colors">
-                      {currentBrand?.linkedChannel?.title || profile?.linkedChannel?.title || currentBrand?.name || 'AI Каналище'}
+                      {publishChannel?.title || currentBrand?.name || 'AI Каналище'}
                     </div>
                     <div className="text-[10px] text-slate-500">
-                      {(currentBrand?.linkedChannel?.memberCount || profile?.linkedChannel?.memberCount)
-                        ? `${(currentBrand?.linkedChannel?.memberCount || profile?.linkedChannel?.memberCount)?.toLocaleString('ru-RU')} подписчиков`
-                        : 'Демо-канал'
-                      }
+                      {publishChannel?.memberCount
+                        ? `${publishChannel.memberCount.toLocaleString('ru-RU')} подписчиков`
+                        : publishChannelSource === 'global'
+                          ? 'Общий канал публикации'
+                          : publishChannelSource === 'brand'
+                            ? 'Канал этого голоса'
+                            : 'Канал не подключён'}
                     </div>
                   </div>
                 </a>
@@ -786,17 +796,19 @@ export default function Home() {
                 </div>
               )}
 
-              {!(profile?.linkedChannel?.chatId) ? (
+              {!publishChannel?.chatId ? (
                 <button
                   onClick={openSettings}
                   className="w-full py-4 border-2 border-dashed border-slate-200 hover:border-violet-300 text-slate-400 hover:text-violet-600 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all active:scale-95"
                 >
                   <Settings size={16} />
-                  Подключить канал
+                  Подключить публикацию
                 </button>
               ) : confirmPublish ? (
                 <div className="space-y-2 animate-in fade-in slide-in-from-bottom-1 duration-150">
-                  <p className="text-xs text-center text-slate-500 font-medium">Опубликовать пост в канал?</p>
+                  <p className="text-xs text-center text-slate-500 font-medium">
+                    Опубликовать в {publishChannel?.username || publishChannel?.title || 'канал'}?
+                  </p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setConfirmPublish(false)}

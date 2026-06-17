@@ -687,7 +687,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     if (!currentPost || !profile || !user || !currentProject) return;
 
-    const chatId = profile.linkedChannel?.chatId;
+    const brand = useWorkspaceStore.getState().currentBrand;
+    const publishChannel = brand?.linkedChannel || profile.linkedChannel;
+    const chatId = publishChannel?.chatId;
     if (!chatId) { toast.error('Нет подключённого канала'); return; }
 
     set({ pipelineState: { stage: 'publishing', progress: 80, currentTask: 'Публикация...' } });
@@ -699,13 +701,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const res = await publishPostAction({
         postHtml: currentPost.text,
         chatId,
-        customBotToken: profile.linkedChannel?.botToken,
+        customBotToken: publishChannel?.botToken,
         imageUrl: currentPost.imageUrl,
       });
       if (res.success) {
         const messageId = res.messageId;
-        const brand = useWorkspaceStore.getState().currentBrand;
-        const lc = brand?.linkedChannel || profile?.linkedChannel;
+        const lc = publishChannel;
         
         let postLink = '';
         if (lc?.username) {
@@ -727,8 +728,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         if (user) {
           const channelInfo = {
             chatId: chatId,
-            username: lc?.username || profile?.linkedChannel?.username,
-            title: lc?.title || profile?.linkedChannel?.title || brand?.name || 'Канал'
+            username: lc?.username,
+            title: lc?.title || brand?.name || 'Канал'
           };
 
           await PostProjectService.markPublished(user.id, projectId, res.messageId, channelInfo);
