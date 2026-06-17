@@ -30,7 +30,7 @@ export const AnalysisTerminal: React.FC<{ analyzing: boolean }> = ({ analyzing }
     <div className="bg-slate-900 rounded-xl p-3 font-mono text-[9px] text-green-400 border border-slate-800 shadow-inner mt-4 h-32 overflow-y-auto custom-scrollbar">
       {logs.map((log, i) => (
         <div key={i} className="animate-in fade-in slide-in-from-left-2 duration-300 mb-1">
-          <span className="opacity-50 mr-2">{new Date().toLocaleTimeString().split(' ')[0]}</span>
+          <span className="opacity-50 mr-2" suppressHydrationWarning>{new Date().toLocaleTimeString().split(' ')[0]}</span>
           <span className="text-violet-400 mr-2">{'>'}</span>
           {log}
         </div>

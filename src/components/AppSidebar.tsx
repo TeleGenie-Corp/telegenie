@@ -63,10 +63,10 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
         <span className="font-display font-bold text-sm text-slate-900">TeleGenie</span>
       </div>
 
-      {/* Sources label */}
+      {/* Brand voices label */}
       <div className="flex items-center justify-between px-4 py-1.5">
         <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-          <Radio size={10} /> Источники
+          <Radio size={10} /> Голоса бренда
         </span>
         <button
           onClick={onCreateBrand}
@@ -86,6 +86,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
           >
             <Radio size={18} className="mx-auto text-slate-300 mb-1.5" />
             <div className="text-[10px] font-medium text-slate-400">Добавь канал</div>
+            <div className="text-[9px] text-slate-300 mt-0.5">Я изучу стиль и буду писать в нём</div>
           </button>
         ) : (
           brands.map(brand => {

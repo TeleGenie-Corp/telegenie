@@ -55,7 +55,7 @@ export const SiteFooter: React.FC = () => {
         <div className="pt-8 border-t border-[#e8e8e8] flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
             <p className="text-xs text-[#9aaeb5]">
-              © {new Date().getFullYear()} TeleGenie Studio. Все права защищены.
+              © 2026 TeleGenie Studio. Все права защищены.
             </p>
             <span className="text-[#cddbe1] hidden sm:inline">·</span>
             <a href="https://t.me/sphera_spb" target="_blank" rel="noopener noreferrer" className="text-xs text-[#9aaeb5] hover:text-[#233137] transition-colors">

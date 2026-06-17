@@ -59,7 +59,7 @@ export class PostProjectService {
   /**
    * Create a new post project for a brand.
    */
-  static async createProject(userId: string, brandId: string, goal: PostGoal = PostGoal.ENGAGE): Promise<PostProject> {
+  static async createProject(userId: string, brandId: string, goal: PostGoal = PostGoal.ENGAGE, point?: string): Promise<PostProject> {
     const id = crypto.randomUUID();
     const now = Date.now();
     const project: PostProject = {
@@ -67,6 +67,7 @@ export class PostProjectService {
       brandId,
       status: 'draft',
       goal,
+      point,
       ideas: [],
       text: '',
       versions: [],

@@ -273,7 +273,7 @@ export const PublicWidget: React.FC = () => {
                              {isGeneratingPost && generatedPost && <span className="inline-block w-1.5 h-4 bg-violet-600 ml-1 align-middle animate-pulse" />}
                           </div>
                           <div className="flex justify-end mt-2">
-                            <span className="text-[10px] text-slate-400">
+                            <span className="text-[10px] text-slate-400" suppressHydrationWarning>
                               {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>

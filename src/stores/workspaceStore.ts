@@ -198,24 +198,44 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
     if (!userId) return;
     const { brands } = get();
     const brand = brands.find((b) => b.id === brandId);
+    if (!brand) return;
 
     const { useEditorStore } = await import('./editorStore');
     const editorStore = useEditorStore.getState();
 
-    if (brand) {
-      editorStore.setStrategy((s: ChannelStrategy) => ({
-        ...s,
-        channelUrl: brand.channelUrl,
-        positioning: brand.positioning,
-      }));
-    }
+    editorStore.setStrategy((s: ChannelStrategy) => ({
+      ...s,
+      channelUrl: brand.channelUrl,
+      positioning: brand.positioning,
+      analyzedChannel: brand.analyzedChannel,
+    }));
 
-    const project = await PostProjectService.createProject(userId, brandId, editorStore.strategy.goal);
+    const now = Date.now();
+    const project: PostProject = {
+      id: `local-${crypto.randomUUID()}`,
+      brandId,
+      status: 'draft',
+      goal: editorStore.strategy.goal,
+      point: editorStore.strategy.point,
+      ideas: [],
+      text: '',
+      versions: [],
+      createdAt: now,
+      updatedAt: now,
+    };
 
     const { AnalyticsService } = await import('../../services/analyticsService');
     AnalyticsService.trackProjectCreated();
 
-    await editorStore.selectPost(project);
+    set({ currentBrand: brand, currentProject: project, viewMode: 'editor' });
+    editorStore.setIdeas([]);
+    editorStore.setEditorTab('editor');
+    editorStore.setCurrentPost({
+      id: project.id,
+      text: '',
+      generating: false,
+      timestamp: now,
+    });
   },
 
   backToWorkspace: () => {

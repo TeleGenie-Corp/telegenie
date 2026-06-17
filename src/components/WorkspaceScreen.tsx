@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
-  FileText, Plus, Clock, Check, Archive, ArrowRight,
-  Trash2, Loader2,
+  Plus, Clock, Check, Archive, ArrowRight,
+  Trash2,
   Zap, TrendingUp, BookOpen, Megaphone,
-  PenLine, Radio,
+  PenLine, Radio, Sparkles, Image as ImageIcon, Send,
 } from 'lucide-react';
 import { Brand, PostProject, PostGoal } from '../../types';
 
@@ -69,6 +69,10 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
 
   const draftCount     = brandPosts.filter(p => p.status !== 'published').length;
   const publishedCount = brandPosts.filter(p => p.status === 'published').length;
+  const analyzedTone = selectedBrand?.analyzedChannel?.toneOfVoice || selectedBrand?.analyzedChannel?.context;
+  const nextDraft = brandPosts
+    .filter(p => p.status !== 'published')
+    .sort((a, b) => b.updatedAt - a.updatedAt)[0];
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -123,6 +127,62 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
           </button>
         </div>
 
+        {/* Guided next step */}
+        <div className="bg-white border border-[#e8e8e8] rounded-2xl p-4 shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4 justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#9aaeb5] mb-1.5">
+                <Sparkles size={12} className="text-violet-500" />
+                Что написать сегодня
+              </div>
+              <h3 className="text-base font-black text-[#233137] tracking-tight">
+                {nextDraft ? 'Продолжить черновик или начать новый пост' : 'Начните с первого поста в стиле канала'}
+              </h3>
+              <p className="text-xs text-[#758084] mt-1 leading-relaxed">
+                {analyzedTone
+                  ? `TeleGenie уже уловил тон: ${analyzedTone.slice(0, 110)}${analyzedTone.length > 110 ? '…' : ''}`
+                  : 'Добавьте анализ канала, и посты будут звучать ближе к вашему авторскому голосу.'}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              {nextDraft && (
+                <button
+                  onClick={() => onSelectPost(nextDraft)}
+                  className="px-3 py-2 rounded-xl bg-[#233137] text-white text-xs font-bold hover:bg-[#1a2529] transition-all active:scale-95"
+                >
+                  Продолжить черновик
+                </button>
+              )}
+              <button
+                onClick={() => onCreatePost(selectedBrand.id)}
+                className="px-3 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 transition-all active:scale-95"
+              >
+                Написать новый
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
+            {[
+              { icon: PenLine, title: 'Личный инсайт', text: 'история из практики с выводом' },
+              { icon: BookOpen, title: 'Полезный разбор', text: 'объяснить сложное простым языком' },
+              { icon: Send, title: 'Мягкая продажа', text: 'прогреть к продукту без давления' },
+            ].map((idea) => (
+              <button
+                key={idea.title}
+                onClick={() => onCreatePost(selectedBrand.id)}
+                className="text-left rounded-xl border border-slate-100 bg-[#f8fafa] hover:bg-violet-50 hover:border-violet-200 p-3 transition-all group"
+              >
+                <div className="flex items-center gap-2 text-xs font-black text-[#233137]">
+                  <idea.icon size={13} className="text-[#9aaeb5] group-hover:text-violet-500" />
+                  {idea.title}
+                </div>
+                <div className="text-[11px] text-[#758084] mt-1">{idea.text}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Tab filter */}
         {brandPosts.length > 0 && (
           <div className="flex gap-1 bg-white border border-stone-200 p-1 rounded-xl w-fit shadow-sm">
@@ -156,11 +216,11 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
           tabFilter === 'all' ? (
             <button
               onClick={() => onCreatePost(selectedBrand.id)}
-              className="w-full p-10 border-2 border-dashed border-slate-200 rounded-2xl text-center hover:border-violet-300 hover:bg-violet-50/50 transition-all"
+              className="w-full p-10 border-2 border-dashed border-slate-200 rounded-2xl text-center hover:border-violet-300 hover:bg-violet-50/50 transition-all bg-white"
             >
-              <PenLine size={28} className="mx-auto text-slate-300 mb-3" />
-              <div className="text-sm font-medium text-slate-500">Нет постов</div>
-              <div className="text-xs text-slate-400 mt-1">Напишите первый пост для этого канала</div>
+              <Sparkles size={28} className="mx-auto text-violet-300 mb-3" />
+              <div className="text-sm font-bold text-slate-600">Пока нет постов</div>
+              <div className="text-xs text-slate-400 mt-1">Создайте первый черновик — я предложу структуру и текст</div>
             </button>
           ) : (
             <div className="p-8 border border-slate-200 rounded-2xl text-center bg-white">
@@ -184,6 +244,14 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                 <div
                   key={post.id}
                   onClick={() => onSelectPost(post)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      onSelectPost(post);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                   className="group relative bg-white border border-slate-200 rounded-2xl p-4 hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100/60 cursor-pointer transition-all"
                 >
                   <div className="flex items-start gap-3">
@@ -202,6 +270,11 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                       {goal && (
                         <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${goal.cls}`}>
                           {goal.icon} {goal.label}
+                        </span>
+                      )}
+                      {post.imageUrl && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border bg-violet-50 text-violet-600 border-violet-100">
+                          <ImageIcon size={10} /> Медиа
                         </span>
                       )}
                       <span className={`text-[9px] font-bold ${status.color}`}>{status.label}</span>

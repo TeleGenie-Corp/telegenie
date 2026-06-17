@@ -11,6 +11,8 @@ import { useWorkspaceStore } from './workspaceStore';
 import { useUIStore } from './uiStore';
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
+const LOCAL_PROJECT_PREFIX = 'local-';
+const materializingProjects = new Map<string, Promise<PostProject>>();
 
 interface EditorState {
   // --- Strategy ---
@@ -96,6 +98,34 @@ function getRecentPostTitles(): string[] {
       return selectedIdea?.title || p.ideas[0]?.title || '';
     })
     .filter(Boolean);
+}
+
+function isLocalProject(project: PostProject): boolean {
+  return project.id.startsWith(LOCAL_PROJECT_PREFIX);
+}
+
+async function materializeProject(userId: string, project: PostProject, strategy: ChannelStrategy): Promise<PostProject> {
+  if (!isLocalProject(project)) return project;
+
+  const existing = materializingProjects.get(project.id);
+  if (existing) return existing;
+
+  const promise = PostProjectService.createProject(userId, project.brandId, strategy.goal, strategy.point)
+    .then((created) => {
+      const workspace = useWorkspaceStore.getState();
+      workspace.setCurrentProject(created);
+      workspace.setPostProjects((prev) => [created, ...prev.filter((p) => p.id !== project.id)]);
+      return created;
+    })
+    .finally(() => {
+      materializingProjects.delete(project.id);
+    });
+
+  materializingProjects.set(project.id, promise);
+  const created = await promise;
+  const workspace = useWorkspaceStore.getState();
+  workspace.setCurrentProject(created);
+  return created;
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -304,7 +334,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectIdea: async (idea: Idea) => {
     const profile = useAuthStore.getState().profile;
     const user = useAuthStore.getState().user;
-    const { currentProject } = useWorkspaceStore.getState();
+    let { currentProject } = useWorkspaceStore.getState();
     const { strategy, ideas } = get();
 
     if (!profile || profile.balance <= 0) { toast.error('Недостаточно кредитов'); return; }
@@ -370,6 +400,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       }
 
       const newPost = result.post;
+      currentProject = await materializeProject(user.id, currentProject, strategy);
       newPost.id = currentProject.id;
       // Normalize text to <p> HTML so preview renders correctly on first load
       if (newPost.text) {
@@ -399,8 +430,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       // SAVE TO FIRESTORE
       await PostProjectService.updateIdeas(user.id, currentProject.id, ideas, idea.id);
       await PostProjectService.updateContent(user.id, currentProject.id, newPost.text, newPost.rawText, newPost.imageUrl, newPost.imageUrlOptions, newPost.imagePrompt);
+      const projectId = currentProject.id;
       useWorkspaceStore.getState().setPostProjects((prev) =>
-        prev.map((p) => (p.id === currentProject.id ? { ...p, text: newPost.text, ideas, selectedIdeaId: idea.id, imageUrl: newPost.imageUrl, imageUrlOptions: newPost.imageUrlOptions, imagePrompt: newPost.imagePrompt, updatedAt: Date.now() } : p)),
+        prev.map((p) => (p.id === projectId ? { ...p, text: newPost.text, ideas, selectedIdeaId: idea.id, imageUrl: newPost.imageUrl, imageUrlOptions: newPost.imageUrlOptions, imagePrompt: newPost.imagePrompt, updatedAt: Date.now() } : p)),
       );
 
       await BillingService.incrementUsage(user.id, 'posts', 1);
@@ -440,7 +472,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   aiEdit: async (instruction: string) => {
     const { currentPost, strategy } = get();
     const user = useAuthStore.getState().user;
-    const { currentProject } = useWorkspaceStore.getState();
+    let { currentProject } = useWorkspaceStore.getState();
 
     if (!currentPost || currentPost.generating || !user || !currentProject) return;
 
@@ -476,9 +508,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       // Refresh suggestions for the updated post
       get().generateSuggestions().catch(() => {});
 
-      await PostProjectService.updateContent(user.id, currentProject.id, updatedText, currentPost.rawText, currentPost.imageUrl);
+      currentProject = await materializeProject(user.id, currentProject, strategy);
+      const projectId = currentProject.id;
+      set((s) => ({
+        currentPost: s.currentPost ? { ...s.currentPost, id: projectId } : null,
+      }));
+      await PostProjectService.updateContent(user.id, projectId, updatedText, currentPost.rawText, currentPost.imageUrl);
       useWorkspaceStore.getState().setPostProjects((prev) =>
-        prev.map((p) => (p.id === currentProject.id ? { ...p, text: updatedText, updatedAt: Date.now() } : p)),
+        prev.map((p) => (p.id === projectId ? { ...p, text: updatedText, updatedAt: Date.now() } : p)),
       );
     } catch (e: any) {
       console.error(e);
@@ -496,9 +533,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // Persist undo to Firestore
     const user = useAuthStore.getState().user;
-    const { currentProject } = useWorkspaceStore.getState();
+    let { currentProject } = useWorkspaceStore.getState();
     if (user && currentProject) {
-      PostProjectService.updateContent(user.id, currentProject.id, previousPostText, currentPost.rawText, currentPost.imageUrl).catch(console.error);
+      materializeProject(user.id, currentProject, get().strategy)
+        .then((project) => PostProjectService.updateContent(user.id, project.id, previousPostText, currentPost.rawText, currentPost.imageUrl))
+        .catch(console.error);
       useWorkspaceStore.getState().setPostProjects((prev) =>
         prev.map((p) => (p.id === currentProject.id ? { ...p, text: previousPostText, updatedAt: Date.now() } : p)),
       );
@@ -516,20 +555,29 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     saveTimeout = setTimeout(async () => {
       const user = useAuthStore.getState().user;
-      const { currentProject } = useWorkspaceStore.getState();
+      let { currentProject } = useWorkspaceStore.getState();
       const { currentPost } = get();
-      if (!user || !currentProject) return;
+      const plainText = newHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!user || !currentProject || !plainText) {
+        set({ isSaving: false });
+        return;
+      }
 
       try {
+        currentProject = await materializeProject(user.id, currentProject, get().strategy);
+        const projectId = currentProject.id;
+        set((s) => ({
+          currentPost: s.currentPost ? { ...s.currentPost, id: projectId } : null,
+        }));
         await PostProjectService.updateContent(
           user.id,
-          currentProject.id,
+          projectId,
           newHtml,
           currentPost?.rawText || '',
           currentPost?.imageUrl,
         );
         useWorkspaceStore.getState().setPostProjects((prev) =>
-          prev.map((p) => (p.id === currentProject.id ? { ...p, text: newHtml, updatedAt: Date.now() } : p)),
+          prev.map((p) => (p.id === projectId ? { ...p, text: newHtml, updatedAt: Date.now() } : p)),
         );
         set({ isSaving: false });
       } catch (e) {
@@ -546,13 +594,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }));
 
     const user = useAuthStore.getState().user;
-    const { currentProject } = useWorkspaceStore.getState();
+    let { currentProject } = useWorkspaceStore.getState();
     const { currentPost } = get();
     if (user && currentProject && currentPost) {
-      PostProjectService.updateContent(user.id, currentProject.id, currentPost.text, currentPost.rawText, imageUrl).catch(console.error);
-      useWorkspaceStore.getState().setPostProjects((prev) =>
-        prev.map((p) => (p.id === currentProject.id ? { ...p, imageUrl, updatedAt: Date.now() } : p)),
-      );
+      materializeProject(user.id, currentProject, get().strategy)
+        .then((project) => {
+          const projectId = project.id;
+          set((s) => ({
+            currentPost: s.currentPost ? { ...s.currentPost, id: projectId } : null,
+          }));
+          useWorkspaceStore.getState().setPostProjects((prev) =>
+            prev.map((p) => (p.id === projectId ? { ...p, imageUrl, updatedAt: Date.now() } : p)),
+          );
+          return PostProjectService.updateContent(user.id, projectId, currentPost.text, currentPost.rawText, imageUrl);
+        })
+        .catch(console.error);
     }
   },
 
@@ -560,7 +616,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   regenerateImages: async () => {
     const { currentPost, strategy } = get();
     const user = useAuthStore.getState().user;
-    const { currentProject } = useWorkspaceStore.getState();
+    let { currentProject } = useWorkspaceStore.getState();
 
     if (!currentPost || !currentPost.imagePrompt || !user || !currentProject) return;
 
@@ -569,6 +625,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ pipelineState: { stage: 'generating_image', progress: 50, currentTask: 'Перегенерация изображений...' } });
 
     try {
+      currentProject = await materializeProject(user.id, currentProject, strategy);
+      const projectId = currentProject.id;
       const { regeneratePostImagesAction } = await import('@/app/actions/fal');
       const result = await regeneratePostImagesAction(
         currentPost.imagePrompt,
@@ -594,7 +652,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
         await PostProjectService.updateContent(
           user.id,
-          currentProject.id,
+          projectId,
           currentPost.text,
           currentPost.rawText,
           result.storageUrl || result.images?.[0] || currentPost.imageUrl
@@ -602,7 +660,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
         useWorkspaceStore.getState().setPostProjects((prev) =>
           prev.map((p) =>
-            p.id === currentProject.id
+            p.id === projectId
               ? { ...p, imageUrl: result.storageUrl || result.images?.[0] || p.imageUrl, updatedAt: Date.now() }
               : p
           ),
@@ -625,15 +683,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const { currentPost } = get();
     const profile = useAuthStore.getState().profile;
     const user = useAuthStore.getState().user;
-    const { currentProject } = useWorkspaceStore.getState();
+    let { currentProject } = useWorkspaceStore.getState();
 
-    if (!currentPost || !profile || !currentProject) return;
+    if (!currentPost || !profile || !user || !currentProject) return;
 
     const chatId = profile.linkedChannel?.chatId;
     if (!chatId) { toast.error('Нет подключённого канала'); return; }
 
     set({ pipelineState: { stage: 'publishing', progress: 80, currentTask: 'Публикация...' } });
     try {
+      currentProject = await materializeProject(user.id, currentProject, get().strategy);
+      const projectId = currentProject.id;
+      await PostProjectService.updateContent(user.id, projectId, currentPost.text, currentPost.rawText, currentPost.imageUrl);
       const { publishPostAction } = await import('@/app/actions/telegram');
       const res = await publishPostAction({
         postHtml: currentPost.text,
@@ -670,10 +731,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
             title: lc?.title || profile?.linkedChannel?.title || brand?.name || 'Канал'
           };
 
-          await PostProjectService.markPublished(user.id, currentProject.id, res.messageId, channelInfo);
+          await PostProjectService.markPublished(user.id, projectId, res.messageId, channelInfo);
           
           useWorkspaceStore.getState().setPostProjects((prev) =>
-            prev.map((p) => (p.id === currentProject.id ? { 
+            prev.map((p) => (p.id === projectId ? { 
                 ...p, 
                 status: 'published', 
                 publishedAt: Date.now(),

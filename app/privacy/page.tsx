@@ -78,7 +78,7 @@ export default function PrivacyPage() {
           </section>
 
           <div className="mt-12 pt-8 border-t border-slate-100 italic text-slate-400 text-sm">
-            Последнее обновление: {new Date().toLocaleDateString('ru-RU')}
+            Последнее обновление: 18 июня 2026 г.
           </div>
         </div>
       </main>

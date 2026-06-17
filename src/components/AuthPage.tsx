@@ -99,7 +99,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
         
         {/* FOOTER */}
         <motion.p variants={itemVariants} className="text-center mt-8 text-[10px] font-bold uppercase tracking-widest transition-colors duration-500 text-slate-400">
-            &copy; {new Date().getFullYear()} TeleGenie Systems
+            &copy; 2026 TeleGenie Systems
         </motion.p>
       </motion.div>
     </div>

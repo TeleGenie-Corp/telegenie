@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   Sparkles, Loader2, Layout,
   MessageCircle, Send, Wand2, Settings,
-  MessageSquareQuote, Check, Image as ImageIcon, RefreshCw
+  MessageSquareQuote, Check, ShieldCheck
 } from 'lucide-react';
 import { PostGoal, IMAGE_MODEL_OPTIONS } from '@/types';
 
@@ -40,6 +40,82 @@ import { pageTransitions } from '@/src/animationTokens';
 import { Toaster, toast } from 'sonner';
 
 const CHANNEL_URL = process.env.NEXT_PUBLIC_CHANNEL_URL || 'https://t.me/AiKanalishe';
+const LOADING_QUOTES = [
+  { text: 'Слова — это всё, что у нас есть.', author: 'Сэмюэл Беккет' },
+  { text: 'Начни писать, и остальное придёт само.', author: 'Харуки Мураками' },
+  { text: 'Пиши пьяным, редактируй трезвым.', author: 'Эрнест Хемингуэй' },
+  { text: 'Нет ничего страшнее чистого листа — и ничего лучше заполненного.', author: 'Виктор Гюго' },
+  { text: 'Чтобы написать хорошую книгу, надо сначала написать плохую.', author: 'Энн Ламотт' },
+  { text: 'Настоящий писатель тот, кто пишет — а не тот, кто собирается.', author: 'Антон Чехов' },
+];
+const QUICK_EDIT_COMMANDS = [
+  'Сделай короче и плотнее',
+  'Добавь личный пример',
+  'Сделай сильнее первый абзац',
+  'Добавь ясный призыв в конце',
+];
+const POST_POINT_PRESETS = [
+  {
+    label: 'Личный опыт',
+    value: 'Личный опыт: что произошло, чему научились, какой вывод будет полезен читателю',
+  },
+  {
+    label: 'Разбор ошибки',
+    value: 'Разбор ошибки: какую ошибку часто делает аудитория, почему она мешает и как её исправить',
+  },
+  {
+    label: 'Мягкая продажа',
+    value: 'Мягкая продажа: какую проблему решает продукт, без давления и с понятной пользой',
+  },
+];
+const POST_INTENT_OPTIONS = [
+  {
+    label: 'Поделиться мыслью',
+    hint: 'личный взгляд, который хочется сохранить',
+    goal: PostGoal.ENGAGE,
+  },
+  {
+    label: 'Объяснить',
+    hint: 'разложить сложное простыми словами',
+    goal: PostGoal.EDUCATE,
+  },
+  {
+    label: 'Продать мягко',
+    hint: 'показать пользу без давления',
+    goal: PostGoal.SELL,
+  },
+  {
+    label: 'Ответить на боль',
+    hint: 'снять частое сомнение аудитории',
+    goal: PostGoal.INFORM,
+  },
+];
+
+function buildEditorialVerdict(text: string, hasImage: boolean) {
+  const cleaned = text.trim();
+  const words = cleaned ? cleaned.split(/\s+/).length : 0;
+  const firstSentence = cleaned.split(/[.!?。]+/)[0]?.trim() || '';
+  const hasHook = firstSentence.length > 18 && firstSentence.length < 140;
+  const hasSpecifics = /\d|₽|%|км|час|день|месяц|пример|кейс|история/i.test(cleaned);
+  const hasQuestion = cleaned.includes('?');
+  const hasCTA = /(напишите|пишите|сохраните|проверьте|попробуйте|поделитесь|задайте|приходите|оставьте|смотрите)/i.test(cleaned);
+  const checks = [
+    { label: hasHook ? 'Есть рабочий хук' : 'Хук можно усилить', ok: hasHook, action: 'Сделай первый абзац сильнее и конкретнее' },
+    { label: hasSpecifics ? 'Есть конкретика' : 'Не хватает примера', ok: hasSpecifics, action: 'Добавь один конкретный пример из практики' },
+    { label: hasCTA || hasQuestion ? 'Есть финальный импульс' : 'Финал просит действия', ok: hasCTA || hasQuestion, action: 'Добавь мягкий призыв или вопрос в конце' },
+    { label: hasImage ? 'Медиа поддерживает пост' : 'Можно без картинки', ok: true },
+  ];
+  const weakSpots = checks.filter((check) => !check.ok);
+
+  return {
+    tone: words < 80 ? 'Короткий пост' : words > 260 ? 'Плотный лонгрид' : 'Хороший объём',
+    summary: weakSpots.length === 0
+      ? 'Можно выпускать: мысль читается ясно, структура держится.'
+      : `Перед публикацией стоит поправить: ${weakSpots.map((check) => check.label.toLowerCase()).join(', ')}.`,
+    checks,
+    actions: weakSpots.flatMap((check) => check.action ? [check.action] : []).slice(0, 2),
+  };
+}
 
 // ============================================================
 // APP — Pure Orchestration via Zustand Stores
@@ -118,20 +194,8 @@ export default function Home() {
 
   const [confirmPublish, setConfirmPublish] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
-
-  // Pick a loading quote once per mount — never changes on re-render
-  const loadingQuoteRef = React.useRef<{ text: string; author: string } | null>(null);
-  if (!loadingQuoteRef.current) {
-    const quotes = [
-      { text: 'Слова — это всё, что у нас есть.', author: 'Сэмюэл Беккет' },
-      { text: 'Начни писать, и остальное придёт само.', author: 'Харуки Мураками' },
-      { text: 'Пиши пьяным, редактируй трезвым.', author: 'Эрнест Хемингуэй' },
-      { text: 'Нет ничего страшнее чистого листа — и ничего лучше заполненного.', author: 'Виктор Гюго' },
-      { text: 'Чтобы написать хорошую книгу, надо сначала написать плохую.', author: 'Энн Ламотт' },
-      { text: 'Настоящий писатель тот, кто пишет — а не тот, кто собирается.', author: 'Антон Чехов' },
-    ];
-    loadingQuoteRef.current = quotes[Math.floor(Math.random() * quotes.length)];
-  }
+  const [loadingQuote, setLoadingQuote] = useState(LOADING_QUOTES[0]);
+  const [previewTime, setPreviewTime] = useState('');
 
   // --- INIT: Auth listener + Firestore subscriptions ---
   // --- INIT: Auth listener moved to AuthInitializer ---
@@ -144,6 +208,14 @@ export default function Home() {
     const unsub = useWorkspaceStore.getState().subscribe(user.id);
     return unsub;
   }, [user?.id]);
+
+  useEffect(() => {
+    setLoadingQuote(LOADING_QUOTES[Math.floor(Math.random() * LOADING_QUOTES.length)]);
+  }, []);
+
+  useEffect(() => {
+    setPreviewTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+  }, [currentPost?.id, currentPost?.text, currentPost?.imageUrl]);
 
   // Sync strategy from linked channel
   useEffect(() => {
@@ -195,9 +267,12 @@ export default function Home() {
   // --- AUTH LOGIC ---
   const isLoadingAuth = useAuthStore(s => s.isLoading);
   const router = useRouter();
+  const plainPostText = currentPost?.text?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() || '';
+  const hasPublishableContent = !!currentPost && !currentPost.generating && (!!plainPostText || !!currentPost.imageUrl);
+  const editorialVerdict = hasPublishableContent ? buildEditorialVerdict(plainPostText, !!currentPost?.imageUrl) : null;
 
   if (isLoadingAuth) {
-    const q = loadingQuoteRef.current!;
+    const q = loadingQuote;
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#f2f5f5]">
         <div className="text-center max-w-md px-8">
@@ -337,6 +412,32 @@ export default function Home() {
 
                 {/* AI Editing Panel */}
                 <div className="px-3 py-2.5 space-y-2">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-[#f8fafa] px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-[#9aaeb5]">Следующий шаг</div>
+                      <div className="text-xs text-[#233137] font-medium truncate">Улучшите текст одной командой или подготовьте публикацию</div>
+                    </div>
+                    <button
+                      onClick={() => setEditorTab('preview')}
+                      className="shrink-0 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-slate-600 hover:border-violet-200 hover:text-violet-700 transition-all"
+                    >
+                      Предпросмотр
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {QUICK_EDIT_COMMANDS.map((command) => (
+                      <button
+                        key={command}
+                        onClick={() => aiEdit(command)}
+                        disabled={pipelineState.stage !== 'idle'}
+                        className="px-2.5 py-1 bg-[#f2f5f5] border border-[#e8e8e8] rounded-lg text-[11px] font-medium text-[#515255] hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-all disabled:opacity-50"
+                      >
+                        {command}
+                      </button>
+                    ))}
+                  </div>
+
                   <div className="flex flex-wrap gap-1.5">
                     {loadingSuggestions ? (
                       Array.from({ length: 4 }).map((_, i) => (
@@ -387,27 +488,46 @@ export default function Home() {
             ) : (
               /* COMPOSE SCREEN */
               <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#f2f5f5]">
-                <div className="w-full max-w-sm space-y-5 bg-white rounded-2xl p-8 border border-[#e8e8e8]">
+                <div className="w-full max-w-md space-y-5 bg-white rounded-2xl p-8 border border-[#e8e8e8] shadow-sm">
                   <div>
-                    <h3 className="text-lg font-medium text-[#233137] tracking-tight">Что пишем?</h3>
-                    <p className="text-sm text-[#758084] mt-1 font-light">Выбери цель и напиши суть поста</p>
+                    <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-violet-50 text-violet-600 text-[10px] font-black uppercase tracking-widest mb-3">
+                      <Sparkles size={11} /> Мастер поста
+                    </div>
+                    <h3 className="text-xl font-black text-[#233137] tracking-tight">Что выпускаем сегодня?</h3>
+                    <p className="text-sm text-[#758084] mt-1 font-light">
+                      Дайте одну мысль — TeleGenie соберёт структуру, стиль и готовый текст.
+                    </p>
                   </div>
 
-                  {/* Goal */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {POST_POINT_PRESETS.map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => setStrategy(s => ({ ...s, point: preset.value }))}
+                        className="rounded-lg border border-[#e8e8e8] bg-[#f8fafa] px-2 py-2 text-[11px] font-bold text-[#515255] hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 transition-all"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+
                   <div>
-                    <label className="text-[10px] uppercase tracking-widest text-[#9aaeb5] mb-2 block">Цель поста</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.values(PostGoal).map(g => (
+                    <label className="text-[10px] uppercase tracking-widest text-[#9aaeb5] mb-2 block">Что должен сделать пост</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {POST_INTENT_OPTIONS.map(intent => (
                         <button
-                          key={g}
-                          onClick={() => setStrategy(s => ({...s, goal: g}))}
-                          className={`py-2.5 px-3 rounded-lg text-xs font-medium border transition-all ${
-                            strategy.goal === g
+                          key={intent.label}
+                          onClick={() => setStrategy(s => ({...s, goal: intent.goal}))}
+                          className={`text-left py-2.5 px-3 rounded-lg border transition-all ${
+                            strategy.goal === intent.goal
                               ? 'bg-[#233137] text-white border-[#233137]'
                               : 'bg-white text-[#515255] border-[#e8e8e8] hover:border-[#aec2c9]'
                           }`}
                         >
-                          {g}
+                          <span className="block text-xs font-bold">{intent.label}</span>
+                          <span className={`block text-[10px] mt-0.5 ${strategy.goal === intent.goal ? 'text-white/65' : 'text-[#9aaeb5]'}`}>
+                            {intent.hint}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -421,7 +541,7 @@ export default function Home() {
                     <textarea
                       value={strategy.point || ''}
                       onChange={(e) => setStrategy(s => ({...s, point: e.target.value}))}
-                      placeholder="Главная мысль или тема (необязательно)"
+                      placeholder="Например: почему фокус важнее списка задач"
                       rows={3}
                       className="w-full bg-[#f2f5f5] border border-[#e8e8e8] text-sm text-[#233137] rounded-lg p-3 outline-none focus:border-[#aec2c9] focus:bg-white transition-all placeholder:text-[#9aaeb5] resize-none font-light"
                     />
@@ -444,23 +564,29 @@ export default function Home() {
                       </div>
                       <span className="text-sm font-medium text-[#233137]">С вложенным изображением</span>
                     </div>
-                    <span className="text-[10px] text-[#9aaeb5]">+~$0.04</span>
+                    <span className="text-[10px] text-[#9aaeb5]">2 варианта</span>
                   </div>
 
                   {strategy.withImage && (
                     <div className="space-y-3 rounded-lg border border-violet-100 bg-violet-50/70 p-3">
-                      <div>
-                        <label className="text-[10px] uppercase tracking-widest text-violet-500 mb-2 block">Модель изображения</label>
-                        <select
-                          value={strategy.imageModel || 'flux/dev'}
-                          onChange={(e) => setStrategy(s => ({...s, imageModel: e.target.value as any}))}
-                          className="w-full bg-white border border-violet-100 text-sm text-[#233137] rounded-lg p-2.5 outline-none focus:border-violet-300"
-                        >
-                          {IMAGE_MODEL_OPTIONS.map(option => (
-                            <option key={option.value} value={option.value}>{option.label} — {option.description}</option>
-                          ))}
-                        </select>
-                      </div>
+                      <details className="group">
+                        <summary className="cursor-pointer list-none text-[10px] uppercase tracking-widest text-violet-500 font-bold flex items-center justify-between">
+                          Тонкая настройка картинки
+                          <span className="text-violet-300 group-open:rotate-45 transition-transform">+</span>
+                        </summary>
+                        <div className="mt-3">
+                          <label className="text-[10px] uppercase tracking-widest text-violet-500 mb-2 block">Модель изображения</label>
+                          <select
+                            value={strategy.imageModel || 'flux/dev'}
+                            onChange={(e) => setStrategy(s => ({...s, imageModel: e.target.value as any}))}
+                            className="w-full bg-white border border-violet-100 text-sm text-[#233137] rounded-lg p-2.5 outline-none focus:border-violet-300"
+                          >
+                            {IMAGE_MODEL_OPTIONS.map(option => (
+                              <option key={option.value} value={option.value}>{option.label} — {option.description}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </details>
 
                       {strategy.imageModel === 'nano-banana-2' && (
                         <div className="space-y-2">
@@ -499,7 +625,7 @@ export default function Home() {
                     className="w-full py-3 bg-[#233137] text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 hover:bg-[#1a2529] transition-all disabled:opacity-50 active:scale-95"
                   >
                     <Sparkles size={15} />
-                    Написать пост
+                    Сгенерировать пост
                   </button>
                 </div>
               </div>
@@ -587,7 +713,7 @@ export default function Home() {
                       <span className={`text-[10px] font-bold uppercase tracking-widest transition-opacity ${isSaving ? 'text-violet-500 opacity-100' : 'text-slate-300 opacity-0'}`}>
                         {isSaving ? 'Сохраняю...' : 'Сохранено'}
                       </span>
-                      <div className="text-[10px] text-slate-400">{new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                      <div className="text-[10px] text-slate-400" suppressHydrationWarning>{previewTime}</div>
                     </div>
                   </div>
                 ) : (
@@ -603,8 +729,8 @@ export default function Home() {
                           <Wand2 size={32} />
                         </div>
                         <div className="space-y-1">
-                          <p className="text-white/90 font-bold text-sm">Черновик пуст</p>
-                          <p className="text-white/50 text-xs">Начни писать или выбери идею</p>
+                          <p className="text-white/90 font-bold text-sm">Черновик ждёт мысль</p>
+                          <p className="text-white/50 text-xs">Слева задайте тему — здесь появится Telegram-preview</p>
                         </div>
                       </>
                     )}
@@ -615,6 +741,51 @@ export default function Home() {
 
             {/* Publish Button */}
             <div className="p-4 border-t border-slate-100 bg-white space-y-3">
+              {editorialVerdict && (
+                <div className="rounded-2xl border border-slate-100 bg-[#f8fafa] p-3 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
+                      <ShieldCheck size={15} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-[#9aaeb5]">Редакторский вердикт</div>
+                      <div className="text-sm font-black text-[#233137]">{editorialVerdict.tone}</div>
+                      <p className="text-[11px] text-[#758084] leading-relaxed mt-0.5">{editorialVerdict.summary}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {editorialVerdict.checks.map((check) => (
+                      <div
+                        key={check.label}
+                        className={`rounded-lg px-2 py-1.5 text-[10px] font-bold border ${
+                          check.ok
+                            ? 'bg-white text-emerald-700 border-emerald-100'
+                            : 'bg-white text-amber-700 border-amber-100'
+                        }`}
+                      >
+                        {check.ok ? '✓ ' : '• '}{check.label}
+                      </div>
+                    ))}
+                  </div>
+
+                  {editorialVerdict.actions.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {editorialVerdict.actions.map((action) => (
+                        <button
+                          key={action}
+                          onClick={() => aiEdit(action)}
+                          disabled={pipelineState.stage !== 'idle'}
+                          className="px-2.5 py-1.5 rounded-lg bg-white border border-violet-100 text-[11px] font-bold text-violet-700 hover:bg-violet-50 disabled:opacity-50 transition-all"
+                        >
+                          {action.replace(/^Добавь /, 'Добавить ').replace(/^Сделай /, 'Сделать ')}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {!(profile?.linkedChannel?.chatId) ? (
                 <button
                   onClick={openSettings}
@@ -645,11 +816,12 @@ export default function Home() {
               ) : (
                 <button
                   onClick={() => setConfirmPublish(true)}
-                  disabled={!currentPost || currentPost.generating || pipelineState.stage === 'publishing'}
-                  className="w-full py-4 bg-gradient-to-r bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm active:scale-95"
+                  disabled={!hasPublishableContent || pipelineState.stage === 'publishing'}
+                  className="w-full py-4 bg-gradient-to-r bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold uppercase tracking-widest text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-45 disabled:cursor-not-allowed shadow-sm active:scale-95"
+                  title={!hasPublishableContent ? 'Сначала напишите или сгенерируйте пост' : undefined}
                 >
                   {pipelineState.stage === 'publishing' ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
-                  {pipelineState.stage === 'publishing' ? 'Публикую...' : 'Опубликовать в канал'}
+                  {pipelineState.stage === 'publishing' ? 'Публикую...' : hasPublishableContent ? 'Опубликовать в канал' : 'Сначала нужен текст'}
                 </button>
               )}
             </div>
