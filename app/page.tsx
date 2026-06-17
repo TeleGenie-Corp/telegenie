@@ -428,56 +428,69 @@ export default function Home() {
                   <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-[#f8fafa] px-3 py-2">
                     <div className="min-w-0">
                       <div className="text-[10px] font-black uppercase tracking-widest text-[#9aaeb5]">Следующий шаг</div>
-                      <div className="text-xs text-[#233137] font-medium truncate">Улучшите текст одной командой или подготовьте публикацию</div>
+                      <div className="text-xs text-[#233137] font-medium truncate">Улучшите текст или подготовьте публикацию</div>
                     </div>
-                    <button
-                      onClick={() => setEditorTab('preview')}
-                      className="shrink-0 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-slate-600 hover:border-violet-200 hover:text-violet-700 transition-all"
-                    >
-                      Предпросмотр
-                    </button>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {QUICK_EDIT_COMMANDS.map((command) => (
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <button
-                        key={command}
-                        onClick={() => aiEdit(command)}
+                        onClick={() => aiEdit(postSuggestions[0] || QUICK_EDIT_COMMANDS[0])}
                         disabled={pipelineState.stage !== 'idle'}
-                        className="px-2.5 py-1 bg-[#f2f5f5] border border-[#e8e8e8] rounded-lg text-[11px] font-medium text-[#515255] hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-all disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg bg-violet-600 text-white text-[11px] font-bold hover:bg-violet-700 disabled:opacity-50 transition-all"
                       >
-                        {command}
+                        Улучшить
                       </button>
-                    ))}
+                      <button
+                        onClick={() => setEditorTab('preview')}
+                        className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-[11px] font-bold text-slate-600 hover:border-violet-200 hover:text-violet-700 transition-all"
+                      >
+                        Превью
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5">
-                    {loadingSuggestions ? (
-                      Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="h-6 rounded-lg bg-slate-100 animate-pulse" style={{ width: `${72 + i * 16}px` }} />
-                      ))
-                    ) : postSuggestions.length > 0 ? (
-                      postSuggestions.map((suggestion) => (
+                  <details className="group rounded-xl border border-slate-100 bg-white">
+                    <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-[11px] font-bold text-slate-500">
+                      <span>{loadingSuggestions ? 'Подбираю варианты...' : 'Ещё варианты улучшения'}</span>
+                      <span className="text-slate-300 transition-transform group-open:rotate-45">+</span>
+                    </summary>
+                    <div className="px-3 pb-3 flex flex-wrap gap-1.5">
+                      {QUICK_EDIT_COMMANDS.map((command) => (
                         <button
-                          key={suggestion}
-                          onClick={() => aiEdit(suggestion)}
+                          key={command}
+                          onClick={() => aiEdit(command)}
                           disabled={pipelineState.stage !== 'idle'}
-                          className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-all disabled:opacity-50 text-left"
+                          className="px-2.5 py-1 bg-[#f2f5f5] border border-[#e8e8e8] rounded-lg text-[11px] font-medium text-[#515255] hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-all disabled:opacity-50"
                         >
-                          {suggestion}
+                          {command}
                         </button>
-                      ))
-                    ) : null}
-                    {previousPostText && (
+                      ))}
+                      {loadingSuggestions
+                        ? Array.from({ length: 2 }).map((_, i) => (
+                            <div key={i} className="h-6 rounded-lg bg-slate-100 animate-pulse" style={{ width: `${96 + i * 32}px` }} />
+                          ))
+                        : postSuggestions.slice(0, 3).map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              onClick={() => aiEdit(suggestion)}
+                              disabled={pipelineState.stage !== 'idle'}
+                              className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-[11px] font-medium text-slate-600 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 transition-all disabled:opacity-50 text-left"
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                    </div>
+                  </details>
+
+                  {previousPostText && (
+                    <div>
                       <button
                         onClick={undo}
                         disabled={pipelineState.stage !== 'idle'}
-                        className="px-2.5 py-1 bg-stone-100 border border-stone-200 rounded-lg text-[11px] font-medium text-stone-600 hover:border-stone-400 hover:bg-stone-200 transition-all disabled:opacity-50 flex items-center gap-1"
+                        className="px-2.5 py-1 bg-stone-100 border border-stone-200 rounded-lg text-[11px] font-medium text-stone-600 hover:border-stone-400 hover:bg-stone-200 transition-all disabled:opacity-50"
                       >
                         ↩ Отменить
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   <div className="flex gap-2">
                     <input
@@ -752,7 +765,7 @@ export default function Home() {
             {/* Publish Button */}
             <div className="p-4 border-t border-slate-100 bg-white space-y-3">
               {editorialVerdict && (
-                <div className="rounded-2xl border border-slate-100 bg-[#f8fafa] p-3 space-y-3">
+                <div className="rounded-2xl border border-slate-100 bg-[#f8fafa] p-3 space-y-2">
                   <div className="flex items-start gap-2">
                     <div className="w-7 h-7 rounded-lg bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
                       <ShieldCheck size={15} />
@@ -764,35 +777,36 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {editorialVerdict.checks.map((check) => (
-                      <div
-                        key={check.label}
-                        className={`rounded-lg px-2 py-1.5 text-[10px] font-bold border ${
-                          check.ok
-                            ? 'bg-white text-emerald-700 border-emerald-100'
-                            : 'bg-white text-amber-700 border-amber-100'
-                        }`}
-                      >
-                        {check.ok ? '✓ ' : '• '}{check.label}
-                      </div>
-                    ))}
-                  </div>
-
                   {editorialVerdict.actions.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {editorialVerdict.actions.map((action) => (
-                        <button
-                          key={action}
-                          onClick={() => aiEdit(action)}
-                          disabled={pipelineState.stage !== 'idle'}
-                          className="px-2.5 py-1.5 rounded-lg bg-white border border-violet-100 text-[11px] font-bold text-violet-700 hover:bg-violet-50 disabled:opacity-50 transition-all"
+                    <button
+                      onClick={() => aiEdit(editorialVerdict.actions[0])}
+                      disabled={pipelineState.stage !== 'idle'}
+                      className="w-full px-3 py-2 rounded-xl bg-white border border-violet-100 text-[11px] font-bold text-violet-700 hover:bg-violet-50 disabled:opacity-50 transition-all"
+                    >
+                      Поправить главное
+                    </button>
+                  )}
+
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none items-center justify-between text-[10px] font-bold uppercase tracking-widest text-[#9aaeb5]">
+                      Детали проверки
+                      <span className="text-slate-300 transition-transform group-open:rotate-45">+</span>
+                    </summary>
+                    <div className="mt-2 grid grid-cols-1 gap-1.5">
+                      {editorialVerdict.checks.map((check) => (
+                        <div
+                          key={check.label}
+                          className={`rounded-lg px-2 py-1.5 text-[10px] font-bold border ${
+                            check.ok
+                              ? 'bg-white text-emerald-700 border-emerald-100'
+                              : 'bg-white text-amber-700 border-amber-100'
+                          }`}
                         >
-                          {action.replace(/^Добавь /, 'Добавить ').replace(/^Сделай /, 'Сделать ')}
-                        </button>
+                          {check.ok ? '✓ ' : '• '}{check.label}
+                        </div>
                       ))}
                     </div>
-                  )}
+                  </details>
                 </div>
               )}
 
