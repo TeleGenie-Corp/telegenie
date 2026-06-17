@@ -44,6 +44,28 @@ export async function uploadFalImageToStorage(
   }
 }
 
+async function uploadGeneratedImagesToStorage(
+  imageUrls: string[],
+  userId: string,
+  postId: string
+): Promise<string[]> {
+  const uploads = await Promise.all(
+    imageUrls.map((imageUrl, index) =>
+      uploadFalImageToStorage(imageUrl, userId, `${postId}-${index + 1}`)
+    )
+  );
+
+  const storageUrls = uploads
+    .map((result) => result.storageUrl)
+    .filter((url): url is string => Boolean(url));
+
+  if (storageUrls.length === 0 && imageUrls.length > 0) {
+    throw new Error('Generated images could not be uploaded to storage');
+  }
+
+  return storageUrls;
+}
+
 /**
  * Server Action: Генерирует промпт и изображения через fal.ai.
  * Если выбранная модель недоступна, FalImageService пробует свои fal.ai fallback endpoints.
@@ -75,16 +97,12 @@ export async function generatePostImagesAction(
       textPrompt: strategy.imageTextEnabled ? textPrompt : undefined,
     });
 
-    const images = falResult.images.map((img) => img.url);
+    const generatedImages = falResult.images.map((img) => img.url);
     const genUsage = falResult.usage;
+    const postId = `post-${Date.now()}`;
+    const images = await uploadGeneratedImagesToStorage(generatedImages, userId, postId);
 
-    let storageUrl: string | undefined;
-    if (images[0]) {
-      const uploadResult = await uploadFalImageToStorage(images[0], userId, `post-${Date.now()}`);
-      if (uploadResult.success) {
-        storageUrl = uploadResult.storageUrl;
-      }
-    }
+    const storageUrl = images[0];
 
     return {
       success: true,
@@ -122,17 +140,11 @@ export async function regeneratePostImagesAction(
       textPrompt: options?.textEnabled ? buildImageTextPrompt(undefined, options?.textPrompt) : undefined,
     });
 
-    const images = falResult.images.map((img) => img.url);
+    const generatedImages = falResult.images.map((img) => img.url);
     const usage = falResult.usage;
+    const images = await uploadGeneratedImagesToStorage(generatedImages, userId, postId);
 
-    // Upload first image
-    let storageUrl: string | undefined;
-    if (images[0]) {
-      const uploadResult = await uploadFalImageToStorage(images[0], userId, postId);
-      if (uploadResult.success) {
-        storageUrl = uploadResult.storageUrl;
-      }
-    }
+    const storageUrl = images[0];
 
     return {
       success: true,
