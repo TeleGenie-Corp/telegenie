@@ -1,5 +1,6 @@
 'use server';
 
+import { randomUUID } from 'node:crypto';
 import { getStorage } from 'firebase-admin/storage';
 import { adminApp } from '@/src/lib/firebaseAdmin';
 import { FalImageService } from '@/services/falImageService';
@@ -18,23 +19,23 @@ export async function uploadFalImageToStorage(
     const imageData = await FalImageService.downloadImage(imageUrl);
     const storage = getStorage(adminApp).bucket();
     const timestamp = Date.now();
-    const filePath = `posts/${userId}/${postId}_${timestamp}.webp`;
+    const filePath = `posts/${userId}/${postId}_${timestamp}.jpg`;
     const file = storage.file(filePath);
+    const downloadToken = randomUUID();
 
     await file.save(imageData, {
       metadata: {
-        contentType: 'image/webp',
+        contentType: 'image/jpeg',
         metadata: {
+          firebaseStorageDownloadTokens: downloadToken,
           source: 'fal.ai',
           uploadedAt: timestamp.toString(),
         },
       },
     });
 
-    const [downloadUrl] = await file.getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 1000 * 60 * 60 * 24 * 365 * 5, // 5 years
-    });
+    const downloadUrl =
+      `https://firebasestorage.googleapis.com/v0/b/${storage.name}/o/${encodeURIComponent(filePath)}?alt=media&token=${downloadToken}`;
 
     return { success: true, storageUrl: downloadUrl };
   } catch (error: any) {
