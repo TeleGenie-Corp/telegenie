@@ -1,8 +1,9 @@
 'use server';
 
 import { adminDb } from '@/src/lib/firebaseAdmin';
+import { adminAuth } from '@/src/lib/firebaseAdmin';
 import { YooKassaService } from '@/services/yooKassaService';
-import { SubscriptionTier } from '@/types';
+import { SubscriptionActivationService } from '@/services/subscriptionActivationService';
 
 interface CreatePaymentResult {
   confirmationUrl?: string;
@@ -17,8 +18,28 @@ const PLANS = [
   { id: 'monster', price: 2490, name: 'Monster Blogger' }
 ];
 
-export async function createPaymentAction(userId: string, planId: string, customAmount?: number): Promise<CreatePaymentResult> {
+async function requireUserId(idToken: string): Promise<string> {
+  if (!idToken) throw new Error('AUTH_REQUIRED');
+  const decoded = await adminAuth.verifyIdToken(idToken);
+  return decoded.uid;
+}
+
+function calculateUpgradeAmount(currentSubscription: any, currentPlan: typeof PLANS[number] | undefined, nextPlan: typeof PLANS[number]): number {
+  if (!currentPlan || nextPlan.price <= currentPlan.price) return nextPlan.price;
+  if (currentSubscription?.status !== 'active' || !currentSubscription.currentPeriodEnd) return nextPlan.price;
+
+  const now = Date.now();
+  if (currentSubscription.currentPeriodEnd <= now) return nextPlan.price;
+
+  const remainingDays = (currentSubscription.currentPeriodEnd - now) / (1000 * 60 * 60 * 24);
+  const remainingValue = (currentPlan.price / 30) * remainingDays;
+  return Math.max(0, Math.floor(nextPlan.price - remainingValue));
+}
+
+export async function createPaymentAction(idToken: string, planId: string): Promise<CreatePaymentResult> {
   try {
+    const userId = await requireUserId(idToken);
+
     // 1. Fetch user from Firestore (Admin)
     const userDoc = await adminDb.collection('users').doc(userId).get();
     
@@ -32,9 +53,14 @@ export async function createPaymentAction(userId: string, planId: string, custom
     // 2. Find Plan
     const plan = PLANS.find(p => p.id === planId);
     if (!plan) return { error: 'Plan not found' };
+    if (plan.id === 'free') return { error: 'Free plan does not require payment' };
 
     // 3. Create Payment via YooKassa API (Server-side)
-    const amount = customAmount !== undefined ? customAmount : plan.price;
+    const currentTier = userData?.subscription?.tier || 'free';
+    const currentPlan = PLANS.find(p => p.id === currentTier);
+    const amount = calculateUpgradeAmount(userData?.subscription, currentPlan, plan);
+    if (amount <= 0) return { error: 'Payment amount must be positive' };
+
     const description = `Подписка на тариф ${plan.name} (TeleGenie)`;
     const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.telegenie.ru'}/?payment_status=success`;
 
@@ -73,57 +99,29 @@ export async function createPaymentAction(userId: string, planId: string, custom
   }
 }
 
-export async function verifyPaymentAction(paymentId: string): Promise<{ success: boolean; error?: string }> {
+export async function verifyPaymentAction(idToken: string, paymentId: string): Promise<{ success: boolean; error?: string }> {
     try {
+        const userId = await requireUserId(idToken);
         const payment = await YooKassaService.getPayment(paymentId);
         
-        if (
-            payment.status === 'succeeded' ||
-            payment.status === 'waiting_for_capture' ||
-            payment.status === 'pending'  // Real bank payments can be in pending after 3DS - activate optimistically
-        ) {
+        if (payment.status === 'succeeded' && payment.paid !== false) {
             // Verify Metadata
-            const userId = payment.metadata?.userId;
+            const paymentUserId = payment.metadata?.userId;
             const planId = payment.metadata?.planId;
             
-            if (!userId || !planId) {
+            if (!paymentUserId || !planId) {
                 return { success: false, error: 'Invalid payment metadata' };
+            }
+
+            if (paymentUserId !== userId) {
+                return { success: false, error: 'Payment does not belong to current user' };
             }
             
             // Get Plan Details
             const plan = PLANS.find(p => p.id === planId);
             if (!plan) return { success: false, error: 'Unknown plan' };
 
-            // Calculate Period
-            const now = Date.now();
-            const currentPeriodEnd = now + (30 * 24 * 60 * 60 * 1000); // 30 days
-            
-            // Update User Profile
-            const userRef = adminDb.collection('users').doc(userId);
-            
-            const updateData: any = {
-                'subscription.tier': planId,
-                'subscription.status': 'active',
-                'subscription.currentPeriodEnd': currentPeriodEnd,
-                'subscription.autoRenew': true
-            };
-
-            // Save payment method ID when payment is fully succeeded.
-            // For pending/waiting status the webhook (yookassaWebhook) will save it
-            // once the payment reaches succeeded state — so we don't miss it.
-            if (payment.status === 'succeeded' && (payment.payment_method as any)?.id) {
-                const pm = payment.payment_method as any;
-                updateData['subscription.yookassaPaymentMethodId'] = pm.id;
-                if (pm.card) {
-                    updateData['subscription.cardLast4'] = pm.card.last4;
-                    updateData['subscription.cardType'] = pm.card.card_type;
-                }
-            }
-            
-            await userRef.update(updateData);
-
-            // Transaction is logged by the YooKassa webhook (payment.succeeded).
-            // Logging here would create a duplicate record for the same paymentId.
+            await SubscriptionActivationService.activateFromPayment(payment);
 
             return { success: true };
         } else {
@@ -136,8 +134,9 @@ export async function verifyPaymentAction(paymentId: string): Promise<{ success:
     }
 }
 
-export async function cancelSubscriptionAction(userId: string): Promise<{ success: boolean; error?: string }> {
+export async function cancelSubscriptionAction(idToken: string): Promise<{ success: boolean; error?: string }> {
   try {
+    const userId = await requireUserId(idToken);
     const userRef = adminDb.collection('users').doc(userId);
     const userDoc = await userRef.get();
 
@@ -159,8 +158,9 @@ export async function cancelSubscriptionAction(userId: string): Promise<{ succes
   }
 }
 
-export async function scheduleSubscriptionChangeAction(userId: string, newPlanId: string): Promise<{ success: boolean; error?: string }> {
+export async function scheduleSubscriptionChangeAction(idToken: string, newPlanId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    const userId = await requireUserId(idToken);
     const userRef = adminDb.collection('users').doc(userId);
     const userDoc = await userRef.get();
 
@@ -186,8 +186,9 @@ export async function scheduleSubscriptionChangeAction(userId: string, newPlanId
   }
 }
 
-export async function unbindCardAction(userId: string): Promise<{ success: boolean; error?: string }> {
+export async function unbindCardAction(idToken: string): Promise<{ success: boolean; error?: string }> {
     try {
+        const userId = await requireUserId(idToken);
         const userRef = adminDb.collection('users').doc(userId);
         
         await userRef.update({

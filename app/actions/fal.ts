@@ -4,7 +4,6 @@ import { getStorage } from 'firebase-admin/storage';
 import { adminApp } from '@/src/lib/firebaseAdmin';
 import { FalImageService } from '@/services/falImageService';
 import { GeminiService } from '@/services/geminiService';
-import { CostCalculator } from '@/services/costCalculator';
 import { ChannelStrategy, buildImageTextPrompt, normalizeImageModel } from '@/types';
 
 /**
@@ -46,7 +45,7 @@ export async function uploadFalImageToStorage(
 
 /**
  * Server Action: Генерирует промпт и изображения через fal.ai.
- * Если fal.ai недоступен — fallback на Gemini image generation (1 изображение).
+ * Если выбранная модель недоступна, FalImageService пробует свои fal.ai fallback endpoints.
  */
 export async function generatePostImagesAction(
   postText: string,
@@ -69,32 +68,14 @@ export async function generatePostImagesAction(
     const textPrompt = buildImageTextPrompt(postText, strategy.imageTextPrompt);
 
     // Step 2: Generate 2 images via fal.ai
-    let images: string[] = [];
-    let genUsage: any = CostCalculator.createFalImageUsageMetadata(0, 'fallback');
-
     const falResult = await FalImageService.generateImages(imagePrompt, {
       count: 2,
       model: selectedModel,
       textPrompt: strategy.imageTextEnabled ? textPrompt : undefined,
     });
 
-    if (falResult && falResult.images.length > 0) {
-      images = falResult.images.map((img) => img.url);
-      genUsage = falResult.usage;
-    } else {
-      console.warn('[generatePostImagesAction] fal.ai failed, falling back to Gemini image generation');
-      const geminiResult = await GeminiService.generateImage(imagePrompt);
-      if (geminiResult.imageUrl) {
-        images = [geminiResult.imageUrl];
-        genUsage = geminiResult.usage ?? CostCalculator.createFalImageUsageMetadata(1, 'gemini-fallback');
-      } else {
-        console.error('[generatePostImagesAction] Both fal.ai and Gemini image generation failed');
-        return {
-          success: false,
-          error: 'Image generation failed on all providers (fal.ai + Gemini fallback)',
-        };
-      }
-    }
+    const images = falResult.images.map((img) => img.url);
+    const genUsage = falResult.usage;
 
     let storageUrl: string | undefined;
     if (images[0]) {
@@ -125,7 +106,7 @@ export async function generatePostImagesAction(
 
 /**
  * Server Action: Перегенерация изображений с тем же промптом, новые seed.
- * Fallback на Gemini-генерацию, если fal.ai недоступен.
+ * FalImageService сам пробует резервные fal.ai endpoints, если выбранная модель недоступна.
  */
 export async function regeneratePostImagesAction(
   imagePrompt: string,
@@ -134,31 +115,14 @@ export async function regeneratePostImagesAction(
   options?: { model?: string; textPrompt?: string; textEnabled?: boolean }
 ) {
   try {
-    let images: string[] = [];
-    let usage: any = CostCalculator.createFalImageUsageMetadata(0, 'fallback');
-
     const falResult = await FalImageService.generateImages(imagePrompt, {
       count: 2,
       model: normalizeImageModel(options?.model),
       textPrompt: options?.textEnabled ? buildImageTextPrompt(undefined, options?.textPrompt) : undefined,
     });
 
-    if (falResult && falResult.images.length > 0) {
-      images = falResult.images.map((img) => img.url);
-      usage = falResult.usage;
-    } else {
-      console.warn('[regeneratePostImagesAction] fal.ai failed, falling back to Gemini');
-      const geminiResult = await GeminiService.generateImage(imagePrompt);
-      if (geminiResult.imageUrl) {
-        images = [geminiResult.imageUrl];
-        usage = geminiResult.usage ?? CostCalculator.createFalImageUsageMetadata(1, 'gemini-fallback');
-      } else {
-        return {
-          success: false,
-          error: 'Regeneration failed on all providers',
-        };
-      }
-    }
+    const images = falResult.images.map((img) => img.url);
+    const usage = falResult.usage;
 
     // Upload first image
     let storageUrl: string | undefined;

@@ -28,7 +28,7 @@ export class TextPolishingService {
     const { CostCalculator } = await import('./costCalculator');
 
     try {
-      const model = 'gemini-3-flash-preview';
+      const model = 'gemini-3.1-flash-lite';
       
       const prompt = `ОТПОЛИРУЙ ТЕКСТ ПОСТА В ИНФОСТИЛЕ (MЕTOД ИЛЬЯХОВА) И ПРИМЕНИ TELEGRAM HTML.
 
@@ -97,7 +97,7 @@ ${rawText}
           promptTokens: 0,
           candidatesTokens: 0,
           totalTokens: 0
-        }, 'gemini-3-flash-preview')
+        }, 'gemini-3.1-flash-lite')
       };
     }
   }

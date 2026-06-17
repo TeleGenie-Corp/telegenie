@@ -42,6 +42,13 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
     }
   }, [isOpen, userId]);
 
+  const getIdToken = async () => {
+    const { auth } = await import('../../services/firebaseConfig');
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) throw new Error('Нужно войти заново');
+    return token;
+  };
+
   const handleSubscribe = async (plan: SubscriptionPlan) => {
     setProcessingPlan(plan.id);
     setLoading(true);
@@ -52,7 +59,6 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
 
     try {
       const currentPlan = plans.find(p => p.id === currentTier);
-      const isUpgrade = currentPlan && plan.price > currentPlan.price;
       const isDowngrade = currentPlan && plan.price < currentPlan.price;
       
       if (profile?.subscription?.nextPlanId === plan.id) {
@@ -63,7 +69,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       }
 
       if (plan.id === 'free') {
-          const result = await cancelSubscriptionAction(userId);
+          const result = await cancelSubscriptionAction(await getIdToken());
           if (!result.success) throw new Error(result.error);
           toast.success("Автопродление выключено. Пакет Starter включится по окончании периода.");
           window.location.reload();
@@ -71,7 +77,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       }
 
       if (isDowngrade) {
-          const result = await scheduleSubscriptionChangeAction(userId, plan.id);
+          const result = await scheduleSubscriptionChangeAction(await getIdToken(), plan.id);
           if (!result.success) throw new Error(result.error);
           toast.success(`Тариф изменится на ${plan.name} по окончании текущего периода`);
           setLoading(false);
@@ -79,21 +85,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
           return;
       }
 
-      let result;
-      if (isUpgrade && profile?.subscription?.currentPeriodEnd && profile.subscription.status === 'active') {
-          const now = Date.now();
-          const endDate = profile.subscription.currentPeriodEnd;
-          if (endDate > now) {
-              const remainingDays = (endDate - now) / (1000 * 60 * 60 * 24);
-              const remainingValue = (currentPlan!.price / 30) * remainingDays;
-              const payAmount = Math.max(0, Math.floor(plan.price - remainingValue));
-              result = await createPaymentAction(userId, plan.id, payAmount);
-          } else {
-              result = await createPaymentAction(userId, plan.id);
-          }
-      } else {
-          result = await createPaymentAction(userId, plan.id);
-      }
+      const result = await createPaymentAction(await getIdToken(), plan.id);
 
       if (result.error) throw new Error(result.error);
 
@@ -121,7 +113,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
       
       setUnbinding(true);
       try {
-          const result = await unbindCardAction(userId);
+          const result = await unbindCardAction(await getIdToken());
           if (result.success) {
               toast.success("Карта успешно отвязана");
               // We could reload or just wait for parent to update profile
@@ -378,7 +370,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({
         confirmationToken={confirmationToken || ''}
         onSuccess={async () => {
             if (pendingPaymentId) {
-                toast.promise(verifyPaymentAction(pendingPaymentId), {
+                toast.promise(getIdToken().then((token) => verifyPaymentAction(token, pendingPaymentId)), {
                     loading: 'Проверка платежа...',
                     success: (res) => {
                         if (res.success) {

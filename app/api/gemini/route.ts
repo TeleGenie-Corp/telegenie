@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI } from '@google/genai';
+import { adminAuth } from '@/src/lib/firebaseAdmin';
 
 const apiKey = process.env.GEMINI_API_KEY;
 
@@ -13,6 +14,15 @@ if (!apiKey || apiKey === 'your_gemini_api_key') {
  */
 export async function POST(request: NextRequest) {
   try {
+    const authHeader = request.headers.get('authorization') || '';
+    const idToken = authHeader.match(/^Bearer\s+(.+)$/i)?.[1];
+
+    if (!idToken) {
+      return NextResponse.json({ error: 'AUTH_REQUIRED' }, { status: 401 });
+    }
+
+    await adminAuth.verifyIdToken(idToken);
+
     const body = await request.json();
     const { model, contents, config } = body;
 
@@ -29,7 +39,7 @@ export async function POST(request: NextRequest) {
     const genAI = new GoogleGenAI({ apiKey: apiKey! });
     
     // Try models with fallback
-    const models = [model, 'gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-flash-lite-latest'];
+    const models = [model, 'gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-2.5-flash-lite'];
     const uniqueModels = [...new Set(models)];
     let lastError: any;
 

@@ -4,8 +4,10 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks';
 
 export default [
   {
+    ignores: ['.next/**', 'node_modules/**', 'dist/**', 'functions/lib/**'],
+  },
+  {
     files: ['**/*.{ts,tsx}'],
-    ignores: ['node_modules/**', 'dist/**'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -31,8 +33,5 @@ export default [
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       'prefer-const': 'warn',
     },
-  },
-  {
-    ignores: ['node_modules/**', 'dist/**', '*.config.*'],
   },
 ];

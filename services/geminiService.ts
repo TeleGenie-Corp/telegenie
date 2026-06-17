@@ -1,6 +1,6 @@
 
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { ChannelStrategy, Idea, PostGoal, PostFormat, ChannelInfo, UsageMetadata } from "../types";
+import { GoogleGenAI, Type } from "@google/genai";
+import { ChannelStrategy, Idea, PostGoal, ChannelInfo, UsageMetadata } from "../types";
 import { SYSTEM_PROMPT_BASE } from "../constants";
 import { ChannelService } from "./channelService";
 
@@ -28,7 +28,7 @@ export class GeminiService {
   private static async callWithFallback<T>(
     operation: (model: string) => Promise<T>
   ): Promise<T> {
-    const models = ['gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-flash-lite-latest'];
+    const models = ['gemini-3.1-flash-lite', 'gemini-3.5-flash', 'gemini-2.5-flash-lite'];
     let lastError: any;
 
     for (const modelName of models) {
@@ -94,7 +94,7 @@ export class GeminiService {
 
     const { result, usage } = await this.callWithFallback(async (model) => {
       let prompt: string;
-      let config: any = {
+      const config: any = {
         systemInstruction: SYSTEM_PROMPT_BASE,
         responseMimeType: "application/json",
         responseSchema: {
@@ -175,7 +175,7 @@ export class GeminiService {
     const { CostCalculator } = await import('./costCalculator');
 
     // Fast path: use Flash Lite directly, no search grounding
-    const model = 'gemini-2.0-flash-lite';
+    const model = 'gemini-3.1-flash-lite';
 
     const authorContext = strategy.positioning
       ? `ПОЗИЦИОНИРОВАНИЕ АВТОРА: ${strategy.positioning}`
@@ -315,8 +315,7 @@ ${memoryBlock}
   static async *generatePostContentStream(idea: Idea, strategy: ChannelStrategy): AsyncGenerator<{ text: string, usage?: UsageMetadata }> {
     const ai = this.getAI();
     const info = strategy.analyzedChannel;
-    const { CostCalculator } = await import('./costCalculator');
-    const model = 'gemini-2.0-flash-lite'; // Use fast model for streaming
+    const model = 'gemini-3.1-flash-lite'; // Use fast model for streaming
 
     const authorContext = this.buildAuthorContext(strategy);
     const frameworkInstruction = this.buildFrameworkInstruction(strategy.goal, idea.title);
@@ -366,47 +365,6 @@ TELEGRAM HTML: <b>, <i>, <code>, <a href="...">. Пустая строка ме�
   }
 
   /**
-   * Generates images using gemini-2.5-flash-image.
-   * NOTE: This is the old Gemini-native image generation.
-   * New code should use FalImageService for higher quality via fal.ai Flux.
-   */
-  static async generateImage(prompt: string): Promise<{ imageUrl: string | null, usage: UsageMetadata | null }> {
-    try {
-      const ai = this.getAI();
-      const visualPrompt = `Professional content for Telegram. Concept: "${prompt}". Minimalist, clean, high-end.`;
-      const { CostCalculator } = await import('./costCalculator');
-      const model = 'gemini-2.5-flash-image';
-      
-      const response = await this.executeWithRetry<GenerateContentResponse>(() => 
-        ai.models.generateContent({
-          model,
-          contents: { parts: [{ text: visualPrompt }] },
-          config: { 
-            imageConfig: { 
-              aspectRatio: "1:1"
-            } 
-          }
-        })
-      );
-
-      const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-      const usage = CostCalculator.createImageUsageMetadata(model);
-      
-      if (part?.inlineData) {
-        return { imageUrl: `data:image/png;base64,${part.inlineData.data}`, usage };
-      }
-      
-      console.warn("No inline image data found in response.");
-      return { imageUrl: null, usage: null };
-
-    } catch (error) {
-      console.error("Image generation failed:", error);
-      // Return null so the post creation doesn't fail completely
-      return { imageUrl: null, usage: null };
-    }
-  }
-
-  /**
    * Generates a detailed English image prompt from post text + strategy.
    * Used before FalImageService.generateImages() for high-quality results.
    */
@@ -416,7 +374,7 @@ TELEGRAM HTML: <b>, <i>, <code>, <a href="...">. Пустая строка ме�
   ): Promise<{ prompt: string; usage: UsageMetadata }> {
     const ai = this.getAI();
     const { CostCalculator } = await import('./costCalculator');
-    const model = 'gemini-2.0-flash-lite';
+    const model = 'gemini-3.1-flash-lite';
 
     const channelTopic = strategy.analyzedChannel?.topic || 'Telegram channel';
     const channelTone = strategy.analyzedChannel?.toneOfVoice || strategy.analyzedChannel?.context || 'professional';
@@ -534,7 +492,7 @@ ${rawData.last_posts.slice(0, 5).join('\n---\n')}
    */
   static async generatePositioningFormula(answers: Record<string, string>): Promise<string> {
       const ai = this.getAI();
-      const model = 'gemini-2.0-flash-lite'; // Valid model name
+      const model = 'gemini-3.1-flash-lite';
 
       const inputs = Object.entries(answers).map(([k, v]) => `${k}: ${v}`).join('\n');
       

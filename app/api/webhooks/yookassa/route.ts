@@ -1,66 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/src/lib/firebaseAdmin';
+import { YooKassaService } from '@/services/yooKassaService';
+import { SubscriptionActivationService } from '@/services/subscriptionActivationService';
 
 // YooKassa IP whitelist (for future IP validation)
 // const WHITELISTED_IPS = [
 //   '185.71.76.0/27', '185.71.77.0/27',
 //   '77.75.153.0/25', '77.75.154.128/25', '2a02:5180::/32'
 // ];
-
-async function activateSubscription(payment: any) {
-  const metadata = payment.metadata || {};
-  const userId = metadata.userId;
-  const planId = metadata.planId;
-
-  if (!userId || !planId) {
-    console.warn('[Webhook] Missing userId or planId in metadata', metadata);
-    return;
-  }
-
-  const userRef = adminDb.collection('users').doc(userId);
-  const userDoc = await userRef.get();
-  if (!userDoc.exists) return;
-
-  const now = Date.now();
-  const currentEnd = userDoc.data()?.subscription?.currentPeriodEnd || now;
-  const newPeriodEnd = Math.max(currentEnd, now) + 30 * 24 * 60 * 60 * 1000;
-
-  const updateData: any = {
-    'subscription.tier': planId,
-    'subscription.status': 'active',
-    'subscription.currentPeriodEnd': newPeriodEnd,
-    'subscription.autoRenew': true,
-    'subscription.updatedAt': now,
-  };
-
-  // Save payment method for future recurring charges.
-  // On payment.succeeded the method is always available if save_payment_method was set.
-  // We save it regardless of the `saved` flag — YooKassa sets saved=true async sometimes.
-  if (payment.payment_method?.id) {
-    updateData['subscription.yookassaPaymentMethodId'] = payment.payment_method.id;
-    const card = (payment.payment_method as any).card;
-    if (card) {
-      updateData['subscription.cardLast4'] = card.last4;
-      updateData['subscription.cardType'] = card.card_type;
-    }
-  }
-
-  await userRef.update(updateData);
-
-  // Log transaction
-  await adminDb.collection('transactions').add({
-    userId,
-    planId,
-    amount: payment.amount?.value,
-    currency: payment.amount?.currency || 'RUB',
-    paymentId: payment.id,
-    status: payment.status,
-    type: 'subscription',
-    createdAt: now,
-  });
-
-  console.log(`[Webhook] Subscription activated: user=${userId}, plan=${planId}`);
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -74,7 +21,9 @@ export async function POST(req: NextRequest) {
 
       // ── Успешный платёж ────────────────────────────────────────────────
       case 'payment.succeeded': {
-        await activateSubscription(object);
+        const payment = await YooKassaService.getPayment(object.id);
+        const result = await SubscriptionActivationService.activateFromPayment(payment);
+        console.log('[Webhook] Payment activation result:', result);
         break;
       }
 
@@ -82,13 +31,14 @@ export async function POST(req: NextRequest) {
       // Если capture: true выставлен при создании, ЮKassa захватывает сама
       // и это событие обычно не приходит. На случай если придёт — активируем.
       case 'payment.waiting_for_capture': {
-        await activateSubscription(object);
+        console.log(`[Webhook] Ignoring waiting_for_capture until payment succeeds: ${object.id}`);
         break;
       }
 
       // ── Платёж отменён / отклонён ──────────────────────────────────────
       case 'payment.canceled': {
-        const metadata = object.metadata || {};
+        const payment = await YooKassaService.getPayment(object.id);
+        const metadata = payment.metadata || {};
         const userId = metadata.userId;
         if (!userId) break;
 

@@ -95,7 +95,10 @@ export class BillingService {
   static async cancelSubscription(userId: string): Promise<boolean> {
       try {
           const { cancelSubscriptionAction } = await import('@/app/actions/payment');
-          const result = await cancelSubscriptionAction(userId);
+          const { auth } = await import('./firebaseConfig');
+          const idToken = await auth.currentUser?.getIdToken();
+          if (!idToken || auth.currentUser?.uid !== userId) return false;
+          const result = await cancelSubscriptionAction(idToken);
           return result.success;
       } catch (e) {
           console.error("Cancel subscription error", e);

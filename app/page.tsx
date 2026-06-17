@@ -165,7 +165,13 @@ export default function Home() {
         if (paymentId) {
              // Dynamically import action to check verification
              import('@/app/actions/payment').then(async ({ verifyPaymentAction }) => {
-                 const result = await verifyPaymentAction(paymentId);
+                 const { auth } = await import('@/services/firebaseConfig');
+                 const idToken = await auth.currentUser?.getIdToken();
+                 if (!idToken) {
+                    toast.error('Нужно войти заново, чтобы проверить оплату.');
+                    return;
+                 }
+                 const result = await verifyPaymentAction(idToken, paymentId);
                  
                  if (result.success) {
                     toast.success('Оплата подтверждена! Тариф обновлен.');
