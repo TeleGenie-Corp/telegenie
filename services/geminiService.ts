@@ -379,30 +379,49 @@ TELEGRAM HTML: <b>, <i>, <code>, <a href="...">. Пустая строка ме�
     const channelTopic = strategy.analyzedChannel?.topic || 'Telegram channel';
     const channelTone = strategy.analyzedChannel?.toneOfVoice || strategy.analyzedChannel?.context || 'professional';
     const channelName = strategy.analyzedChannel?.name || 'Channel';
+    const contentPillars = strategy.analyzedChannel?.contentPillars?.length
+      ? strategy.analyzedChannel.contentPillars.join(', ')
+      : 'author process, practical examples, lived experience';
 
-    const systemInstruction = `You are an expert visual prompt engineer for AI image generation (fal.ai Flux).
+    const systemInstruction = `You are an expert art director and visual prompt engineer for AI image generation.
 Create detailed English prompts for image generation based on Telegram post content.
 Rules:
 1. Prompt MUST be in English, 100-300 words.
-2. Describe the scene, mood, colors, lighting, composition, and visual style.
-3. Match the visual style to the channel's tone.
-4. Avoid text, watermarks, UI elements, or logos in the image.
-5. Use cinematic, high-quality descriptors.
-6. Return ONLY the prompt text, no explanations, no markdown.`;
+2. Create a specific editorial image with a point of view, not a generic AI/productivity illustration.
+3. Match the visual style to the channel's tone and subject matter.
+4. Prefer lived-in, documentary, imperfect, founder/operator details over glossy stock-photo perfection.
+5. Include 2-4 concrete visual anchors from the post.
+6. Avoid readable text, watermarks, brand logos, fake app names, and literal Telegram logos. Abstract interface shapes are allowed.
+7. Avoid generic AI cliches: glowing brain, robot hand, perfect glass office, blue-purple neon dashboard, floating icons, faceless corporate people, stock-photo handshake.
+8. Return ONLY the prompt text, no explanations, no markdown.`;
 
     const prompt = `Create a detailed English image generation prompt for this Telegram post.
 
 CHANNEL: "${channelName}"
 CHANNEL TOPIC: ${channelTopic}
 CHANNEL TONE: ${channelTone}
+CONTENT PILLARS: ${contentPillars}
 POST GOAL: ${strategy.goal}
+AUTHOR VISUAL VOICE:
+- grounded, direct, founder/operator perspective
+- practical process over hype
+- real workbench energy: drafts, decisions, rough structure, manual review
+- visually clear but not sterile; some friction and human traces should remain
+
+IMAGE SHOULD FEEL LIKE:
+- an editorial visual made for this exact post and channel
+- specific enough that it could not be reused for any SaaS/productivity post
+- calm, intelligent, slightly raw, with evidence of actual work
 
 POST TEXT (Russian):
 """
 ${postText.substring(0, 2000)}
 """
 
-Generate a detailed English image prompt that visually represents this post. The image should be suitable for Telegram channel cover/illustration. No text in the image. Cinematic quality.`;
+Generate a detailed English image prompt that visually represents this post.
+Make it suitable for a Telegram post illustration.
+Do not make it too perfect, futuristic, or generic.
+No readable text in the image. No logos.`;
 
     const response = await ai.models.generateContent({
       model,
@@ -415,7 +434,7 @@ Generate a detailed English image prompt that visually represents this post. The
 
     // Fallback if generation fails
     if (!generatedPrompt || generatedPrompt.length < 20) {
-      const fallback = `Professional illustration for Telegram channel "${channelName}" about ${channelTopic}. Clean, modern, minimalist design with subtle colors matching a ${channelTone} tone. High quality, no text.`;
+      const fallback = `Editorial documentary-style illustration for Telegram channel "${channelName}" about ${channelTopic}. A lived-in founder workspace with rough notes, drafts, simple process diagrams, and abstract product interface shapes; grounded and practical, matching a ${channelTone} tone. Avoid glossy stock-photo perfection, neon AI cliches, readable text, logos, and generic corporate scenes.`;
       return { prompt: fallback, usage };
     }
 
