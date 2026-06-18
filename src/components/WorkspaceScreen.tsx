@@ -57,20 +57,23 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
   selectedBrand, posts,
   onSelectPost, onCreatePost, onCreateBrand, onDeletePost,
 }) => {
-  const [tabFilter, setTabFilter] = useState<TabFilter>('all');
+  const [tabFilter, setTabFilter] = useState<TabFilter>('draft');
+  const [showAllPosts, setShowAllPosts] = useState(false);
 
   const brandPosts = selectedBrand
     ? posts.filter(p => p.brandId === selectedBrand.id)
     : [];
 
-  const filteredPosts = brandPosts.filter(p => {
-    if (tabFilter === 'draft')     return p.status !== 'published';
-    if (tabFilter === 'published') return p.status === 'published';
-    return true;
-  });
-
   const draftCount     = brandPosts.filter(p => p.status !== 'published').length;
   const publishedCount = brandPosts.filter(p => p.status === 'published').length;
+  const effectiveTabFilter = tabFilter === 'draft' && draftCount === 0 ? 'all' : tabFilter;
+  const filteredPosts = brandPosts.filter(p => {
+    if (effectiveTabFilter === 'draft')     return p.status !== 'published';
+    if (effectiveTabFilter === 'published') return p.status === 'published';
+    return true;
+  });
+  const visiblePosts = showAllPosts ? filteredPosts : filteredPosts.slice(0, 6);
+  const hiddenPostCount = filteredPosts.length - visiblePosts.length;
   const mediaDraftCount = brandPosts.filter(p => p.status !== 'published' && !!p.imageUrl).length;
   const staleDraftCount = brandPosts.filter(p => p.status !== 'published' && Date.now() - p.updatedAt > 7 * DAY_MS).length;
   const publishRatio = brandPosts.length ? Math.round((publishedCount / brandPosts.length) * 100) : 0;
@@ -131,7 +134,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
       <div className="max-w-4xl mx-auto p-6 space-y-5">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div>
           <div>
             <h2 className="text-lg font-black text-slate-900">{selectedBrand.name}</h2>
             <p className="text-[11px] text-slate-400 mt-0.5">
@@ -151,14 +154,6 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
               )}
             </p>
           </div>
-
-          <button
-            onClick={() => onCreatePost(selectedBrand.id)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 active:scale-95"
-          >
-            <PenLine size={13} />
-            Написать пост
-          </button>
         </div>
 
         {/* Visual process map */}
@@ -217,67 +212,62 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
           </div>
         </div>
 
-        {/* Guided next step */}
-        <div className="bg-white border border-[#e8e8e8] rounded-2xl p-4 shadow-sm">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4 justify-between">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#9aaeb5] mb-1.5">
-                <Sparkles size={12} className="text-violet-500" />
-                Что написать сегодня
+        {/* Secondary actions */}
+        <details className="group rounded-2xl border border-[#e8e8e8] bg-white shadow-sm">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[11px] font-bold text-slate-500">
+            <span className="inline-flex items-center gap-2">
+              <Sparkles size={12} className="text-violet-500" />
+              Ещё варианты
+            </span>
+            <span className="text-slate-300 transition-transform group-open:rotate-45">+</span>
+          </summary>
+          <div className="hidden border-t border-slate-100 px-4 pb-4 pt-3 group-open:block">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <div className="text-xs font-black text-[#233137]">
+                  {analyzedTone ? 'Голос канала учтён' : 'Канал ещё стоит изучить'}
+                </div>
+                <div className="mt-0.5 text-xs text-[#758084]">
+                  {analyzedTone
+                    ? 'Можно начать новый пост или взять один из простых сценариев.'
+                    : 'После анализа TeleGenie будет точнее держать авторский стиль.'}
+                </div>
               </div>
-              <h3 className="text-base font-black text-[#233137] tracking-tight">
-                {nextDraft ? 'Продолжить черновик или начать новый пост' : 'Начните с первого поста в стиле канала'}
-              </h3>
-              <p className="text-xs text-[#758084] mt-1 leading-relaxed">
-                {analyzedTone
-                  ? 'Голос канала учтён. Можно сразу писать.'
-                  : 'Добавьте анализ канала, и посты будут звучать ближе к вашему авторскому голосу.'}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 shrink-0">
-              {nextDraft && (
-                <button
-                  onClick={() => onSelectPost(nextDraft)}
-                  className="px-3 py-2 rounded-xl bg-[#233137] text-white text-xs font-bold hover:bg-[#1a2529] transition-all active:scale-95"
-                >
-                  Продолжить черновик
-                </button>
-              )}
               <button
                 onClick={() => onCreatePost(selectedBrand.id)}
-                className="px-3 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 transition-all active:scale-95"
+                className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-violet-600 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-violet-700 active:scale-95"
               >
+                <PenLine size={13} />
                 Написать новый
               </button>
             </div>
-          </div>
 
-          <details className="group mt-4 rounded-xl border border-slate-100 bg-[#f8fafa]">
-            <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-[11px] font-bold text-slate-500">
-              <span>Шаблоны для старта</span>
-              <span className="text-slate-300 transition-transform group-open:rotate-45">+</span>
-            </summary>
-            <div className="hidden grid-cols-1 gap-2 px-3 pb-3 group-open:grid sm:grid-cols-3">
-              {[
-                { icon: PenLine, title: 'Личный инсайт', text: 'история из практики с выводом' },
-                { icon: BookOpen, title: 'Полезный разбор', text: 'объяснить сложное простым языком' },
-                { icon: Send, title: 'Мягкая продажа', text: 'прогреть к продукту без давления' },
-              ].map((idea) => (
-                <button
-                  key={idea.title}
-                  onClick={() => onCreatePost(selectedBrand.id)}
-                  className="text-left rounded-xl border border-slate-100 bg-white hover:bg-violet-50 hover:border-violet-200 p-3 transition-all group"
-                >
-                  <div className="flex items-center gap-2 text-xs font-black text-[#233137]">
-                    <idea.icon size={13} className="text-[#9aaeb5] group-hover:text-violet-500" />
-                    {idea.title}
-                  </div>
-                  <div className="text-[11px] text-[#758084] mt-1">{idea.text}</div>
-                </button>
-              ))}
+            <div className="mt-3 rounded-xl border border-slate-100 bg-[#f8fafa]">
+              <div className="flex items-center justify-between px-3 py-2 text-[11px] font-bold text-slate-500">
+                <span>Шаблоны для старта</span>
+              </div>
+              <div className="grid grid-cols-1 gap-2 px-3 pb-3 sm:grid-cols-3">
+                {[
+                  { icon: PenLine, title: 'Личный инсайт', text: 'история из практики с выводом' },
+                  { icon: BookOpen, title: 'Полезный разбор', text: 'объяснить сложное простым языком' },
+                  { icon: Send, title: 'Мягкая продажа', text: 'прогреть к продукту без давления' },
+                ].map((idea) => (
+                  <button
+                    key={idea.title}
+                    onClick={() => onCreatePost(selectedBrand.id)}
+                    className="text-left rounded-xl border border-slate-100 bg-white hover:bg-violet-50 hover:border-violet-200 p-3 transition-all group"
+                  >
+                    <div className="flex items-center gap-2 text-xs font-black text-[#233137]">
+                      <idea.icon size={13} className="text-[#9aaeb5] group-hover:text-violet-500" />
+                      {idea.title}
+                    </div>
+                    <div className="text-[11px] text-[#758084] mt-1">{idea.text}</div>
+                  </button>
+                ))}
+              </div>
             </div>
-          </details>
-        </div>
+          </div>
+        </details>
 
         {/* Tab filter */}
         {brandPosts.length > 0 && (
@@ -289,16 +279,19 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
             ] as const).map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setTabFilter(tab.id)}
+                onClick={() => {
+                  setTabFilter(tab.id);
+                  setShowAllPosts(false);
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
-                  tabFilter === tab.id
+                  effectiveTabFilter === tab.id
                     ? 'bg-slate-900 text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-700'
                 }`}
               >
                 {tab.label}
                 <span className={`text-[9px] font-black px-1 py-0.5 rounded-full min-w-[16px] text-center ${
-                  tabFilter === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
+                  effectiveTabFilter === tab.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'
                 }`}>
                   {tab.count}
                 </span>
@@ -309,7 +302,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
 
         {/* Post grid */}
         {filteredPosts.length === 0 ? (
-          tabFilter === 'all' ? (
+          effectiveTabFilter === 'all' ? (
             <button
               onClick={() => onCreatePost(selectedBrand.id)}
               className="w-full p-10 border-2 border-dashed border-slate-200 rounded-2xl text-center hover:border-violet-300 hover:bg-violet-50/50 transition-all bg-white"
@@ -321,13 +314,14 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
           ) : (
             <div className="p-8 border border-slate-200 rounded-2xl text-center bg-white">
               <div className="text-sm text-slate-400">
-                {tabFilter === 'draft' ? 'Нет черновиков' : 'Нет опубликованных постов'}
+                {effectiveTabFilter === 'draft' ? 'Нет черновиков' : 'Нет опубликованных постов'}
               </div>
             </div>
           )
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {filteredPosts.map(post => {
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {visiblePosts.map(post => {
               const status     = statusConfig[post.status];
               const StatusIcon = status.icon;
               const goal       = post.goal ? goalMeta[post.goal] : null;
@@ -407,7 +401,17 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                 </div>
               );
             })}
-          </div>
+            </div>
+            {hiddenPostCount > 0 && (
+              <button
+                onClick={() => setShowAllPosts(true)}
+                className="mx-auto flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-bold text-slate-500 transition-all hover:border-violet-200 hover:text-violet-600"
+              >
+                Показать ещё {hiddenPostCount}
+                <ArrowRight size={13} />
+              </button>
+            )}
+          </>
         )}
 
         <div className="pb-4 text-center">
