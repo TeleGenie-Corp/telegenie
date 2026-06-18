@@ -151,17 +151,33 @@ export async function generatePostImagesAction(
 }
 
 /**
- * Server Action: Перегенерация изображений с тем же промптом, новые seed.
+ * Server Action: Перегенерация изображений.
+ * If post text + strategy are provided, rebuilds the visual prompt first so brand voice changes apply.
  * FalImageService сам пробует резервные fal.ai endpoints, если выбранная модель недоступна.
  */
 export async function regeneratePostImagesAction(
   imagePrompt: string,
   userId: string,
   postId: string,
-  options?: { model?: string; textPrompt?: string; textEnabled?: boolean }
+  options?: {
+    model?: string;
+    textPrompt?: string;
+    textEnabled?: boolean;
+    postText?: string;
+    strategy?: ChannelStrategy;
+  }
 ) {
   try {
-    const falResult = await FalImageService.generateImages(imagePrompt, {
+    let promptForGeneration = imagePrompt;
+    let promptUsage;
+
+    if (options?.postText && options.strategy) {
+      const promptResult = await GeminiService.generateImagePrompt(options.postText, options.strategy);
+      promptForGeneration = promptResult.prompt;
+      promptUsage = promptResult.usage;
+    }
+
+    const falResult = await FalImageService.generateImages(promptForGeneration, {
       count: 2,
       model: normalizeImageModel(options?.model),
       textPrompt: options?.textEnabled ? buildImageTextPrompt(undefined, options?.textPrompt) : undefined,
@@ -177,7 +193,13 @@ export async function regeneratePostImagesAction(
       success: true,
       images,
       storageUrl,
-      usage,
+      imagePrompt: promptForGeneration,
+      usage: promptUsage
+        ? {
+            ...usage,
+            estimatedCostUsd: promptUsage.estimatedCostUsd + usage.estimatedCostUsd,
+          }
+        : usage,
     };
   } catch (error: any) {
     console.error('[regeneratePostImagesAction]', error);

@@ -644,6 +644,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           model: strategy.imageModel,
           textPrompt: strategy.imageTextPrompt,
           textEnabled: strategy.imageTextEnabled,
+          postText: currentPost.text,
+          strategy,
         }
       );
 
@@ -654,6 +656,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
                 ...s.currentPost,
                 imageUrl: result.storageUrl || result.images?.[0] || s.currentPost.imageUrl,
                 imageUrlOptions: result.images,
+                imagePrompt: result.imagePrompt || s.currentPost.imagePrompt,
               }
             : null,
         }));
@@ -663,13 +666,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           projectId,
           currentPost.text,
           currentPost.rawText,
-          result.storageUrl || result.images?.[0] || currentPost.imageUrl
+          result.storageUrl || result.images?.[0] || currentPost.imageUrl,
+          result.images,
+          result.imagePrompt || currentPost.imagePrompt
         );
 
         useWorkspaceStore.getState().setPostProjects((prev) =>
           prev.map((p) =>
             p.id === projectId
-              ? { ...p, imageUrl: result.storageUrl || result.images?.[0] || p.imageUrl, updatedAt: Date.now() }
+              ? {
+                  ...p,
+                  imageUrl: result.storageUrl || result.images?.[0] || p.imageUrl,
+                  imageUrlOptions: result.images,
+                  imagePrompt: result.imagePrompt || p.imagePrompt,
+                  updatedAt: Date.now(),
+                }
               : p
           ),
         );
