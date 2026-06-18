@@ -629,7 +629,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const user = useAuthStore.getState().user;
     let { currentProject } = useWorkspaceStore.getState();
 
-    if (!currentPost || !currentPost.imagePrompt || !user || !currentProject) return;
+    if (!currentPost || !currentPost.text?.trim() || !user || !currentProject) return;
 
     set({ pipelineState: { stage: 'generating_image', progress: 50, currentTask: 'Перегенерация изображений...' } });
 
@@ -638,7 +638,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       const projectId = currentProject.id;
       const { regeneratePostImagesAction } = await import('@/app/actions/fal');
       const result = await regeneratePostImagesAction(
-        currentPost.imagePrompt,
+        currentPost.imagePrompt || '',
         user.id,
         currentProject.id,
         {
