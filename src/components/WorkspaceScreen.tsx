@@ -3,7 +3,7 @@ import {
   Plus, Clock, Check, Archive, ArrowRight,
   Trash2,
   Zap, TrendingUp, BookOpen, Megaphone,
-  PenLine, Radio, Sparkles, Image as ImageIcon, Send,
+  PenLine, Radio, Sparkles, Image as ImageIcon, Send, MessageSquareText,
 } from 'lucide-react';
 import { Brand, PostProject, PostGoal } from '../../types';
 
@@ -72,34 +72,39 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
     ? posts.filter(p => p.brandId === selectedBrand.id)
     : [];
 
-  const draftCount     = brandPosts.filter(p => p.status !== 'published').length;
-  const publishedCount = brandPosts.filter(p => p.status === 'published').length;
+  const activeBrandPosts = brandPosts.filter(p => p.status !== 'archived');
+  const draftPosts = activeBrandPosts
+    .filter(p => p.status === 'draft')
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const publishedPosts = activeBrandPosts.filter(p => p.status === 'published');
+  const draftCount     = draftPosts.length;
+  const publishedCount = publishedPosts.length;
+  const archivedCount  = brandPosts.length - activeBrandPosts.length;
   const effectiveTabFilter = tabFilter === 'draft' && draftCount === 0 ? 'all' : tabFilter;
-  const filteredPosts = brandPosts.filter(p => {
-    if (effectiveTabFilter === 'draft')     return p.status !== 'published';
+  const filteredPosts = activeBrandPosts.filter(p => {
+    if (effectiveTabFilter === 'draft')     return p.status === 'draft';
     if (effectiveTabFilter === 'published') return p.status === 'published';
     return true;
   });
-  const mediaDraftCount = brandPosts.filter(p => p.status !== 'published' && !!p.imageUrl).length;
-  const staleDraftCount = brandPosts.filter(p => p.status !== 'published' && Date.now() - p.updatedAt > 7 * DAY_MS).length;
-  const publishRatio = brandPosts.length ? Math.round((publishedCount / brandPosts.length) * 100) : 0;
+  const mediaDraftCount = draftPosts.filter(p => !!p.imageUrl).length;
+  const staleDraftCount = draftPosts.filter(p => Date.now() - p.updatedAt > 7 * DAY_MS).length;
   const analyzedTone = selectedBrand?.analyzedChannel?.toneOfVoice || selectedBrand?.analyzedChannel?.context;
-  const draftPosts = brandPosts
-    .filter(p => p.status !== 'published')
-    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const analyzedTopic = selectedBrand?.analyzedChannel?.topic || selectedBrand?.analyzedChannel?.description;
+  const contentPillars = selectedBrand?.analyzedChannel?.contentPillars?.slice(0, 4) || [];
+  const forbiddenPhrases = selectedBrand?.analyzedChannel?.forbiddenPhrases?.slice(0, 3) || [];
+  const hasBrandVoice = !!(analyzedTone || analyzedTopic || contentPillars.length || selectedBrand?.positioning);
   const nextDraft = draftPosts[0];
   const queuePosts = effectiveTabFilter === 'draft' && nextDraft
     ? filteredPosts.filter(p => p.id !== nextDraft.id)
     : filteredPosts;
   const visiblePosts = showAllPosts ? queuePosts : queuePosts.slice(0, 6);
   const hiddenPostCount = queuePosts.length - visiblePosts.length;
-  const latestPublished = brandPosts
-    .filter(p => p.status === 'published')
+  const latestPublished = publishedPosts
     .sort((a, b) => (b.publishedAt || b.updatedAt) - (a.publishedAt || a.updatedAt))[0];
   const pulseMetrics = [
     { label: 'Черновики', value: draftCount, hint: nextDraft ? relativeTime(nextDraft.updatedAt) : 'нет хвостов' },
-    { label: 'С медиа', value: mediaDraftCount, hint: mediaDraftCount ? 'готовы визуально' : 'без медиа' },
-    { label: 'Выпущено', value: `${publishRatio}%`, hint: latestPublished ? relativeTime(latestPublished.publishedAt || latestPublished.updatedAt) : 'пока пусто' },
+    { label: 'С медиа', value: mediaDraftCount, hint: mediaDraftCount ? 'черновики с визуалом' : 'без медиа' },
+    { label: 'Опубликовано', value: publishedCount, hint: latestPublished ? relativeTime(latestPublished.publishedAt || latestPublished.updatedAt) : 'пока пусто' },
   ];
 
   // ── render ────────────────────────────────────────────────────────────────
@@ -140,7 +145,13 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                   {publishedCount}&nbsp;{publishedCount === 1 ? 'опубликован' : publishedCount < 5 ? 'опубликовано' : 'опубликовано'}
                 </span>
               )}
-              {draftCount === 0 && publishedCount === 0 && (
+              {archivedCount > 0 && (draftCount > 0 || publishedCount > 0) && <span className="text-stone-300"> · </span>}
+              {archivedCount > 0 && (
+                <span className="text-stone-400 font-bold">
+                  {archivedCount}&nbsp;в архиве
+                </span>
+              )}
+              {draftCount === 0 && publishedCount === 0 && archivedCount === 0 && (
                 <span>Нет постов</span>
               )}
             </p>
@@ -207,6 +218,71 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
           </div>
         </div>
 
+        {/* Brand voice */}
+        <div className="rounded-2xl border border-[#e4eaea] bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-violet-500">
+                <MessageSquareText size={12} />
+                Голос бренда
+              </div>
+              <div className="mt-2 text-sm font-black text-[#233137]">
+                {hasBrandVoice ? (selectedBrand.analyzedChannel?.name || selectedBrand.name) : 'Канал ещё не изучен'}
+              </div>
+              <p className="mt-1 max-w-2xl text-xs leading-relaxed text-[#758084]">
+                {analyzedTone
+                  ? analyzedTone
+                  : 'После анализа здесь появится тон, темы и ограничения, которые TeleGenie учитывает при генерации.'}
+              </p>
+            </div>
+
+            {analyzedTopic && (
+              <div className="shrink-0 rounded-xl bg-[#f8fafa] px-3 py-2 text-right sm:max-w-52">
+                <div className="text-[9px] font-black uppercase tracking-widest text-[#9aaeb5]">Тематика</div>
+                <div className="mt-1 text-xs font-bold leading-snug text-[#233137]">{analyzedTopic}</div>
+              </div>
+            )}
+          </div>
+
+          {(contentPillars.length > 0 || forbiddenPhrases.length > 0 || selectedBrand.positioning) && (
+            <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_0.8fr]">
+              <div>
+                <div className="text-[9px] font-black uppercase tracking-widest text-[#9aaeb5]">Контентные опоры</div>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {contentPillars.length > 0 ? contentPillars.map(pillar => (
+                    <span key={pillar} className="rounded-full bg-violet-50 px-2.5 py-1 text-[10px] font-bold text-violet-700">
+                      {pillar}
+                    </span>
+                  )) : (
+                    <span className="text-xs text-[#9aaeb5]">Пока не определены</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {selectedBrand.positioning && (
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-widest text-[#9aaeb5]">Позиционирование</div>
+                    <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-[#758084]">{selectedBrand.positioning}</p>
+                  </div>
+                )}
+                {forbiddenPhrases.length > 0 && (
+                  <div>
+                    <div className="text-[9px] font-black uppercase tracking-widest text-rose-400">Избегать</div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {forbiddenPhrases.map(phrase => (
+                        <span key={phrase} className="rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-bold text-rose-500">
+                          {phrase}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Secondary actions */}
         <details className="group rounded-2xl border border-[#e8e8e8] bg-white shadow-sm">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-[11px] font-bold text-slate-500">
@@ -264,7 +340,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
           </div>
         </details>
 
-        {brandPosts.length > 0 && (
+        {activeBrandPosts.length > 0 && (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="text-[10px] font-black uppercase tracking-widest text-[#9aaeb5]">Очередь</div>
@@ -280,10 +356,10 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
         )}
 
         {/* Tab filter */}
-        {brandPosts.length > 0 && (
+        {activeBrandPosts.length > 0 && (
           <div className="flex gap-1 bg-white border border-stone-200 p-1 rounded-xl w-fit shadow-sm">
             {([
-              { id: 'all'       as TabFilter, label: 'Все',            count: brandPosts.length },
+              { id: 'all'       as TabFilter, label: 'Все',            count: activeBrandPosts.length },
               { id: 'draft'     as TabFilter, label: 'Черновики',      count: draftCount },
               { id: 'published' as TabFilter, label: 'Опубликованные', count: publishedCount },
             ] as const).map(tab => (
