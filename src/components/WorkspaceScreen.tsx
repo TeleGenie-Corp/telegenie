@@ -22,6 +22,14 @@ function relativeTime(ts: number): string {
   return new Date(ts).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 }
 
+function postPreview(post: PostProject, maxLength = 72): string {
+  const preview = post.text?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+               || post.point?.trim()
+               || 'Пустой черновик';
+
+  return preview.length > maxLength ? `${preview.slice(0, maxLength - 1).trim()}…` : preview;
+}
+
 const goalMeta: Record<PostGoal, { label: string; icon: React.ReactNode; cls: string }> = {
   [PostGoal.SELL]:    { label: 'Продажа',    icon: <Zap size={10} />,        cls: 'bg-stone-100 text-stone-600 border-stone-200' },
   [PostGoal.ENGAGE]:  { label: 'Вовлечение', icon: <TrendingUp size={10} />, cls: 'bg-violet-50 text-violet-600 border-violet-100' },
@@ -72,43 +80,26 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
     if (effectiveTabFilter === 'published') return p.status === 'published';
     return true;
   });
-  const visiblePosts = showAllPosts ? filteredPosts : filteredPosts.slice(0, 6);
-  const hiddenPostCount = filteredPosts.length - visiblePosts.length;
   const mediaDraftCount = brandPosts.filter(p => p.status !== 'published' && !!p.imageUrl).length;
   const staleDraftCount = brandPosts.filter(p => p.status !== 'published' && Date.now() - p.updatedAt > 7 * DAY_MS).length;
   const publishRatio = brandPosts.length ? Math.round((publishedCount / brandPosts.length) * 100) : 0;
   const analyzedTone = selectedBrand?.analyzedChannel?.toneOfVoice || selectedBrand?.analyzedChannel?.context;
-  const nextDraft = brandPosts
+  const draftPosts = brandPosts
     .filter(p => p.status !== 'published')
-    .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+  const nextDraft = draftPosts[0];
+  const queuePosts = effectiveTabFilter === 'draft' && nextDraft
+    ? filteredPosts.filter(p => p.id !== nextDraft.id)
+    : filteredPosts;
+  const visiblePosts = showAllPosts ? queuePosts : queuePosts.slice(0, 6);
+  const hiddenPostCount = queuePosts.length - visiblePosts.length;
   const latestPublished = brandPosts
     .filter(p => p.status === 'published')
     .sort((a, b) => (b.publishedAt || b.updatedAt) - (a.publishedAt || a.updatedAt))[0];
-  const processSteps = [
-    {
-      label: 'Черновики',
-      count: draftCount,
-      hint: nextDraft ? relativeTime(nextDraft.updatedAt) : 'нет хвостов',
-      icon: PenLine,
-      cls: 'bg-[#f5efe7] text-[#7c4a24]',
-      bar: draftCount ? Math.min(100, 24 + draftCount * 12) : 8,
-    },
-    {
-      label: 'С медиа',
-      count: mediaDraftCount,
-      hint: mediaDraftCount ? 'готовы визуально' : 'можно без картинок',
-      icon: ImageIcon,
-      cls: 'bg-violet-50 text-violet-700',
-      bar: mediaDraftCount ? Math.min(100, 24 + mediaDraftCount * 18) : 8,
-    },
-    {
-      label: 'Опубликовано',
-      count: publishedCount,
-      hint: latestPublished ? relativeTime(latestPublished.publishedAt || latestPublished.updatedAt) : 'пока пусто',
-      icon: Send,
-      cls: 'bg-[#e7f4ef] text-[#20664a]',
-      bar: publishedCount ? Math.min(100, 18 + publishedCount * 8) : 8,
-    },
+  const pulseMetrics = [
+    { label: 'Черновики', value: draftCount, hint: nextDraft ? relativeTime(nextDraft.updatedAt) : 'нет хвостов' },
+    { label: 'С медиа', value: mediaDraftCount, hint: mediaDraftCount ? 'готовы визуально' : 'без медиа' },
+    { label: 'Выпущено', value: `${publishRatio}%`, hint: latestPublished ? relativeTime(latestPublished.publishedAt || latestPublished.updatedAt) : 'пока пусто' },
   ];
 
   // ── render ────────────────────────────────────────────────────────────────
@@ -156,58 +147,62 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
           </div>
         </div>
 
-        {/* Visual process map */}
-        <div className="overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-sm">
-          <div className="grid gap-0 lg:grid-cols-[1fr_240px]">
-            <div className="p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[#9aaeb5]">Карта процесса</div>
-                  <h3 className="mt-1 text-base font-black tracking-tight text-[#233137]">Где сейчас живут ваши посты</h3>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-black text-[#233137]">{publishRatio}%</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-[#9aaeb5]">выпущено</div>
-                </div>
-              </div>
+        {/* Today's focus */}
+        <div className="overflow-hidden rounded-2xl border border-[#dfe6e6] bg-[#233137] text-white shadow-sm">
+          <div className="grid gap-0 lg:grid-cols-[1fr_280px]">
+            <div className="p-5">
+              <div className="text-[10px] font-black uppercase tracking-widest text-white/45">Сегодняшний фокус</div>
+              <h3 className="mt-2 max-w-2xl text-2xl font-black leading-tight tracking-tight">
+                {nextDraft ? postPreview(nextDraft, 94) : 'Начните один пост, а TeleGenie соберёт структуру дальше'}
+              </h3>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/65">
+                {staleDraftCount > 0
+                  ? `${staleDraftCount} старых черновиков создают шум. Начните с самого свежего и решите: дописать или убрать.`
+                  : nextDraft
+                    ? 'Это ближайшая точка продолжения: один черновик, одно действие, без выбора из всего списка.'
+                    : 'Пока нет черновиков. Достаточно одной мысли — дальше появится очередь и фокус дня.'}
+              </p>
 
-              <div className="relative mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="absolute left-[16%] right-[16%] top-8 hidden h-px bg-[#e8e8e8] sm:block" />
-                {processSteps.map((step) => (
-                  <div key={step.label} className="relative rounded-xl border border-slate-100 bg-[#f8fafa] p-3">
-                    <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${step.cls}`}>
-                      <step.icon size={17} />
-                    </div>
-                    <div className="text-2xl font-black text-[#233137]">{step.count}</div>
-                    <div className="mt-0.5 text-xs font-black text-[#233137]">{step.label}</div>
-                    <div className="mt-1 truncate text-[10px] text-[#758084]">{step.hint}</div>
-                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white">
-                      <div className="h-full rounded-full bg-[#233137]" style={{ width: `${step.bar}%` }} />
-                    </div>
+              <button
+                onClick={() => nextDraft ? onSelectPost(nextDraft) : onCreatePost(selectedBrand.id)}
+                className="mt-5 inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-xs font-black uppercase tracking-widest text-[#233137] transition-all hover:bg-violet-50 active:scale-95"
+              >
+                {nextDraft ? 'Открыть и дописать' : 'Начать пост'}
+                <ArrowRight size={14} />
+              </button>
+
+              <div className="mt-5 grid grid-cols-3 gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
+                {pulseMetrics.map((metric) => (
+                  <div key={metric.label} className="min-w-0 px-2 py-1.5">
+                    <div className="truncate text-[10px] font-bold uppercase tracking-wider text-white/40">{metric.label}</div>
+                    <div className="mt-0.5 text-lg font-black text-white">{metric.value}</div>
+                    <div className="truncate text-[10px] text-white/45">{metric.hint}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="border-t border-[#e8e8e8] bg-[#233137] p-4 text-white lg:border-l lg:border-t-0">
-              <div className="text-[10px] font-black uppercase tracking-widest text-white/45">Фокус</div>
-              <div className="mt-2 text-lg font-black leading-tight">
-                {nextDraft ? 'Один черновик ближе всего к выпуску' : 'Пора завести свежую мысль'}
+            <div className="border-t border-white/10 bg-white/[0.04] p-4 lg:border-l lg:border-t-0">
+              <div className="relative h-full min-h-56 overflow-hidden rounded-xl bg-white/8">
+                {nextDraft?.imageUrl ? (
+                  <img src={nextDraft.imageUrl} alt="" className="h-full min-h-56 w-full object-cover" />
+                ) : (
+                  <div className="flex h-full min-h-56 items-center justify-center">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-white/10 text-white/55">
+                      <PenLine size={30} />
+                    </div>
+                  </div>
+                )}
+                <div className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-[#233137]">
+                  {nextDraft ? 'Черновик' : 'Новый пост'}
+                </div>
+                {nextDraft && (
+                  <div className="absolute bottom-3 left-3 right-3 rounded-xl bg-[#233137]/85 p-3 backdrop-blur">
+                    <div className="text-[10px] font-black uppercase tracking-widest text-white/45">Последнее касание</div>
+                    <div className="mt-1 text-sm font-black">{relativeTime(nextDraft.updatedAt)}</div>
+                  </div>
+                )}
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-white/65">
-                {staleDraftCount > 0
-                  ? `${staleDraftCount} старых черновиков лучше дописать или убрать.`
-                  : nextDraft
-                    ? 'Откройте последний черновик, доведите финал и выпускайте.'
-                    : 'Начните с одной мысли — структуру и тон TeleGenie соберёт дальше.'}
-              </p>
-              <button
-                onClick={() => nextDraft ? onSelectPost(nextDraft) : onCreatePost(selectedBrand.id)}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-3 py-2.5 text-xs font-black uppercase tracking-widest text-[#233137] transition-all hover:bg-violet-50 active:scale-95"
-              >
-                {nextDraft ? 'Открыть черновик' : 'Начать пост'}
-                <ArrowRight size={13} />
-              </button>
             </div>
           </div>
         </div>
@@ -269,6 +264,21 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
           </div>
         </details>
 
+        {brandPosts.length > 0 && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-widest text-[#9aaeb5]">Очередь</div>
+              <div className="mt-0.5 text-sm font-black text-[#233137]">
+                {effectiveTabFilter === 'draft'
+                  ? `${queuePosts.length} ${queuePosts.length === 1 ? 'черновик ждёт' : queuePosts.length < 5 ? 'черновика ждут' : 'черновиков ждут'} после фокуса`
+                  : effectiveTabFilter === 'published'
+                    ? 'Архив выпущенных постов'
+                    : 'Все материалы канала'}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tab filter */}
         {brandPosts.length > 0 && (
           <div className="flex gap-1 bg-white border border-stone-200 p-1 rounded-xl w-fit shadow-sm">
@@ -325,10 +335,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
               const status     = statusConfig[post.status];
               const StatusIcon = status.icon;
               const goal       = post.goal ? goalMeta[post.goal] : null;
-              const preview    = post.text?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-                              || post.point?.trim()
-                              || 'Пустой черновик';
-              const shortPreview = preview.length > 72 ? `${preview.slice(0, 69).trim()}…` : preview;
+              const shortPreview = postPreview(post);
               const isDeletable = post.status !== 'published';
 
               return (
