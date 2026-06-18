@@ -7,7 +7,7 @@ import {
   MessageCircle, Send, Wand2, Settings,
   MessageSquareQuote, Check, ShieldCheck
 } from 'lucide-react';
-import { PostGoal, IMAGE_MODEL_OPTIONS } from '@/types';
+import { DEFAULT_IMAGE_MODEL, PostGoal, IMAGE_MODEL_OPTIONS } from '@/types';
 
 // --- Stores ---
 import { useAuthStore } from '@/src/stores/authStore';
@@ -603,7 +603,7 @@ export default function Home() {
                         <div className="mt-3">
                           <label className="text-[10px] uppercase tracking-widest text-violet-500 mb-2 block">Модель изображения</label>
                           <select
-                            value={strategy.imageModel || 'flux/dev'}
+                            value={strategy.imageModel || DEFAULT_IMAGE_MODEL}
                             onChange={(e) => setStrategy(s => ({...s, imageModel: e.target.value as any}))}
                             className="w-full bg-white border border-violet-100 text-sm text-[#233137] rounded-lg p-2.5 outline-none focus:border-violet-300"
                           >
@@ -614,7 +614,7 @@ export default function Home() {
                         </div>
                       </details>
 
-                      {strategy.imageModel === 'nano-banana-2' && (
+                      {(strategy.imageModel || DEFAULT_IMAGE_MODEL) !== 'flux/dev' && (
                         <div className="space-y-2">
                           <label className="flex items-start gap-2 text-sm text-[#233137] cursor-pointer">
                             <input

@@ -31,12 +31,14 @@ export interface FalImageGenerationOptions {
 }
 
 const MODEL_ENDPOINTS: Record<ImageModel, string[]> = {
+  'gpt-image-2': ['openai/gpt-image-2', 'fal-ai/nano-banana-2', 'xai/grok-imagine-image', 'fal-ai/flux/dev', 'fal-ai/flux/schnell'],
   'flux/dev': ['fal-ai/flux/dev', 'fal-ai/flux/schnell'],
   'nano-banana-2': ['fal-ai/nano-banana-2', 'fal-ai/flux/dev', 'fal-ai/flux/schnell'],
   'grok-imagine-image': ['xai/grok-imagine-image', 'fal-ai/flux/dev', 'fal-ai/flux/schnell'],
 };
 
 const MODEL_USAGE_KEYS: Record<ImageModel, string> = {
+  'gpt-image-2': 'gpt-image-2',
   'flux/dev': 'flux-dev',
   'nano-banana-2': 'nano-banana-2',
   'grok-imagine-image': 'grok-imagine-image',
@@ -96,6 +98,8 @@ export class FalImageService {
           ? MODEL_USAGE_KEYS['nano-banana-2']
           : endpoint.includes('grok-imagine-image')
             ? MODEL_USAGE_KEYS['grok-imagine-image']
+            : endpoint.includes('gpt-image-2')
+              ? MODEL_USAGE_KEYS['gpt-image-2']
             : MODEL_USAGE_KEYS['flux/dev'];
         const usage = CostCalculator.createFalImageUsageMetadata(images.length, usageKey);
         return { images, usage, rawResponses };
@@ -113,11 +117,87 @@ export class FalImageService {
 
     const textInstruction = `Include this readable on-image text as a central overlay or caption: "${overlay}".`;
 
-    if (model === 'nano-banana-2' || model === 'grok-imagine-image') {
+    if (model === 'gpt-image-2' || model === 'nano-banana-2' || model === 'grok-imagine-image') {
       return `${prompt}\n\n${textInstruction}`;
     }
 
     return `${prompt}\n\nIf it fits naturally, incorporate the following text into the composition: "${overlay}".`;
+  }
+
+  private static toAspectRatio(imageSize: string): string {
+    const aspectRatios: Record<string, string> = {
+      square: '1:1',
+      square_hd: '1:1',
+      portrait_4_3: '3:4',
+      portrait_16_9: '9:16',
+      landscape_4_3: '4:3',
+      landscape_16_9: '16:9',
+    };
+
+    return aspectRatios[imageSize] || '1:1';
+  }
+
+  private static toGptImageSize(imageSize: string): string | { width: number; height: number } {
+    const imageSizes: Record<string, string | { width: number; height: number }> = {
+      square: { width: 1024, height: 1024 },
+      square_hd: { width: 1024, height: 1024 },
+      portrait_4_3: { width: 1024, height: 1360 },
+      portrait_16_9: { width: 1024, height: 1792 },
+      landscape_4_3: 'landscape_4_3',
+      landscape_16_9: { width: 1792, height: 1024 },
+    };
+
+    return imageSizes[imageSize] || { width: 1024, height: 1024 };
+  }
+
+  private static buildRequestBody(
+    prompt: string,
+    seed: number,
+    imageSize: string,
+    enableSafetyChecker: boolean,
+    endpoint: string
+  ): Record<string, unknown> {
+    if (endpoint.includes('gpt-image-2')) {
+      return {
+        prompt,
+        image_size: this.toGptImageSize(imageSize),
+        quality: 'high',
+        num_images: 1,
+        output_format: 'png',
+      };
+    }
+
+    if (endpoint.includes('nano-banana-2')) {
+      return {
+        prompt,
+        seed,
+        aspect_ratio: this.toAspectRatio(imageSize),
+        resolution: '1K',
+        safety_tolerance: enableSafetyChecker ? '4' : '6',
+        limit_generations: true,
+        num_images: 1,
+        output_format: 'png',
+      };
+    }
+
+    if (endpoint.includes('grok-imagine-image')) {
+      return {
+        prompt,
+        aspect_ratio: this.toAspectRatio(imageSize),
+        resolution: '1k',
+        num_images: 1,
+        output_format: 'jpeg',
+      };
+    }
+
+    return {
+      prompt,
+      seed,
+      image_size: imageSize,
+      enable_safety_checker: enableSafetyChecker,
+      num_images: 1,
+      sync_mode: true,
+    };
   }
 
   /**
@@ -143,14 +223,7 @@ export class FalImageService {
           'Authorization': `Key ${this.getApiKey()}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          prompt,
-          seed,
-          image_size: imageSize,
-          enable_safety_checker: enableSafetyChecker,
-          num_images: 1,
-          sync_mode: true,
-        }),
+        body: JSON.stringify(this.buildRequestBody(prompt, seed, imageSize, enableSafetyChecker, endpoint)),
         signal: controller.signal,
       });
 

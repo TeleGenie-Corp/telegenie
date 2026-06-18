@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ChannelStrategy, Idea, Post, PostGoal, PostFormat, PipelineState, GenerationConfig, PostProject } from '../../types';
+import { ChannelStrategy, DEFAULT_IMAGE_MODEL, Idea, Post, PostGoal, PostFormat, PipelineState, GenerationConfig, PostProject, normalizeImageModel } from '../../types';
 import { PostGenerationService } from '../../services/postGenerationService';
 import { analyzeChannelAction, generateIdeasAction, polishContentAction, generatePostSuggestionsAction } from '@/app/actions/gemini';
 import { BillingService } from '../../services/billingService';
@@ -12,6 +12,8 @@ import { useUIStore } from './uiStore';
 
 let saveTimeout: ReturnType<typeof setTimeout> | null = null;
 const LOCAL_PROJECT_PREFIX = 'local-';
+const STRATEGY_STORAGE_KEY = 'telegenie_strategy_v12';
+const LEGACY_STRATEGY_STORAGE_KEY = 'telegenie_strategy_v11';
 const materializingProjects = new Map<string, Promise<PostProject>>();
 
 interface EditorState {
@@ -54,8 +56,14 @@ interface EditorState {
 
 const loadStrategy = (): ChannelStrategy => {
   try {
-    const saved = typeof window !== 'undefined' ? localStorage.getItem('telegenie_strategy_v11') : null;
+    const saved = typeof window !== 'undefined'
+      ? localStorage.getItem(STRATEGY_STORAGE_KEY) || localStorage.getItem(LEGACY_STRATEGY_STORAGE_KEY)
+      : null;
     const parsed = saved ? JSON.parse(saved) : null;
+    const imageModel = parsed?.imageModel === 'flux/dev'
+      ? DEFAULT_IMAGE_MODEL
+      : normalizeImageModel(parsed?.imageModel);
+
     return {
       id: parsed?.id || Math.random().toString(36).substr(2, 9),
       channelUrl: parsed?.channelUrl || '',
@@ -63,7 +71,7 @@ const loadStrategy = (): ChannelStrategy => {
       format: PostFormat.LIST,
       userComments: '',
       withImage: false,
-      imageModel: parsed?.imageModel || 'flux/dev',
+      imageModel,
       imageTextEnabled: parsed?.imageTextEnabled || false,
       imageTextPrompt: parsed?.imageTextPrompt || '',
     };
@@ -75,7 +83,7 @@ const loadStrategy = (): ChannelStrategy => {
       format: PostFormat.LIST,
       userComments: '',
       withImage: false,
-      imageModel: 'flux/dev',
+      imageModel: DEFAULT_IMAGE_MODEL,
       imageTextEnabled: false,
     };
   }
@@ -148,7 +156,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     if (next.channelUrl !== s.strategy.channelUrl) {
       next.analyzedChannel = undefined;
     }
-    if (next.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(next));
+    if (next.channelUrl.trim()) localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(next));
     return { strategy: next };
   }),
 
@@ -193,7 +201,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     // Persist strategy
     const { strategy } = get();
-    if (strategy.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(strategy));
+    if (strategy.channelUrl.trim()) localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(strategy));
 
     // Sync fresh data from Firestore
     const user = useAuthStore.getState().user;
@@ -233,7 +241,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         const { info, usage } = await analyzeChannelAction(strategy.channelUrl);
         currentStrategy = { ...strategy, analyzedChannel: info, analysisUsage: usage };
         set({ strategy: currentStrategy, analyzing: false });
-        if (currentStrategy.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(currentStrategy));
+        if (currentStrategy.channelUrl.trim()) localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(currentStrategy));
 
         // Persist analysis to brand in Firestore so insights survive sessions
         const user = useAuthStore.getState().user;
@@ -305,7 +313,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         const { info, usage } = await analyzeChannelAction(strategy.channelUrl);
         currentStrategy = { ...strategy, analyzedChannel: info, analysisUsage: usage };
         set({ strategy: currentStrategy, analyzing: false });
-        if (currentStrategy.channelUrl.trim()) localStorage.setItem('telegenie_strategy_v11', JSON.stringify(currentStrategy));
+        if (currentStrategy.channelUrl.trim()) localStorage.setItem(STRATEGY_STORAGE_KEY, JSON.stringify(currentStrategy));
         const user = useAuthStore.getState().user;
         const { currentBrand } = useWorkspaceStore.getState();
         if (user && currentBrand && info) {

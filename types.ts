@@ -15,7 +15,7 @@ export enum PostFormat {
 
 export type PostIntent = 'value' | 'engagement' | 'sales';
 
-export type ImageModel = 'flux/dev' | 'nano-banana-2' | 'grok-imagine-image';
+export type ImageModel = 'gpt-image-2' | 'nano-banana-2' | 'grok-imagine-image' | 'flux/dev';
 
 export type ImageTextMode = 'auto' | 'custom';
 
@@ -25,28 +25,31 @@ export interface ImageGenerationPreferences {
   textPrompt?: string;
 }
 
-export const DEFAULT_IMAGE_MODEL: ImageModel = 'flux/dev';
+export const DEFAULT_IMAGE_MODEL: ImageModel = 'gpt-image-2';
 
 export const IMAGE_MODEL_OPTIONS: { value: ImageModel; label: string; description: string }[] = [
-  { value: 'flux/dev', label: 'Flux Dev', description: 'Default. Balanced quality and speed.' },
-  { value: 'nano-banana-2', label: 'Nano Banana 2', description: 'Higher fidelity, supports text overlay.' },
-  { value: 'grok-imagine-image', label: 'Grok Imagine', description: 'Very fast preview generation.' },
+  { value: 'gpt-image-2', label: 'GPT Image 2', description: 'Best default for editorial visuals and readable text.' },
+  { value: 'nano-banana-2', label: 'Nano Banana 2', description: 'High fidelity and strong text rendering.' },
+  { value: 'grok-imagine-image', label: 'Grok Imagine', description: 'Fast, aesthetic preview generation.' },
+  { value: 'flux/dev', label: 'Flux Dev', description: 'Reliable fallback.' },
 ];
 
 export const IMAGE_MODEL_LABELS: Record<ImageModel, string> = {
+  'gpt-image-2': 'GPT Image 2',
   'flux/dev': 'Flux Dev',
   'nano-banana-2': 'Nano Banana 2',
   'grok-imagine-image': 'Grok Imagine',
 };
 
 export const IMAGE_MODEL_SPEED_HINTS: Record<ImageModel, string> = {
+  'gpt-image-2': 'Best',
   'flux/dev': 'Default',
   'nano-banana-2': 'Quality',
   'grok-imagine-image': 'Fast',
 };
 
 export const normalizeImageModel = (value?: string | null): ImageModel => {
-  if (value === 'nano-banana-2' || value === 'grok-imagine-image' || value === 'flux/dev') {
+  if (value === 'gpt-image-2' || value === 'nano-banana-2' || value === 'grok-imagine-image' || value === 'flux/dev') {
     return value;
   }
   return DEFAULT_IMAGE_MODEL;

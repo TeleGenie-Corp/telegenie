@@ -26,8 +26,9 @@ export class CostCalculator {
     // Fal.ai image generation
     falFluxDev: 0.035,    // ~$0.035 per image
     falFluxSchnell: 0.003, // ~$0.003 per image
-    falNanoBanana2: 0.05,  // quality model, slightly above Flux Dev
-    falGrokImagineImage: 0.04 // fast preview model
+    falNanoBanana2: 0.08,  // quality model, priced per image on fal.ai
+    falGrokImagineImage: 0.02, // fast preview model
+    falGptImage2: 0.08 // approximate; actual cost depends on tokenized image size and quality
   };
 
   /**
@@ -109,6 +110,8 @@ export class CostCalculator {
 
     if (modelName.includes('schnell')) {
       costPerImage = this.PRICING.falFluxSchnell;
+    } else if (modelName.includes('gpt-image-2')) {
+      costPerImage = this.PRICING.falGptImage2;
     } else if (modelName.includes('nano-banana-2')) {
       costPerImage = this.PRICING.falNanoBanana2;
     } else if (modelName.includes('grok-imagine-image')) {
