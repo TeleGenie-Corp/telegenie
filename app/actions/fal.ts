@@ -7,6 +7,32 @@ import { FalImageService } from '@/services/falImageService';
 import { GeminiService } from '@/services/geminiService';
 import { ChannelStrategy, buildImageTextPrompt, normalizeImageModel } from '@/types';
 
+function getImageFileMetadata(imageData: Buffer): { extension: string; contentType: string } {
+  if (
+    imageData.length >= 8 &&
+    imageData[0] === 0x89 &&
+    imageData[1] === 0x50 &&
+    imageData[2] === 0x4e &&
+    imageData[3] === 0x47
+  ) {
+    return { extension: 'png', contentType: 'image/png' };
+  }
+
+  if (imageData.length >= 3 && imageData[0] === 0xff && imageData[1] === 0xd8 && imageData[2] === 0xff) {
+    return { extension: 'jpg', contentType: 'image/jpeg' };
+  }
+
+  if (
+    imageData.length >= 12 &&
+    imageData.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    imageData.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return { extension: 'webp', contentType: 'image/webp' };
+  }
+
+  return { extension: 'png', contentType: 'image/png' };
+}
+
 /**
  * Server Action: Загружает изображение с fal.ai URL в Firebase Storage.
  */
@@ -17,15 +43,16 @@ export async function uploadFalImageToStorage(
 ): Promise<{ success: boolean; storageUrl?: string; error?: string }> {
   try {
     const imageData = await FalImageService.downloadImage(imageUrl);
+    const { extension, contentType } = getImageFileMetadata(imageData);
     const storage = getStorage(adminApp).bucket();
     const timestamp = Date.now();
-    const filePath = `posts/${userId}/${postId}_${timestamp}.jpg`;
+    const filePath = `posts/${userId}/${postId}_${timestamp}.${extension}`;
     const file = storage.file(filePath);
     const downloadToken = randomUUID();
 
     await file.save(imageData, {
       metadata: {
-        contentType: 'image/jpeg',
+        contentType,
         metadata: {
           firebaseStorageDownloadTokens: downloadToken,
           source: 'fal.ai',
