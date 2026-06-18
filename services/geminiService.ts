@@ -391,7 +391,7 @@ Rules:
 3. Match the visual style to the channel's tone and subject matter.
 4. Prefer lived-in, documentary, imperfect, founder/operator details over glossy stock-photo perfection.
 5. Include 2-4 concrete visual anchors from the post.
-6. Avoid readable text, watermarks, brand logos, fake app names, and literal Telegram logos. Abstract interface shapes are allowed.
+6. Avoid all readable or semi-readable text: no words, no letters, no fake UI labels, no handwritten phrases, no visible markdown/code, no watermarks, no brand logos, and no literal Telegram logos. Use abstract marks, blurred blocks, red edit strokes, and interface shapes instead.
 7. Avoid generic AI cliches: glowing brain, robot hand, perfect glass office, blue-purple neon dashboard, floating icons, faceless corporate people, stock-photo handshake.
 8. Return ONLY the prompt text, no explanations, no markdown.`;
 
@@ -421,7 +421,7 @@ ${postText.substring(0, 2000)}
 Generate a detailed English image prompt that visually represents this post.
 Make it suitable for a Telegram post illustration.
 Do not make it too perfect, futuristic, or generic.
-No readable text in the image. No logos.`;
+No readable text in the image. No letters or words anywhere, including on paper, screens, sticky notes, books, or UI. Use abstract scribbles, red edit marks, blurred blocks, and visual structure instead. No logos.`;
 
     const response = await ai.models.generateContent({
       model,
@@ -434,7 +434,7 @@ No readable text in the image. No logos.`;
 
     // Fallback if generation fails
     if (!generatedPrompt || generatedPrompt.length < 20) {
-      const fallback = `Editorial documentary-style illustration for Telegram channel "${channelName}" about ${channelTopic}. A lived-in founder workspace with rough notes, drafts, simple process diagrams, and abstract product interface shapes; grounded and practical, matching a ${channelTone} tone. Avoid glossy stock-photo perfection, neon AI cliches, readable text, logos, and generic corporate scenes.`;
+      const fallback = `Editorial documentary-style illustration for Telegram channel "${channelName}" about ${channelTopic}. A lived-in founder workspace with rough notes, drafts, simple process diagrams, and abstract product interface shapes; grounded and practical, matching a ${channelTone} tone. Use only abstract marks and blurred blocks on paper or screens, with no letters or readable words. Avoid glossy stock-photo perfection, neon AI cliches, logos, and generic corporate scenes.`;
       return { prompt: fallback, usage };
     }
 
