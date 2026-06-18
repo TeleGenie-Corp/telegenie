@@ -35,6 +35,8 @@ const statusConfig = {
   archived:  { icon: Archive, color: 'text-stone-400',  bg: 'bg-stone-50',   label: 'Архив'       },
 };
 
+const DAY_MS = 86_400_000;
+
 type TabFilter = 'all' | 'draft' | 'published';
 
 // ─── props ────────────────────────────────────────────────────────────────────
@@ -69,10 +71,42 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
 
   const draftCount     = brandPosts.filter(p => p.status !== 'published').length;
   const publishedCount = brandPosts.filter(p => p.status === 'published').length;
+  const mediaDraftCount = brandPosts.filter(p => p.status !== 'published' && !!p.imageUrl).length;
+  const staleDraftCount = brandPosts.filter(p => p.status !== 'published' && Date.now() - p.updatedAt > 7 * DAY_MS).length;
+  const publishRatio = brandPosts.length ? Math.round((publishedCount / brandPosts.length) * 100) : 0;
   const analyzedTone = selectedBrand?.analyzedChannel?.toneOfVoice || selectedBrand?.analyzedChannel?.context;
   const nextDraft = brandPosts
     .filter(p => p.status !== 'published')
     .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+  const latestPublished = brandPosts
+    .filter(p => p.status === 'published')
+    .sort((a, b) => (b.publishedAt || b.updatedAt) - (a.publishedAt || a.updatedAt))[0];
+  const processSteps = [
+    {
+      label: 'Черновики',
+      count: draftCount,
+      hint: nextDraft ? relativeTime(nextDraft.updatedAt) : 'нет хвостов',
+      icon: PenLine,
+      cls: 'bg-[#f5efe7] text-[#7c4a24]',
+      bar: draftCount ? Math.min(100, 24 + draftCount * 12) : 8,
+    },
+    {
+      label: 'С медиа',
+      count: mediaDraftCount,
+      hint: mediaDraftCount ? 'готовы визуально' : 'можно без картинок',
+      icon: ImageIcon,
+      cls: 'bg-violet-50 text-violet-700',
+      bar: mediaDraftCount ? Math.min(100, 24 + mediaDraftCount * 18) : 8,
+    },
+    {
+      label: 'Опубликовано',
+      count: publishedCount,
+      hint: latestPublished ? relativeTime(latestPublished.publishedAt || latestPublished.updatedAt) : 'пока пусто',
+      icon: Send,
+      cls: 'bg-[#e7f4ef] text-[#20664a]',
+      bar: publishedCount ? Math.min(100, 18 + publishedCount * 8) : 8,
+    },
+  ];
 
   // ── render ────────────────────────────────────────────────────────────────
 
@@ -127,6 +161,62 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
           </button>
         </div>
 
+        {/* Visual process map */}
+        <div className="overflow-hidden rounded-2xl border border-[#e8e8e8] bg-white shadow-sm">
+          <div className="grid gap-0 lg:grid-cols-[1fr_240px]">
+            <div className="p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[#9aaeb5]">Карта процесса</div>
+                  <h3 className="mt-1 text-base font-black tracking-tight text-[#233137]">Где сейчас живут ваши посты</h3>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-black text-[#233137]">{publishRatio}%</div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-[#9aaeb5]">выпущено</div>
+                </div>
+              </div>
+
+              <div className="relative mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="absolute left-[16%] right-[16%] top-8 hidden h-px bg-[#e8e8e8] sm:block" />
+                {processSteps.map((step) => (
+                  <div key={step.label} className="relative rounded-xl border border-slate-100 bg-[#f8fafa] p-3">
+                    <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${step.cls}`}>
+                      <step.icon size={17} />
+                    </div>
+                    <div className="text-2xl font-black text-[#233137]">{step.count}</div>
+                    <div className="mt-0.5 text-xs font-black text-[#233137]">{step.label}</div>
+                    <div className="mt-1 truncate text-[10px] text-[#758084]">{step.hint}</div>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white">
+                      <div className="h-full rounded-full bg-[#233137]" style={{ width: `${step.bar}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-[#e8e8e8] bg-[#233137] p-4 text-white lg:border-l lg:border-t-0">
+              <div className="text-[10px] font-black uppercase tracking-widest text-white/45">Фокус</div>
+              <div className="mt-2 text-lg font-black leading-tight">
+                {nextDraft ? 'Один черновик ближе всего к выпуску' : 'Пора завести свежую мысль'}
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-white/65">
+                {staleDraftCount > 0
+                  ? `${staleDraftCount} старых черновиков лучше дописать или убрать.`
+                  : nextDraft
+                    ? 'Откройте последний черновик, доведите финал и выпускайте.'
+                    : 'Начните с одной мысли — структуру и тон TeleGenie соберёт дальше.'}
+              </p>
+              <button
+                onClick={() => nextDraft ? onSelectPost(nextDraft) : onCreatePost(selectedBrand.id)}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-3 py-2.5 text-xs font-black uppercase tracking-widest text-[#233137] transition-all hover:bg-violet-50 active:scale-95"
+              >
+                {nextDraft ? 'Открыть черновик' : 'Начать пост'}
+                <ArrowRight size={13} />
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Guided next step */}
         <div className="bg-white border border-[#e8e8e8] rounded-2xl p-4 shadow-sm">
           <div className="flex flex-col lg:flex-row lg:items-center gap-4 justify-between">
@@ -140,7 +230,7 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
               </h3>
               <p className="text-xs text-[#758084] mt-1 leading-relaxed">
                 {analyzedTone
-                  ? `TeleGenie уже уловил тон: ${analyzedTone.slice(0, 110)}${analyzedTone.length > 110 ? '…' : ''}`
+                  ? 'Голос канала учтён. Можно сразу писать.'
                   : 'Добавьте анализ канала, и посты будут звучать ближе к вашему авторскому голосу.'}
               </p>
             </div>
@@ -162,25 +252,31 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-4">
-            {[
-              { icon: PenLine, title: 'Личный инсайт', text: 'история из практики с выводом' },
-              { icon: BookOpen, title: 'Полезный разбор', text: 'объяснить сложное простым языком' },
-              { icon: Send, title: 'Мягкая продажа', text: 'прогреть к продукту без давления' },
-            ].map((idea) => (
-              <button
-                key={idea.title}
-                onClick={() => onCreatePost(selectedBrand.id)}
-                className="text-left rounded-xl border border-slate-100 bg-[#f8fafa] hover:bg-violet-50 hover:border-violet-200 p-3 transition-all group"
-              >
-                <div className="flex items-center gap-2 text-xs font-black text-[#233137]">
-                  <idea.icon size={13} className="text-[#9aaeb5] group-hover:text-violet-500" />
-                  {idea.title}
-                </div>
-                <div className="text-[11px] text-[#758084] mt-1">{idea.text}</div>
-              </button>
-            ))}
-          </div>
+          <details className="group mt-4 rounded-xl border border-slate-100 bg-[#f8fafa]">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2 text-[11px] font-bold text-slate-500">
+              <span>Шаблоны для старта</span>
+              <span className="text-slate-300 transition-transform group-open:rotate-45">+</span>
+            </summary>
+            <div className="hidden grid-cols-1 gap-2 px-3 pb-3 group-open:grid sm:grid-cols-3">
+              {[
+                { icon: PenLine, title: 'Личный инсайт', text: 'история из практики с выводом' },
+                { icon: BookOpen, title: 'Полезный разбор', text: 'объяснить сложное простым языком' },
+                { icon: Send, title: 'Мягкая продажа', text: 'прогреть к продукту без давления' },
+              ].map((idea) => (
+                <button
+                  key={idea.title}
+                  onClick={() => onCreatePost(selectedBrand.id)}
+                  className="text-left rounded-xl border border-slate-100 bg-white hover:bg-violet-50 hover:border-violet-200 p-3 transition-all group"
+                >
+                  <div className="flex items-center gap-2 text-xs font-black text-[#233137]">
+                    <idea.icon size={13} className="text-[#9aaeb5] group-hover:text-violet-500" />
+                    {idea.title}
+                  </div>
+                  <div className="text-[11px] text-[#758084] mt-1">{idea.text}</div>
+                </button>
+              ))}
+            </div>
+          </details>
         </div>
 
         {/* Tab filter */}
@@ -235,9 +331,10 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
               const status     = statusConfig[post.status];
               const StatusIcon = status.icon;
               const goal       = post.goal ? goalMeta[post.goal] : null;
-              const preview    = post.text?.replace(/<[^>]+>/g, '').slice(0, 120)
-                              || post.point
+              const preview    = post.text?.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+                              || post.point?.trim()
                               || 'Пустой черновик';
+              const shortPreview = preview.length > 72 ? `${preview.slice(0, 69).trim()}…` : preview;
               const isDeletable = post.status !== 'published';
 
               return (
@@ -252,45 +349,56 @@ export const WorkspaceScreen: React.FC<WorkspaceScreenProps> = ({
                   }}
                   role="button"
                   tabIndex={0}
-                  className="group relative bg-white border border-slate-200 rounded-2xl p-4 hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100/60 cursor-pointer transition-all"
+                  className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white hover:border-violet-300 hover:shadow-lg hover:shadow-violet-100/60 cursor-pointer transition-all"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-8 h-8 rounded-lg ${status.bg} ${status.color} flex items-center justify-center shrink-0`}>
-                      <StatusIcon size={14} />
-                    </div>
-                    <div className="flex-1 min-w-0 pr-5">
-                      <div className="text-xs font-bold text-slate-900 line-clamp-2 leading-relaxed">
-                        {preview}
+                  <div className="relative h-28 bg-[#f8fafa]">
+                    {post.imageUrl ? (
+                      <img src={post.imageUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${status.bg} ${status.color}`}>
+                          <StatusIcon size={20} />
+                        </div>
                       </div>
+                    )}
+                    <div className="absolute left-3 top-3 flex items-center gap-2">
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wider ${post.status === 'published' ? 'bg-slate-900 text-white' : 'bg-white/90 text-slate-700'}`}>
+                        <StatusIcon size={10} />
+                        {status.label}
+                      </span>
                     </div>
+                    <ArrowRight
+                      size={15}
+                      className={`absolute right-3 top-3 drop-shadow-sm transition-transform group-hover:translate-x-0.5 ${post.imageUrl ? 'text-white' : 'text-slate-300'}`}
+                    />
                   </div>
 
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center gap-2">
-                      {goal && (
-                        <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${goal.cls}`}>
-                          {goal.icon} {goal.label}
-                        </span>
-                      )}
-                      {post.imageUrl && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full border bg-violet-50 text-violet-600 border-violet-100">
-                          <ImageIcon size={10} /> Медиа
-                        </span>
-                      )}
-                      <span className={`text-[9px] font-bold ${status.color}`}>{status.label}</span>
+                  <div className="p-3">
+                    <div className="min-h-[42px] text-xs font-bold leading-relaxed text-slate-900 line-clamp-2">
+                      {shortPreview}
                     </div>
-                    <span className="text-[9px] text-slate-400">{relativeTime(post.updatedAt)}</span>
-                  </div>
 
-                  <ArrowRight
-                    size={14}
-                    className="absolute top-4 right-4 text-slate-200 group-hover:text-violet-400 transition-colors"
-                  />
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        {goal && (
+                          <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-bold ${goal.cls}`}>
+                            {goal.icon} {goal.label}
+                          </span>
+                        )}
+                        {post.imageUrl && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-violet-100 bg-violet-50 px-1.5 py-0.5 text-[9px] font-bold text-violet-600">
+                            <ImageIcon size={10} /> Медиа
+                          </span>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-[9px] text-slate-400">{relativeTime(post.updatedAt)}</span>
+                    </div>
+                  </div>
 
                   {isDeletable && (
                     <button
                       onClick={e => { e.stopPropagation(); onDeletePost(post.id); }}
-                      className="absolute bottom-3 right-3 p-1.5 rounded-lg text-slate-200 hover:text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all"
+                      className="absolute bottom-3 right-3 rounded-lg bg-white/90 p-1.5 text-slate-300 opacity-0 shadow-sm transition-all hover:bg-rose-50 hover:text-rose-500 group-hover:opacity-100"
                       title="Удалить"
                     >
                       <Trash2 size={12} />
