@@ -628,8 +628,6 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     if (!currentPost || !currentPost.imagePrompt || !user || !currentProject) return;
 
-    if (!strategy.withImage) return;
-
     set({ pipelineState: { stage: 'generating_image', progress: 50, currentTask: 'Перегенерация изображений...' } });
 
     try {
